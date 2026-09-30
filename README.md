@@ -35,8 +35,9 @@ Para usar una **base de datos real y compartida entre varias PCs**:
 5. Reinicie `npm run dev`. La barra superior mostrará «Supabase · tiempo real».
    En la primera carga, la base se llena con los datos de demostración.
 
-> Las políticas de seguridad del esquema permiten leer y escribir con la clave pública, **solo para el prototipo**.
-> Para producción se debe usar Supabase Auth con políticas por rol.
+> El esquema crea las 13 tablas del modelo del informe. La clave pública solo puede leer y llamar a las
+> funciones `sgc_cargar`, `sgc_guardar` y `sgc_restablecer`, **solo para el prototipo**.
+> Para producción se debe usar Supabase Auth con políticas por rol (ver `DESPLIEGUE.md`).
 
 Para publicarla en internet (Vercel) siga [`DESPLIEGUE.md`](DESPLIEGUE.md).
 
@@ -52,10 +53,10 @@ src/
   store/
     actions.js        reglas de negocio: (datos, contexto) → cambios
     StoreProvider.jsx estado global (Context), sesión y avisos
-  data/         repositorios: localRepo (localStorage) y supabaseRepo
+  data/         repositorios: localRepo (localStorage) y supabaseRepo (funciones sgc_* de Supabase)
   components/   UI reutilizable (Modal, ConfirmDialog, CiePicker, documentos…)
   views/        una vista por módulo: Admision, Triaje, Consulta, Sala, Jefatura, Login
-supabase/schema.sql  tablas, restricciones, políticas y publicación de tiempo real
+supabase/schema.sql  13 tablas, restricciones, funciones sgc_*, políticas y tiempo real
 ```
 
 **Decisión de diseño:** las reglas de negocio son funciones puras que devuelven los cambios a guardar.

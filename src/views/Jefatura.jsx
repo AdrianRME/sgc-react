@@ -180,7 +180,8 @@ function Umbrales() {
   const cur = currentThresholds(db);
   const hist = [...db.thresholds].sort((a, b) => b.since - a.since);
   const [v, setV] = useState(() => Object.fromEntries(Object.entries(cur).map(([k, x]) => [k, String(x)])));
-  const [by, setBy] = useState(hist[0]?.by || '');
+  const medicos = db.users.filter((x) => x.role === 'med' && x.on);
+  const [by, setBy] = useState(() => (medicos.some((m) => m.n === hist[0]?.by) ? hist[0].by : ''));
   const nums = Object.fromEntries(Object.entries(v).map(([k, x]) => [k, +x]));
   const errs = validateThresholds(nums);
   const dirty = Object.keys(cur).some((k) => +v[k] !== cur[k]);
@@ -205,7 +206,14 @@ function Umbrales() {
             </table>
           </div>
           {errs.length > 0 && <Msg tone="crit">{errs.map((e) => <div key={e}>{e}</div>)}</Msg>}
-          <Field label="Aprobado por (médico responsable)">{(a) => <input {...a} value={by} onChange={(e) => setBy(e.target.value)} />}</Field>
+          <Field label="Aprobado por (médico responsable)">
+            {(a) => (
+              <select {...a} value={by} onChange={(e) => setBy(e.target.value)}>
+                <option value="">Seleccione un médico…</option>
+                {medicos.map((m) => <option key={m.u} value={m.n}>{m.n} · {m.col}</option>)}
+              </select>
+            )}
+          </Field>
           <button className="btn" disabled={!!errs.length || !dirty || !by.trim()}>Guardar y registrar aprobación</button>
           {!dirty && <span className="note inline-note">Sin cambios respecto a la versión vigente.</span>}
         </form>

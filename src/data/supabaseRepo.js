@@ -2,70 +2,43 @@ import { createClient } from '@supabase/supabase-js';
 import { buildSeed } from '../lib/seed.js';
 
 /*
- * Mapeo entre los objetos de la app y las tablas de supabase/schema.sql.
- * En "turns" las columnas de consulta frecuente van aparte y el resto en "data" (jsonb).
+ * Repositorio sobre Supabase con el modelo de 13 tablas (supabase/schema.sql).
+ * La app no escribe directamente en las tablas: llama a tres funciones de la base,
+ * que traducen entre el formato de la app y el modelo relacional:
+ *   sgc_cargar()          → { users, patients, turns, audit, thresholds }
+ *   sgc_guardar(cambios)  → guarda los cambios de una acción en una sola transacción
+ *   sgc_restablecer()     → vacía los datos (los catálogos se conservan)
  */
-const map = {
-  users: {
-    table: 'staff',
-    key: 'u',
-    to: (x) => ({ u: x.u, n: x.n, role: x.role, col: x.col || null, activo: x.on }),
-    from: (r) => ({ u: r.u, n: r.n, role: r.role, col: r.col || '', on: r.activo }),
-  },
-  patients: {
-    table: 'patients',
-    key: 'dni',
-    to: (x) => ({ ...x, nac: x.nac || null }),
-    from: (r) => ({ ...r, ant: r.ant || '', alg: r.alg || '', tel: r.tel || '' }),
-  },
-  turns: {
-    table: 'turns',
-    key: 'id',
-    to: ({ id, dni, state, prio, t0, ...data }) => ({ id, dni, state, prio, t0, data }),
-    from: ({ id, dni, state, prio, t0, data }) => ({ ...data, id, dni, state, prio, t0: Number(t0) }),
-  },
-  audit: {
-    table: 'audit_log',
-    key: 'id',
-    to: (x) => x,
-    from: (r) => ({ ...r, t: Number(r.t) }),
-  },
-  thresholds: {
-    table: 'thresholds',
-    key: 'id',
-    to: (x) => ({ id: x.id, vals: x.vals, approved_by: x.by, since: x.since }),
-    from: (r) => ({ id: r.id, vals: r.vals, by: r.approved_by, since: Number(r.since) }),
-  },
+
+// Tablas que avisan cambios en tiempo real (cada acción toca al menos una).
+const REALTIME_TABLES = ['usuario', 'paciente', 'historia_clinica', 'turno', 'umbral_clinico', 'auditoria'];
+
+// Mensajes claros para las restricciones que pueden fallar por uso simultáneo.
+const CONSTRAINT_MSG = {
+  uq_turno_activo_paciente: 'El paciente ya tiene un turno activo registrado desde otra estación.',
+  uq_turno_consultorio_ocupado: 'Ese consultorio ya está atendiendo a otro paciente.',
+  uq_turno_triaje_ocupado: 'Ya hay un paciente en triaje.',
+  uq_turno_codigo_dia: 'Otra estación generó el mismo código de turno. Intente de nuevo.',
+  uq_receta_codigo: 'Otra estación emitió el mismo número de receta. Intente de nuevo.',
+  uq_historia_numero: 'Otra estación generó el mismo número de historia clínica. Intente de nuevo.',
 };
 
-// Orden de inserción (respeta claves foráneas) y de borrado (inverso).
-const ORDER = ['users', 'patients', 'thresholds', 'turns', 'audit'];
+export function friendlyError(error) {
+  const text = `${error?.message || ''} ${error?.details || ''}`;
+  const hit = Object.keys(CONSTRAINT_MSG).find((c) => text.includes(c));
+  return hit ? CONSTRAINT_MSG[hit] : error?.message || 'Error desconocido';
+}
 
 export function createSupabaseRepo(url, anonKey) {
   const sb = createClient(url, anonKey);
 
-  const check = ({ data, error }) => {
-    if (error) throw new Error(`Supabase: ${error.message}`);
+  const call = async (fn, args) => {
+    const { data, error } = await sb.rpc(fn, args);
+    if (error) throw new Error(friendlyError(error));
     return data;
   };
-
-  async function fetchAll() {
-    const db = {};
-    await Promise.all(
-      ORDER.map(async (k) => {
-        let q = sb.from(map[k].table).select('*');
-        if (k === 'audit') q = q.order('t', { ascending: false }).limit(500);
-        db[k] = check(await q).map(map[k].from);
-      }),
-    );
-    return db;
-  }
-
-  async function insertAll(db) {
-    for (const k of ORDER) {
-      if (db[k].length) check(await sb.from(map[k].table).upsert(db[k].map(map[k].to)));
-    }
-  }
+  const fetchAll = () => call('sgc_cargar');
+  const insertAll = (db) => call('sgc_guardar', { cambios: db });
 
   return {
     kind: 'supabase',
@@ -73,25 +46,18 @@ export function createSupabaseRepo(url, anonKey) {
     async load() {
       const db = await fetchAll();
       if (!db.users.length) {
-        const seed = buildSeed();
-        await insertAll(seed);
-        return seed;
+        await insertAll(buildSeed());
+        return fetchAll();
       }
       return db;
     },
     async save(changes) {
-      for (const k of ORDER) {
-        const rows = changes[k];
-        if (rows?.length) check(await sb.from(map[k].table).upsert(rows.map(map[k].to)));
-      }
+      await call('sgc_guardar', { cambios: changes });
     },
     async reset() {
-      for (const k of [...ORDER].reverse()) {
-        check(await sb.from(map[k].table).delete().not(map[k].key, 'is', null));
-      }
-      const seed = buildSeed();
-      await insertAll(seed);
-      return seed;
+      await call('sgc_restablecer');
+      await insertAll(buildSeed());
+      return fetchAll();
     },
     subscribe(onChange) {
       let timer;
@@ -100,7 +66,7 @@ export function createSupabaseRepo(url, anonKey) {
         timer = setTimeout(onChange, 150);
       };
       const ch = sb.channel('sgc-cambios');
-      ORDER.forEach((k) => ch.on('postgres_changes', { event: '*', schema: 'public', table: map[k].table }, debounced));
+      REALTIME_TABLES.forEach((table) => ch.on('postgres_changes', { event: '*', schema: 'public', table }, debounced));
       ch.subscribe();
       return () => {
         clearTimeout(timer);

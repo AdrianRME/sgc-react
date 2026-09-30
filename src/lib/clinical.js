@@ -94,6 +94,7 @@ export function validateVitals(v) {
   if (!v.pa) errs.pa = 'Obligatorio';
   else if (!pa) errs.pa = 'Formato 120/80';
   else if (pa.dia >= pa.sys) errs.pa = 'La diastólica debe ser menor que la sistólica';
+  else if (pa.sys < 50 || pa.sys > 260 || pa.dia < 30 || pa.dia > 160) errs.pa = 'Sistólica 50–260 y diastólica 30–160';
   range('fc', 20, 250, 'FC');
   range('fr', 4, 80, 'FR');
   range('t', 30, 45, 'Temp.');

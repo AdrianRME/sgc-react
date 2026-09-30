@@ -13,13 +13,13 @@ export function buildSeed(now = Date.now()) {
   const past = (id, dni, daysAgo, dx, meds, rec) => {
     const b = now - daysAgo * DAY;
     return {
-      id, dni, state: 'ATENDIDO', prio: 'NORMAL', t0: b, tTriCall: b + 8 * MIN, tTriSave: b + 14 * MIN,
+      id, dni, adm: 'a.admision', state: 'ATENDIDO', prio: 'NORMAL', t0: b, tTriCall: b + 8 * MIN, tTriSave: b + 14 * MIN,
       tMedCall: b + 30 * MIN, tEnd: b + 45 * MIN, dest: 'Consultorio 1', enf: 'e.triaje', med: DOC.u,
       tri: vit('Control'), consult: consult(b + 45 * MIN, dx, meds, rec),
     };
   };
   const today = (id, dni, [a, b, c, d, e], rec) => ({
-    id, dni, state: 'ATENDIDO', prio: 'NORMAL', t0: now - a * MIN, tTriCall: now - b * MIN, tTriSave: now - c * MIN,
+    id, dni, adm: 'a.admision', state: 'ATENDIDO', prio: 'NORMAL', t0: now - a * MIN, tTriCall: now - b * MIN, tTriSave: now - c * MIN,
     tMedCall: now - d * MIN, tEnd: now - e * MIN, dest: 'Consultorio 1', enf: 'e.triaje', med: DOC.u,
     tri: vit('Malestar general', { pa: '120/80', peso: 72, talla: 1.7 }),
     consult: consult(now - e * MIN, [[...CIE[1], 'D']], [med('Paracetamol 500 mg', '1 tableta', 'cada 8 h', 3)], rec),
@@ -33,18 +33,18 @@ export function buildSeed(now = Date.now()) {
     today('TR-042', '70000005', [130, 118, 110, 95, 80], 'REC-2026-000410'),
     today('TR-043', '70000004', [100, 90, 84, 70, 58], 'REC-2026-000411'),
     {
-      id: 'TR-044', dni: '70000001', state: 'EN_ESPERA_CONSULTA', prio: 'NORMAL', enf: 'e.triaje',
+      id: 'TR-044', dni: '70000001', adm: 'a.admision', state: 'EN_ESPERA_CONSULTA', prio: 'NORMAL', enf: 'e.triaje',
       t0: now - 40 * MIN, tTriCall: now - 36 * MIN, tTriSave: now - 33 * MIN,
       tri: vit('Dolor de garganta y tos de 3 días', { pa: '120/80', fc: 72, t: 36.6, peso: 70.2 }),
     },
     {
-      id: 'TR-045', dni: '70000002', state: 'LLAMADO_CONSULTA', prio: 'PRIORITARIA', enf: 'e.triaje',
+      id: 'TR-045', dni: '70000002', adm: 'a.admision', state: 'LLAMADO_CONSULTA', prio: 'PRIORITARIA', enf: 'e.triaje',
       t0: now - 30 * MIN, tTriCall: now - 27 * MIN, tTriSave: now - 22 * MIN, tMedCall: now - 2 * MIN,
       calledAt: now - 2 * MIN, dest: 'Consultorio 1',
       tri: { pa: '150/95', fc: 104, fr: 22, t: 38.6, spo2: 93, peso: 82, talla: 1.72, motivo: 'Fiebre y dificultad leve para respirar' },
     },
-    { id: 'TR-046', dni: '70000003', state: 'EN_ESPERA_TRIAJE', prio: null, t0: now - 12 * MIN },
-    { id: 'TR-047', dni: '70000004', state: 'EN_ESPERA_TRIAJE', prio: null, t0: now - 5 * MIN },
+    { id: 'TR-046', dni: '70000003', adm: 'a.admision', state: 'EN_ESPERA_TRIAJE', prio: null, t0: now - 12 * MIN },
+    { id: 'TR-047', dni: '70000004', adm: 'a.admision', state: 'EN_ESPERA_TRIAJE', prio: null, t0: now - 5 * MIN },
   ];
 
   const patients = [

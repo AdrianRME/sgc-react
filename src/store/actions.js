@@ -84,7 +84,7 @@ export function createTurn(db, ctx, { dni, form, sis }) {
   }
 
   const id = nextTurnId(db.turns);
-  const turn = { id, dni, state: 'EN_ESPERA_TRIAJE', prio: null, t0: ctx.now };
+  const turn = { id, dni, adm: ctx.user.u, state: 'EN_ESPERA_TRIAJE', prio: null, t0: ctx.now };
   audit.push(auditEntry(ctx, 'TURNO_CREADO', `${id} registrado${sis === 'PENDIENTE_VALIDACION' ? ' (contingencia SIS)' : ''}`));
   return {
     changes: { patients: [patient], turns: [turn], audit },
@@ -271,6 +271,7 @@ export function saveThresholds(db, ctx, vals, by) {
   const errs = validateThresholds(vals);
   if (errs.length) throw new DomainError(errs[0]);
   if (!by?.trim()) throw new DomainError('Indique el médico responsable que aprueba los umbrales.');
+  if (!db.users.some((x) => x.role === 'med' && x.on && x.n === by.trim())) throw new DomainError('El aprobador debe ser un médico activo registrado.');
   const row = { id: uid(), vals, by: by.trim(), since: ctx.now };
   return {
     changes: { thresholds: [row], audit: [auditEntry(ctx, 'UMBRALES', `Umbrales aprobados por ${row.by}`)] },

@@ -1,8 +1,9 @@
 # Despliegue: Supabase + Vercel
 
 Guía para publicar el PMV con la base de datos en Supabase y la aplicación en Vercel.
-Probado localmente: `npm test` (15 pruebas) y `npm run build` sin errores; `supabase/schema.sql`
-se ejecutó dos veces seguidas sin errores en PostgreSQL con los roles de Supabase simulados.
+Probado localmente: `npm test` (15 pruebas) y `npm run build` sin errores. `supabase/schema.sql` se ejecutó
+en PostgreSQL 16 con los roles de Supabase simulados, y el flujo completo de la app (admisión → triaje →
+consulta → receta, umbrales, usuarios, auditoría) se guardó y se leyó sin pérdida con el rol `anon`.
 
 ## 1. Subir el código a GitHub
 
@@ -28,10 +29,16 @@ git push -u origin main
 
 **SQL Editor → New query**, pegue todo `supabase/schema.sql` y pulse **Run**.
 
-El archivo incluye los `GRANT` que Supabase exige desde el 30 de mayo de 2026 para que las tablas
-se puedan usar desde la aplicación. Sin ellos aparece el error *permission denied for table*.
+- Crea las **13 tablas del modelo del informe** (paciente, usuario, area_atencion, historia_clinica, turno,
+  signos_vitales, atencion_medica, diagnostico_cie10, atencion_diagnostico, receta_medica, detalle_receta,
+  umbral_clinico, auditoria), los catálogos de áreas y CIE-10 y las funciones que usa la app.
+- Supabase avisará de **operaciones destructivas**: son los `DROP` del inicio, que borran las tablas de la
+  versión anterior del prototipo. Confirme con **Run this query**.
+- Ejecutarlo otra vez **borra todos los datos** y reinstala el esquema. La app vuelve a cargar los datos
+  de demostración al abrirse.
 
-Compruebe en **Database → Publications → supabase_realtime** que aparecen las 5 tablas.
+Compruebe en **Database → Publications → supabase_realtime** que aparecen 6 tablas
+(usuario, paciente, historia_clinica, turno, umbral_clinico, auditoria).
 
 ## 4. Copiar la URL y la clave pública
 
@@ -74,21 +81,34 @@ Si cambia las variables después, vuelva a desplegar: Vite las incorpora al comp
 
 - Iniciar sesión con cada rol y recorrer admisión → triaje → consulta → receta.
 - Abrir `https://<su-sitio>.vercel.app/#/sala` en otro equipo o en el celular y llamar un turno.
-- En Supabase, **Table Editor → turns**, confirmar que el turno quedó guardado.
+- En Supabase, **Table Editor → turno**, confirmar que el turno quedó guardado; tras el triaje, revisar
+  **signos_vitales** (el IMC lo calcula la base), y tras la consulta **atencion_medica** y **receta_medica**.
 
 ## 8. Mantenimiento
 
 - El plan gratuito de Supabase **pausa el proyecto tras 1 semana sin uso**. Ábralo el día anterior a cada revisión.
 - Cada `git push` a `main` vuelve a publicar el sitio automáticamente.
 
+## Cómo guarda la app
+
+La app no escribe directamente en las tablas. Llama a tres funciones de la base:
+
+- `sgc_cargar()` lee las 13 tablas y las devuelve en el formato de la app.
+- `sgc_guardar(cambios)` guarda cada acción en **una sola transacción**. Además, rechaza cambios de estado
+  inválidos (por ejemplo, dos consultorios que intentan atender al mismo paciente) y códigos de turno
+  repetidos. Si falla una parte, no se guarda nada.
+- `sgc_restablecer()` vacía los datos para el botón «Restablecer datos demo».
+
 ## Limitaciones conocidas de esta versión (no usar con pacientes reales)
 
-1. **Seguridad abierta:** las políticas `demo_all` permiten que cualquiera con la clave pública lea, modifique
-   o borre datos. La clave pública viaja dentro de la aplicación, así que cualquiera que abra el sitio puede
-   hacerlo, incluido el botón «Restablecer datos demo». Corrección prevista: Supabase Auth + políticas RLS por rol.
+1. **Lectura abierta:** con la clave pública solo se puede **leer** las tablas y usar esas tres funciones.
+   No se puede insertar, modificar ni borrar filas directamente. Aun así, cualquiera que tenga la clave
+   (viaja dentro del sitio) puede ver todos los datos y usar `sgc_restablecer`.
+   Corrección prevista: Supabase Auth + políticas RLS por rol.
 2. **Inicio de sesión de demostración:** una sola contraseña (`demo1234`) comprobada en el navegador.
+   La tabla `usuario` guarda su hash bcrypt, pero todavía no se usa para validar.
 3. **Pantalla de sala:** descarga todos los turnos aunque solo muestre código y destino.
-4. **Correlativos:** el código de turno se calcula en el navegador; dos admisiones registrando al mismo tiempo
-   podrían generar el mismo código y la segunda sobrescribiría a la primera.
-5. **Modelo de datos:** estas 5 tablas (con detalle en `jsonb`) son una versión simplificada del modelo de
-   13 entidades del informe.
+4. **Diferencias con el modelo físico del informe:** `turno` agrega `ts_ultimo_llamado`, `veces_llamado`
+   e `id_usuario_en_atencion`; `auditoria.operacion` admite `LOGOUT`; `detalle_receta.cantidad_solicitada`
+   es opcional. El estado `LLAMANDO` se guarda igual que en el modelo; la app distingue si es llamado a
+   triaje o a consulta según exista o no el registro de triaje.
