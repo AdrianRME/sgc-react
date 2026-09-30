@@ -61,6 +61,16 @@ create table if not exists audit_log (
 create index if not exists audit_t_idx on audit_log(t desc);
 
 -- ------------------------------------------------------------
+-- Permisos del Data API (OBLIGATORIO en proyectos creados desde el 30-may-2026:
+-- Supabase ya no expone las tablas nuevas automáticamente; sin estos GRANT
+-- la app recibe "permission denied for table ...").
+-- ------------------------------------------------------------
+grant usage on schema public to anon, authenticated, service_role;
+grant select, insert, update, delete
+  on public.staff, public.patients, public.turns, public.thresholds, public.audit_log
+  to anon, authenticated, service_role;
+
+-- ------------------------------------------------------------
 -- Seguridad: SOLO PARA EL PROTOTIPO.
 -- Permite leer y escribir con la clave pública (anon).
 -- En producción: Supabase Auth + políticas por rol.

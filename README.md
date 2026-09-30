@@ -30,13 +30,15 @@ Para usar una **base de datos real y compartida entre varias PCs**:
 
 1. Cree una cuenta gratuita en <https://supabase.com> y un proyecto nuevo.
 2. En **SQL Editor → New query**, pegue el contenido de [`supabase/schema.sql`](supabase/schema.sql) y pulse **Run**.
-3. En **Project Settings → API**, copie la *Project URL* y la clave *anon public*.
+3. En **Project Settings → API Keys**, copie la *Project URL* y la *publishable key* (`sb_publishable_...`).
 4. Copie `.env.example` como `.env` y complete ambos valores.
 5. Reinicie `npm run dev`. La barra superior mostrará «Supabase · tiempo real».
    En la primera carga, la base se llena con los datos de demostración.
 
 > Las políticas de seguridad del esquema permiten leer y escribir con la clave pública, **solo para el prototipo**.
 > Para producción se debe usar Supabase Auth con políticas por rol.
+
+Para publicarla en internet (Vercel) siga [`DESPLIEGUE.md`](DESPLIEGUE.md).
 
 ## Estructura
 
