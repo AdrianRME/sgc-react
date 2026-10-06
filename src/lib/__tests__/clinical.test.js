@@ -56,11 +56,27 @@ describe('colas y correlativos', () => {
     const q = [{ prio: 'NORMAL', t0: 1 }, { prio: 'CRITICA', t0: 5 }, { prio: 'NORMAL', t0: 0 }].sort(byPriority);
     expect(q.map((x) => x.t0)).toEqual([5, 0, 1]);
   });
-  it('genera el siguiente correlativo a partir de los datos', () => {
+  it('el código de turno se reinicia cada día y no choca con turnos abiertos', () => {
+    const now = new Date(2026, 8, 30, 10, 0).getTime();
+    const ayer = now - 86_400_000;
+    const turns = [
+      { id: 'TR-031', t0: ayer, state: 'ATENDIDO' },
+      { id: 'TR-002', t0: now - 60_000, state: 'EN_ESPERA_TRIAJE' },
+    ];
+    expect(nextTurnId(turns, now)).toBe('TR-003');
+    expect(nextTurnId([...turns, { id: 'TR-040', t0: ayer, state: 'EN_ESPERA_CONSULTA' }], now)).toBe('TR-041');
+    expect(nextTurnId([], now)).toBe('TR-001');
+  });
+  it('la receta continúa el correlativo del año que informa el servidor', () => {
+    const turns = [{ consult: { rec: 'REC-2026-000010' } }];
+    expect(nextRecipe(turns, 2026)).toBe('REC-2026-000011');
+    expect(nextRecipe(turns, 2026, 950)).toBe('REC-2026-000951');
+    expect(nextRecipe(turns, 2027)).toBe('REC-2027-000001');
+  });
+  it('la historia clínica sigue al último número registrado', () => {
     const db = buildSeed();
-    expect(nextTurnId(db.turns)).toBe('TR-048');
-    expect(nextRecipe(db.turns, 2026)).toBe('REC-2026-000412');
-    expect(nextHC(db.patients)).toBe('HC-000107');
+    const max = Math.max(...db.patients.map((p) => +p.hc.slice(3)));
+    expect(nextHC(db.patients)).toBe(`HC-${String(max + 1).padStart(6, '0')}`);
   });
   it('no permite saltar etapas', () => {
     expect(canTransition('EN_ESPERA_TRIAJE', 'EN_CONSULTA')).toBe(false);
@@ -81,7 +97,8 @@ describe('flujo completo del paciente', () => {
     step(callTurn, ctx('e.triaje'), t.id);
     step(startTriage, ctx('e.triaje'), t.id);
     step(saveTriage, ctx('e.triaje'), t.id, { ...normal, spo2: 85 }, 'Penicilina');
-    expect(db.turns.find((x) => x.id === t.id).prio).toBe('CRITICA');
+    const mine = () => db.turns.find((x) => x.id === t.id && x.t0 === t.t0); // el código se repite en otros días
+    expect(mine().prio).toBe('CRITICA');
 
     step(callTurn, ctx('m.consulta2'), t.id);
     step(startConsult, ctx('m.consulta2'), t.id);
@@ -89,7 +106,7 @@ describe('flujo completo del paciente', () => {
     expect(() => finishConsult(db, ctx('m.consulta2'), t.id, form)).toThrow(/Alergia/);
     step(finishConsult, ctx('m.consulta2'), t.id, { ...form, allergyOverride: true });
 
-    const done = db.turns.find((x) => x.id === t.id);
+    const done = mine();
     expect(done.state).toBe('ATENDIDO');
     expect(done.consult.medico.n).toBe('Dr. Luis Paz (demo)');
     expect(db.audit.some((a) => a.a === 'ALERGIA_CONFIRMADA')).toBe(true);

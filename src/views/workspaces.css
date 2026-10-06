@@ -1,0 +1,70 @@
+/* ---------- Espacios de Admisión, Triaje y Consulta ---------- */
+.search-row { display: flex; align-items: flex-end; gap: 10px; }
+.search-row .field { flex: 1; }
+.search-in { position: relative; }
+.search-in svg { position: absolute; left: 12px; top: 50%; transform: translateY(-50%); width: 17px; height: 17px; color: var(--muted); pointer-events: none; }
+.field .search-in input, .search-in input { padding-left: 38px; }
+.matches { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
+.matches button { width: 100%; display: flex; align-items: center; gap: 12px; padding: 10px 12px; border: 1px solid var(--line); border-radius: var(--r-ctl); background: var(--surface); text-align: left; }
+.matches button:hover, .matches button[aria-current='true'] { border-color: var(--role-line); background: var(--role-soft); }
+.matches svg { width: 18px; height: 18px; color: var(--muted); flex: none; }
+.matches b { display: block; font-size: var(--fs-sm); }
+.matches small { display: block; color: var(--muted); font-size: var(--fs-xs); }
+
+.patient-card { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 14px; padding: 14px; border-radius: var(--r-panel); background: var(--role-soft); border: 1px solid var(--role-line); }
+.pc-main { flex: 1; min-width: 180px; display: flex; flex-direction: column; gap: 2px; }
+.pc-main b { font-size: var(--fs-lg); }
+.pc-main small { color: var(--ink-2); font-size: var(--fs-sm); }
+.pc-badges { display: flex; flex-wrap: wrap; gap: 6px; justify-content: flex-end; }
+.tcode.big { font-size: 1.9rem; line-height: 1; color: var(--role-strong); }
+.h3 { margin-top: 4px; font-size: var(--fs-md); }
+.last-visit { padding: 8px 12px; border-radius: var(--r-ctl); background: var(--surface-2); }
+
+/* Signos vitales: una ficha por signo, con su estado */
+.vtiles { display: grid; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); gap: 10px; }
+.vtile { position: relative; display: flex; gap: 10px; align-items: flex-start; padding: 12px; border: 1px solid var(--line); border-radius: var(--r-panel); background: var(--surface); transition: border-color 0.2s, background-color 0.2s; }
+.vtile .field { flex: 1; }
+.vtile .i3d { margin-top: 26px; }
+.vtile.v-ok { border-color: color-mix(in oklab, var(--good) 50%, var(--line)); }
+.vtile.v-warn { border-color: var(--warn); background: color-mix(in oklab, var(--warn-bg) 60%, var(--surface)); }
+.vtile.v-crit { border-color: var(--crit); background: color-mix(in oklab, var(--crit-bg) 70%, var(--surface)); }
+.vstate { position: absolute; top: 10px; right: 12px; font-size: 11px; font-weight: 700; }
+.vstate.ok { color: var(--good-text); } .vstate.warn { color: var(--warn-text); } .vstate.crit { color: var(--crit-text); }
+.vtile.body { grid-column: 1 / -1; display: grid; grid-template-columns: 1fr 1fr minmax(160px, 1fr); align-items: end; }
+@media (max-width: 560px) { .vtile.body { grid-template-columns: 1fr 1fr; } .vtile.body .imc { grid-column: 1 / -1; } }
+.imc { display: flex; align-items: center; gap: 10px; min-height: 40px; padding: 0 12px; border-radius: var(--r-ctl); background: var(--surface-2); }
+.imc > span { font-size: var(--fs-xs); color: var(--muted); font-weight: 600; }
+.imc b { font-size: var(--fs-xl); font-variant-numeric: tabular-nums; }
+.trends-box { border: 1px solid var(--line); border-radius: var(--r-panel); padding: 10px 14px; }
+.trends-box summary { cursor: pointer; font-weight: 600; font-size: var(--fs-sm); color: var(--ink-2); }
+.trends-box[open] summary { margin-bottom: 10px; }
+
+/* Lectura de signos en la consulta */
+.vread { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 8px; }
+.vr { display: flex; align-items: center; gap: 8px; padding: 8px 10px; border-radius: var(--r-ctl); background: var(--surface-2); font-size: var(--fs-sm); }
+.vr > span { color: var(--ink-2); }
+.vr b { margin-left: auto; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.vr.v-warn { background: var(--warn-bg); } .vr.v-warn b { color: var(--warn-text); }
+.vr.v-crit { background: var(--crit-bg); } .vr.v-crit b { color: var(--crit-text); }
+.grid-2.consult { grid-template-columns: minmax(0, 0.85fr) minmax(0, 1.15fr); }
+@media (max-width: 1100px) { .grid-2.consult { grid-template-columns: minmax(0, 1fr); } }
+
+/* Receta */
+.combo { position: relative; }
+.pick { left: 0; right: 0; top: calc(100% + 4px); list-style: none; margin: 0; padding: 6px; max-height: 280px; overflow-y: auto; }
+.pick li { padding: 8px 10px; border-radius: 8px; cursor: pointer; font-size: var(--fs-sm); }
+.pick li[aria-selected='true'] { background: var(--role-soft); }
+.meds { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
+.medrow { display: grid; grid-template-columns: minmax(160px, 2.2fr) minmax(80px, 1fr) minmax(90px, 1fr) 76px 76px 32px; gap: 6px; align-items: center; }
+.medrow input { min-height: 38px; padding: 6px 10px; border: 1px solid var(--line-strong); border-radius: var(--r-ctl); background: var(--surface); min-width: 0; }
+.medrow input:focus { outline: none; border-color: var(--role-strong); box-shadow: 0 0 0 3px color-mix(in oklab, var(--role) 22%, transparent); }
+@media (max-width: 760px) { .medrow { grid-template-columns: 1fr 1fr; } .medrow input:first-child { grid-column: 1 / -1; } }
+.add-med { align-self: flex-start; margin-top: 6px; }
+.dest { border: 0; margin: 0; padding: 0; min-width: 0; }
+.dest legend { padding: 0; margin-bottom: 8px; font-size: var(--fs-sm); font-weight: 600; color: var(--ink-2); }
+.dest-opts { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
+.dest-opt { position: relative; display: flex; align-items: center; gap: 10px; padding: 10px 12px; border: 1.5px solid var(--line-strong); border-radius: var(--r-ctl); background: var(--surface); cursor: pointer; font-size: var(--fs-sm); font-weight: 600; transition: border-color 0.15s, background-color 0.15s; }
+.dest-opt input { position: absolute; opacity: 0; pointer-events: none; }
+.dest-opt.on { border-color: var(--role-strong); background: var(--role-soft); }
+.dest-opt:has(input:focus-visible) { outline: 2px solid var(--role-strong); outline-offset: 2px; }
+@media (max-width: 560px) { .dest-opts { grid-template-columns: minmax(0, 1fr); } }

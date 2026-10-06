@@ -1,0 +1,30 @@
+.rooms { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }
+.room { display: flex; align-items: center; gap: 12px; padding: 12px 14px; border: 1px solid var(--line); border-radius: var(--r-panel); background: var(--surface); }
+.room.busy { border-color: var(--role-line); background: var(--role-soft); }
+.room-b { min-width: 0; flex: 1; display: flex; flex-direction: column; gap: 2px; font-size: var(--fs-sm); }
+.room-b > span { color: var(--ink-2); }
+.room-b .calling { color: var(--info-text); font-weight: 600; font-size: var(--fs-xs); }
+.room-st { font-size: var(--fs-xs); font-weight: 700; color: var(--muted); }
+.room-st.on { color: var(--role-strong); }
+@media (max-width: 900px) { .rooms { grid-template-columns: minmax(0, 1fr); } }
+
+.board { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 14px; align-items: start; }
+@media (max-width: 1100px) { .board { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (max-width: 600px) { .board { grid-template-columns: minmax(0, 1fr); } }
+.col { min-width: 0; display: flex; flex-direction: column; gap: 10px; padding: 12px; border-radius: var(--r-panel); background: var(--sunken); }
+.col header { display: flex; align-items: center; gap: 10px; padding: 2px 4px; }
+.col header i { width: 14px; height: 14px; border-radius: 50%; background: var(--c); }
+.col header.wait i { background: var(--surface); box-shadow: inset 0 0 0 3px var(--c); }
+.col header h2 { font-size: var(--fs-md); flex: 1; }
+.cards { display: flex; flex-direction: column; gap: 8px; min-height: 80px; }
+.card { display: flex; flex-direction: column; gap: 6px; padding: 12px; border-radius: 12px; background: var(--surface); border: 1px solid var(--line); border-left: 4px solid var(--c); }
+.card.crit { border-left-color: var(--crit); }
+.card.late { box-shadow: 0 0 0 1px color-mix(in oklab, var(--crit) 45%, transparent); }
+.card-h { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.card-h .tcode { font-size: 1.25rem; }
+.card-n { font-size: var(--fs-sm); font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.card-f { display: flex; align-items: center; justify-content: space-between; gap: 8px; font-size: var(--fs-xs); color: var(--muted); }
+.card-f .to { display: inline-flex; align-items: center; gap: 4px; color: var(--info-text); font-weight: 600; }
+.card-f svg { width: 13px; height: 13px; }
+.col .empty { padding: 18px 8px; }
+.col .empty .i3d { width: 36px; height: 36px; }

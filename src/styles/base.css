@@ -1,0 +1,62 @@
+*, *::before, *::after { box-sizing: border-box; }
+html { -webkit-text-size-adjust: 100%; }
+body {
+  margin: 0;
+  font: 400 var(--fs-md) / 1.5 var(--font);
+  color: var(--ink);
+  background: var(--paper);
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+h1, h2, h3, h4 { margin: 0; line-height: 1.2; text-wrap: balance; }
+h1 { font: 650 var(--fs-2xl) / 1.1 var(--display); letter-spacing: -0.015em; font-optical-sizing: auto; }
+h2 { font-size: var(--fs-lg); font-weight: 650; }
+h3 { font-size: var(--fs-md); font-weight: 650; }
+p { margin: 0; text-wrap: pretty; }
+a { color: var(--info-text); text-underline-offset: 3px; }
+img { max-width: 100%; }
+button, input, select, textarea { font: inherit; color: inherit; }
+button { cursor: pointer; }
+button:disabled { cursor: not-allowed; }
+table { border-collapse: collapse; }
+::selection { background: color-mix(in oklab, var(--role, var(--st-med)) 30%, transparent); }
+
+:focus-visible {
+  outline: 2px solid var(--role-strong, var(--st-med-strong));
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+.sr-only {
+  position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px;
+  overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0;
+}
+.tnum { font-variant-numeric: tabular-nums; }
+.muted { color: var(--muted); }
+.note { color: var(--ink-2); font-size: var(--fs-sm); }
+.hint { color: var(--muted); font-size: var(--fs-xs); }
+.err { color: var(--crit-text); font-size: var(--fs-xs); font-weight: 550; }
+
+/* Código de turno: el «carácter» del dominio, siempre en la fuente de títulos */
+.tcode {
+  font-family: var(--display);
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.01em;
+  white-space: nowrap;
+}
+.code { font-variant-numeric: tabular-nums; font-weight: 600; letter-spacing: 0.01em; }
+
+.i3d { flex: none; object-fit: contain; user-select: none; -webkit-user-drag: none; }
+
+/* Animaciones CSS mínimas (las de interfaz las maneja Motion, que respeta la preferencia del sistema) */
+@keyframes shimmer { from { background-position: 200% 0; } to { background-position: -200% 0; } }
+@keyframes pulse-ring { 0% { box-shadow: 0 0 0 0 color-mix(in oklab, var(--crit) 55%, transparent); } 100% { box-shadow: 0 0 0 10px transparent; } }
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation-duration: 0.01ms !important; animation-iteration-count: 1 !important; transition-duration: 0.01ms !important; scroll-behavior: auto !important; }
+}
+
+@media print {
+  body { background: #fff; color: #000; }
+  .no-print { display: none !important; }
+}

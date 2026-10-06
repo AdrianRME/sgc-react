@@ -1,114 +1,138 @@
 # Despliegue: Supabase + Vercel
 
-Guía para publicar el PMV con la base de datos en Supabase y la aplicación en Vercel.
-Probado localmente: `npm test` (15 pruebas) y `npm run build` sin errores. `supabase/schema.sql` se ejecutó
-en PostgreSQL 16 con los roles de Supabase simulados, y el flujo completo de la app (admisión → triaje →
-consulta → receta, umbrales, usuarios, auditoría) se guardó y se leyó sin pérdida con el rol `anon`.
+Guía para publicar el sistema con la base de datos y la autenticación en Supabase y la aplicación en Vercel.
 
-## 1. Subir el código a GitHub
+**Cómo se probó.** `npm test` pasa las 33 pruebas, `npm run lint` no da advertencias y `npm run build` compila sin
+errores. `supabase/schema.sql` se ejecutó en PostgreSQL 16 con el esquema real de Supabase Auth (migraciones del
+repositorio `supabase/auth`, sept. 2026) y los roles de Supabase simulados, con tres baterías de prueba:
 
-```bash
-cd sgc-react
-git init
-git add .
-git commit -m "PMV del sistema de gestión clínica"
-git branch -M main
-git remote add origin https://github.com/<su-usuario>/sgc-react.git
-git push -u origin main
-```
+- **32 pruebas de seguridad y flujo.** Cubren:
+  - qué ve cada rol, qué puede hacer y que no puede falsificar datos;
+  - la historia clínica y los indicadores anónimos;
+  - la carga de la demostración por partes;
+  - el código de turno que se reinicia cada día.
+- **14 pruebas de punta a punta en el navegador.** Se usa la app compilada contra un servidor que imita Supabase Auth
+  y la API de datos. Cubren el tablero, el flujo en vivo, el registro, el triaje, la consulta, la historia, la sala
+  y las contraseñas.
+- **Dos pruebas de consistencia:**
+  - La prioridad que calcula la base coincide con la de la app en 400 combinaciones de signos vitales.
+  - El tablero da las mismas cifras con Supabase que en modo local.
 
-`.gitignore` ya excluye `node_modules`, `dist` y `.env` (las credenciales no se suben).
+No se probó contra un proyecto de Supabase real. Siga el paso 7 para verificarlo.
 
-## 2. Crear el proyecto en Supabase
+## 1. Código en GitHub
 
-1. <https://supabase.com> → **New project**.
-2. Región: **South America (São Paulo)**, la más cercana a Lima.
-3. Guarde la contraseña de la base de datos en un lugar seguro.
+Cada `git push` a `main` vuelve a publicar el sitio en Vercel automáticamente.
 
-## 3. Crear las tablas
+## 2. Instalar la base de datos
 
-**SQL Editor → New query**, pegue todo `supabase/schema.sql` y pulse **Run**.
+1. En Supabase abra **SQL Editor → New query**, pegue todo `supabase/schema.sql` y pulse **Run**.
+2. Supabase avisará de **operaciones destructivas**: son los `DROP` del inicio. Confirme con **Run this query**.
 
-- Crea las **13 tablas del modelo del informe** (paciente, usuario, area_atencion, historia_clinica, turno,
-  signos_vitales, atencion_medica, diagnostico_cie10, atencion_diagnostico, receta_medica, detalle_receta,
-  umbral_clinico, auditoria), los catálogos de áreas y CIE-10 y las funciones que usa la app.
-- Supabase avisará de **operaciones destructivas**: son los `DROP` del inicio, que borran las tablas de la
-  versión anterior del prototipo. Confirme con **Run this query**.
-- Ejecutarlo otra vez **borra todos los datos** y reinstala el esquema. La app vuelve a cargar los datos
-  de demostración al abrirse.
+El script crea:
 
-Compruebe en **Database → Publications → supabase_realtime** que aparecen 6 tablas
-(usuario, paciente, historia_clinica, turno, umbral_clinico, auditoria).
+- Las **13 tablas del modelo del informe**, con sus restricciones y los catálogos de áreas y CIE-10.
+- Las **cuentas de demostración en Supabase Auth**, con contraseña `SgcDemo2026`:
 
-## 4. Copiar la URL y la clave pública
+  | Usuario | Rol |
+  |---|---|
+  | `a.admision` | Admisión |
+  | `e.triaje` | Enfermería |
+  | `m.consulta` | Médico |
+  | `m.consulta2` | Médico |
+  | `j.jefatura` | Jefatura |
+  | `e.turno2` | Enfermería (inactiva) |
 
-**Project Settings → API Keys** (o el botón **Connect**):
+- Los **umbrales clínicos iniciales**.
+- Las **políticas de seguridad por rol (RLS)** y las funciones que usa la app.
 
-- **Project URL**: `https://<id>.supabase.co`
-- **Publishable key**: empieza con `sb_publishable_...` (sirve igual que la antigua clave *anon*).
+Ejecutarlo otra vez **borra todos los datos** y restablece esas contraseñas.
 
-Nunca use la *secret key* ni la *service_role* en la aplicación.
+> Si aparece un error de permisos sobre `auth.users`, Supabase no dejó crear las cuentas desde SQL.
+> Copie el mensaje exacto: la alternativa es crear las cuentas con una Edge Function.
 
-## 5. Probar en su computadora
+## 3. Configurar Supabase Auth
 
-Copie `.env.example` como `.env`:
+En **Authentication → Sign In / Providers**, desactive **Allow new users to sign up**.
 
-```
-VITE_SUPABASE_URL=https://<id>.supabase.co
-VITE_SUPABASE_ANON_KEY=sb_publishable_...
-```
+Solo Jefatura crea cuentas desde la app. Aun con el registro abierto, una cuenta creada por otra vía no tendría
+acceso, porque el rol se toma de `app_metadata`, que solo el servidor puede escribir. Desactivarlo evita cuentas basura.
 
-```bash
-npm install
-npm run dev
-```
+## 4. Claves para Vercel
 
-La barra superior debe decir **«Supabase · tiempo real»**. La primera carga llena la base con los datos
-de demostración. Abra `http://localhost:5173/#/sala` en otra ventana y llame un turno para comprobar
-el tiempo real.
+En **Project Settings → API Keys**:
 
-## 6. Publicar en Vercel
+- `VITE_SUPABASE_URL` = `https://<id>.supabase.co`, sin `/rest/v1`.
+- `VITE_SUPABASE_ANON_KEY` = la *publishable key*, que empieza con `sb_publishable_`.
 
-1. <https://vercel.com> → **Add New → Project** → importe el repositorio `sgc-react`.
-2. Vercel detecta **Vite**: build `npm run build`, salida `dist`. No cambie nada.
-3. En **Environment Variables** agregue `VITE_SUPABASE_URL` y `VITE_SUPABASE_ANON_KEY` con los mismos valores del `.env`.
-4. **Deploy**. Obtendrá una dirección `https://sgc-react-<algo>.vercel.app`.
+Nunca use la *secret key* en la app.
 
-La app usa rutas con `#` (por ejemplo `/#/sala`), así que no hace falta `vercel.json`.
-Si cambia las variables después, vuelva a desplegar: Vite las incorpora al compilar.
+## 5. Publicar en Vercel
 
-## 7. Verificar el sitio publicado
+Importe el repositorio, agregue las dos variables del paso 4 y despliegue. Vercel detecta Vite solo.
 
-- Iniciar sesión con cada rol y recorrer admisión → triaje → consulta → receta.
-- Abrir `https://<su-sitio>.vercel.app/#/sala` en otro equipo o en el celular y llamar un turno.
-- En Supabase, **Table Editor → turno**, confirmar que el turno quedó guardado; tras el triaje, revisar
-  **signos_vitales** (el IMC lo calcula la base), y tras la consulta **atencion_medica** y **receta_medica**.
+`vercel.json` agrega las cabeceras de seguridad del sitio: CSP, HSTS, X-Frame-Options, Referrer-Policy y
+Permissions-Policy.
 
-## 8. Mantenimiento
+Si cambia las variables, use **Deployments → ⋯ → Redeploy**.
 
-- El plan gratuito de Supabase **pausa el proyecto tras 1 semana sin uso**. Ábralo el día anterior a cada revisión.
-- Cada `git push` a `main` vuelve a publicar el sitio automáticamente.
+## 6. Primer uso
 
-## Cómo guarda la app
+1. Ingrese como `j.jefatura` y pulse **Restablecer datos demo**. Se cargan unas cinco semanas de atenciones de
+   demostración, con unos 600 turnos y 370 pacientes ficticios. La carga va en varias peticiones pequeñas y tarda
+   unos segundos. Sin este paso, el tablero gerencial queda vacío.
+2. Cambie las contraseñas de demostración desde **Cambiar contraseña** antes de mostrar el sistema.
 
-La app no escribe directamente en las tablas. Llama a tres funciones de la base:
+## 7. Verificación en el sitio publicado
 
-- `sgc_cargar()` lee las 13 tablas y las devuelve en el formato de la app.
-- `sgc_guardar(cambios)` guarda cada acción en **una sola transacción**. Además, rechaza cambios de estado
-  inválidos (por ejemplo, dos consultorios que intentan atender al mismo paciente) y códigos de turno
-  repetidos. Si falla una parte, no se guarda nada.
-- `sgc_restablecer()` vacía los datos para el botón «Restablecer datos demo».
+- [ ] `a.admision`: registra un paciente nuevo y genera su turno.
+- [ ] `e.triaje`: llama al turno, inicia el triaje, registra los signos y guarda. Aparece la prioridad.
+- [ ] `m.consulta`: llama, inicia la atención, registra el CIE-10 y la receta, y finaliza.
+- [ ] En otro equipo o en el celular, `…/#/sala` muestra los llamados al instante. No muestra nombres ni DNI.
+- [ ] Con la sesión de `a.admision`, escribir `…/#/jefatura` en la barra devuelve al espacio de Admisión.
+- [ ] `j.jefatura`: crea un usuario. La contraseña temporal se muestra una vez y el usuario debe cambiarla al ingresar.
+- [ ] `j.jefatura`, **Tablero gerencial**: cambie el periodo (Hoy, 7 días, 14 días, 4 semanas) y exporte el CSV.
+- [ ] `m.consulta`, **Historias clínicas**: busque `70000001` y revise las atenciones anteriores.
+- [ ] En Supabase, **Advisors → Security Advisor**: revise las advertencias.
+      Las funciones `SECURITY DEFINER` son intencionales: son la única vía de escritura.
 
-## Limitaciones conocidas de esta versión (no usar con pacientes reales)
+## Seguridad implementada
 
-1. **Lectura abierta:** con la clave pública solo se puede **leer** las tablas y usar esas tres funciones.
-   No se puede insertar, modificar ni borrar filas directamente. Aun así, cualquiera que tenga la clave
-   (viaja dentro del sitio) puede ver todos los datos y usar `sgc_restablecer`.
-   Corrección prevista: Supabase Auth + políticas RLS por rol.
-2. **Inicio de sesión de demostración:** una sola contraseña (`demo1234`) comprobada en el navegador.
-   La tabla `usuario` guarda su hash bcrypt, pero todavía no se usa para validar.
-3. **Pantalla de sala:** descarga todos los turnos aunque solo muestre código y destino.
-4. **Diferencias con el modelo físico del informe:** `turno` agrega `ts_ultimo_llamado`, `veces_llamado`
-   e `id_usuario_en_atencion`; `auditoria.operacion` admite `LOGOUT`; `detalle_receta.cantidad_solicitada`
-   es opcional. El estado `LLAMANDO` se guarda igual que en el modelo; la app distingue si es llamado a
-   triaje o a consulta según exista o no el registro de triaje.
+| Capa | Medida |
+|---|---|
+| Transporte | HTTPS obligatorio (Vercel + Supabase), HSTS |
+| Navegador | CSP estricta (scripts, estilos y fuentes solo del propio sitio), sin iframes (clickjacking), sin acceso a cámara, micrófono ni ubicación |
+| Autenticación | Supabase Auth, contraseñas bcrypt (costo 10), JWT con expiración |
+| Sesión | En `sessionStorage` (se pierde al cerrar la pestaña), cierre tras 15 min sin actividad, bloqueo tras 3 intentos |
+| Contraseñas | Mínimo 8 caracteres con letras y números; clave temporal aleatoria y de un solo uso. Mientras no se cambie, la base no entrega ningún dato a esa cuenta; `sgc_clave_cambiada()` comprueba que el hash ya no es el temporal antes de liberar el acceso |
+| Autorización | Rol leído de `usuario` vía `app_metadata`; un usuario desactivado pierde el acceso aunque tenga un JWT válido |
+| Lectura (RLS) | Admisión: pacientes y turnos. Enfermería: + signos vitales. Médico: + atenciones y recetas. Jefatura: turnos, usuarios y auditoría, **sin** datos personales ni clínicos |
+| Historia clínica | `sgc_historia()` solo para Enfermería (signos) y Medicina (todo); la base audita cada lectura |
+| Indicadores | `sgc_indicadores()` solo para Jefatura: un hecho anónimo por turno, sin código de turno, con la llegada redondeada a la hora y la duración de cada etapa (además prioridad, sexo, edad, SIS, CIE-10 y destino); máximo 93 días |
+| Carga de demostración | Solo Jefatura; las partes siguientes exigen el token de la carga recién abierta (10 min), así no sirve para insertar historia en datos reales |
+| Escritura | Solo `sgc_guardar()`: valida rol, máquina de estados y datos en una transacción |
+| Integridad | La base recalcula la prioridad de triaje; rechaza códigos duplicados, consultorios ocupados y turnos activos duplicados |
+| Auditoría | Autor, fecha e IP los fija el servidor; no se pueden falsificar desde el navegador |
+| Datos públicos | La pantalla de sala usa `sgc_sala()`: solo código, estado, destino y hora del llamado, ya ordenados (sin prioridad) |
+| Secretos | La *publishable key* es pública por diseño; `.env` no se sube; `password_hash` no es legible desde la app |
+
+## Limitaciones conocidas
+
+1. **Datos ficticios únicamente.** Para usar datos reales hacen falta un análisis formal de la Ley N.º 29733:
+   los datos se alojan en São Paulo, lo que es transferencia internacional. También hacen falta pruebas de
+   penetración y copias de seguridad automáticas (plan de pago).
+2. **Validación SIS simulada.** No hay integración con el servicio real del SIS.
+3. **Plan gratuito.** Supabase pausa el proyecto tras 7 días sin uso. Ábralo el día anterior a cada revisión.
+4. **Diferencias con el modelo físico del informe:**
+   - `turno` agrega `ts_ultimo_llamado`, `veces_llamado` e `id_usuario_en_atencion`.
+   - El código de turno se reinicia cada día (`TR-001`…), como indica la restricción única `(fecha_turno, codigo_turno)`.
+   - `auditoria.operacion` admite `LOGOUT`.
+   - `detalle_receta.cantidad_solicitada` es opcional.
+   - `usuario.password_hash` guarda la referencia a la credencial de Supabase Auth; el hash bcrypt vive en `auth.users`.
+5. **Indicadores anónimos, no anonimizados con garantía formal.** Los hechos del tablero no traen nombre ni DNI.
+   Aun así, en un establecimiento pequeño, la combinación de fecha, edad, sexo y diagnóstico podría identificar a
+   alguien. Con datos reales conviene agregar en la base o aplicar un umbral mínimo de casos por celda.
+6. **El modo local no aplica RLS.** Sin Supabase, todos los roles leen la misma copia del navegador. Sirve solo
+   para desarrollar; la separación de datos por rol se comprueba en el modo Supabase.
+7. **Umbrales de triaje sin ajuste por edad.** Usan valores de adulto. En niños, la frecuencia cardiaca y la
+   respiratoria normales son más altas, y el responsable clínico debería definir umbrales pediátricos.
