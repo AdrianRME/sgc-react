@@ -1,4 +1,5 @@
-import { MEDS, WAIT_TARGET, MIN } from './constants.js';
+import { MEDS, WAIT_TARGET, MIN, ACTIVE_STATES, STAGES } from './constants.js';
+import { startOfDay } from './format.js';
 
 /** Error de regla de negocio: su mensaje se muestra tal cual al usuario. */
 export class DomainError extends Error {}
@@ -118,16 +119,43 @@ export function validateThresholds(T) {
   return e;
 }
 
+/* ---------- Turnos ---------- */
+
+/** Clave única de un turno: el código se repite en otros días, la hora de llegada no. */
+export const turnKey = (t) => `${t.id}@${t.t0}`;
+
+/** Minutos entre dos marcas de tiempo de un turno (null si falta alguna). */
+export const minutesBetween = (t, a, b) => (t[a] != null && t[b] != null && t[b] >= t[a] ? (t[b] - t[a]) / MIN : null);
+
+/** Versión vigente de los umbrales: la más reciente. */
+export const latestThresholds = (versions) => [...versions].sort((a, b) => b.since - a.since)[0];
+
 /* ---------- Colas ---------- */
+
+/**
+ * Turnos de trabajo: los de hoy y los que siguen abiertos de días anteriores. Es lo que se carga en
+ * cada estación (la historia se consulta aparte) y el ámbito en que un código de turno no se repite.
+ */
+export const isCurrent = (t, now = Date.now()) => t.t0 >= startOfDay(now) || ACTIVE_STATES.includes(t.state);
 
 const RANK = { CRITICA: 0, PRIORITARIA: 1, NORMAL: 2 };
 export const byArrival = (a, b) => a.t0 - b.t0;
 export const byPriority = (a, b) => (RANK[a.prio] ?? 3) - (RANK[b.prio] ?? 3) || a.t0 - b.t0;
 
-/** Minutos de espera desde la última etapa y si supera el tiempo objetivo. */
+/** Turnos agrupados por etapa de la ruta; la espera de consulta se ordena por prioridad. */
+export const byStage = (turns) =>
+  Object.fromEntries(STAGES.map((s) => [s.k, turns.filter((t) => s.states.includes(t.state)).sort(s.k === 'espMed' ? byPriority : byArrival)]));
+
+/**
+ * Minutos de espera de la etapa actual y si supera el tiempo objetivo. La espera termina cuando el
+ * paciente es llamado: quien ya está en triaje o en consulta no sigue contando como «en espera».
+ */
 export function waitInfo(turn, now) {
   const since = turn.tTriSave || turn.t0;
-  const min = Math.max(0, Math.floor((now - since) / MIN));
+  const calledAt = turn.tTriSave ? turn.tMedCall : turn.tTriCall;
+  const waiting = turn.state === 'EN_ESPERA_TRIAJE' || turn.state === 'EN_ESPERA_CONSULTA';
+  const until = !waiting && calledAt ? calledAt : now;
+  const min = Math.max(0, Math.floor((until - since) / MIN));
   const target = turn.prio ? WAIT_TARGET[turn.prio] : WAIT_TARGET.SIN_TRIAJE;
   return { min, target, late: min > target };
 }

@@ -1,25 +1,47 @@
 export const MIN = 60_000;
 export const DAY = 86_400_000;
 
-/** Contraseña única de demostración. En producción: Supabase Auth / JWT + Argon2id. */
-export const DEMO_PASSWORD = 'demo1234';
+/** Contraseña del modo local (sin Supabase), solo para desarrollo. Con Supabase se usa Supabase Auth. */
+export const DEMO_PASSWORD = 'SgcDemo2026';
 export const MAX_LOGIN_ATTEMPTS = 3;
 export const LOCK_MS = 30_000;
+/** Dominio de las cuentas de Supabase Auth: el usuario a.admision ingresa como a.admision@sgc.example.org. */
+export const AUTH_DOMAIN = 'sgc.example.org';
+/** Cierre de sesión automático tras este tiempo sin actividad (equipos compartidos). */
+export const IDLE_MS = 15 * MIN;
+export const IDLE_WARN_MS = 60_000;
 
+/**
+ * Cada rol tiene su propio espacio de trabajo con su dirección (#/admision, #/triaje…),
+ * su color y sus módulos. La pantalla de sala es pública y no pertenece a ningún rol.
+ */
 export const ROLES = {
-  adm: { n: 'Admisión', mods: ['adm'] },
-  enf: { n: 'Enfermería', mods: ['enf'] },
-  med: { n: 'Médico', mods: ['med'] },
-  jef: { n: 'Jefatura', mods: ['jef'] },
+  adm: {
+    n: 'Admisión', slug: 'admision', icon: 'idcard', space: 'Espacio de Admisión', tag: 'Registro de pacientes y turnos',
+    sections: [['registro', 'Registro y turnos', 'ticket'], ['flujo', 'Flujo en vivo', 'satellite']],
+  },
+  enf: {
+    n: 'Enfermería', slug: 'triaje', icon: 'thermometer', space: 'Espacio de Triaje', tag: 'Signos vitales y prioridad',
+    sections: [['lista', 'Lista de triaje', 'clipboard']],
+  },
+  med: {
+    n: 'Médico', slug: 'consulta', icon: 'stethoscope', space: 'Espacio del Médico', tag: 'Consulta, diagnóstico y receta',
+    sections: [['atencion', 'Mis pacientes', 'stethoscope'], ['historias', 'Historias clínicas', 'folder']],
+  },
+  jef: {
+    n: 'Jefatura', slug: 'jefatura', icon: 'barchart', space: 'Espacio de Jefatura', tag: 'Indicadores, usuarios y control',
+    sections: [
+      ['tablero', 'Tablero gerencial', 'barchart'], ['flujo', 'Flujo en vivo', 'satellite'], ['usuarios', 'Usuarios', 'people'],
+      ['auditoria', 'Auditoría', 'scroll'], ['umbrales', 'Umbrales clínicos', 'knobs'],
+    ],
+  },
 };
 
-export const MODULES = {
-  adm: 'Admisión',
-  enf: 'Triaje',
-  med: 'Consulta médica',
-  jef: 'Jefatura',
-  sala: 'Pantalla de sala',
-};
+/** Días de historia que genera la demostración (el tablero compara periodos dentro de este rango). */
+export const HISTORY_DAYS = 35;
+
+/** Política de contraseñas (también la valida la base de datos). */
+export const PASSWORD_RULE = { min: 8, re: /^(?=.*[A-Za-z])(?=.*\d).{8,72}$/, text: 'Mínimo 8 caracteres, con letras y números.' };
 
 /** Estados del turno: [etiqueta, tono del badge]. */
 export const STATE = {
@@ -33,23 +55,52 @@ export const STATE = {
   CANCELADO: ['Cancelado', 'mut'],
 };
 
+/** Estados que esperan la acción de cada estación (cola y contador del menú). */
+export const QUEUE = {
+  enf: ['EN_ESPERA_TRIAJE', 'LLAMADO_TRIAJE'],
+  med: ['EN_ESPERA_CONSULTA', 'LLAMADO_CONSULTA'],
+};
+
 export const ACTIVE_STATES = [
   'EN_ESPERA_TRIAJE', 'LLAMADO_TRIAJE', 'EN_TRIAJE',
   'EN_ESPERA_CONSULTA', 'LLAMADO_CONSULTA', 'EN_CONSULTA',
 ];
 
-/** Etapas visibles del recorrido del paciente (para el indicador de pasos). */
-export const FLOW = [
-  ['Admisión', []],
-  ['Triaje', ['EN_ESPERA_TRIAJE', 'LLAMADO_TRIAJE', 'EN_TRIAJE']],
-  ['Consulta', ['EN_ESPERA_CONSULTA', 'LLAMADO_CONSULTA', 'EN_CONSULTA']],
-  ['Alta', ['ATENDIDO']],
+/**
+ * La ruta del paciente: cada estación tiene su color (el del rol que la atiende) y los estados
+ * del turno que pertenecen a ella. Admisión no tiene estados propios: el turno nace en triaje.
+ */
+export const ROUTE = [
+  { k: 'adm', n: 'Admisión', states: [] },
+  { k: 'enf', n: 'Triaje', states: ['EN_ESPERA_TRIAJE', 'LLAMADO_TRIAJE', 'EN_TRIAJE'] },
+  { k: 'med', n: 'Consulta', states: ['EN_ESPERA_CONSULTA', 'LLAMADO_CONSULTA', 'EN_CONSULTA'] },
+  { k: 'alta', n: 'Alta', states: ['ATENDIDO'] },
+];
+
+/**
+ * Etapas de la ruta: qué estados del turno caen en cada una (tablero en vivo) y entre qué marcas
+ * de tiempo se mide su duración (indicadores). `st` es la estación a la que pertenecen.
+ */
+export const STAGES = [
+  { k: 'espTri', n: 'Espera de triaje', st: 'enf', wait: true, states: ['EN_ESPERA_TRIAJE'], from: 't0', to: 'tTriCall' },
+  { k: 'tri', n: 'Triaje', st: 'enf', wait: false, states: ['LLAMADO_TRIAJE', 'EN_TRIAJE'], from: 'tTriCall', to: 'tTriSave' },
+  { k: 'espMed', n: 'Espera de consulta', st: 'med', wait: true, states: ['EN_ESPERA_CONSULTA'], from: 'tTriSave', to: 'tMedCall' },
+  { k: 'med', n: 'Consulta', st: 'med', wait: false, states: ['LLAMADO_CONSULTA', 'EN_CONSULTA'], from: 'tMedCall', to: 'tEnd' },
+];
+
+/** Etapas de vida del MINSA, para el perfil de pacientes. */
+export const GRUPOS_EDAD = [
+  ['nino', 'Niño', 0, 11],
+  ['adolescente', 'Adolescente', 12, 17],
+  ['joven', 'Joven', 18, 29],
+  ['adulto', 'Adulto', 30, 59],
+  ['mayor', 'Adulto mayor', 60, 200],
 ];
 
 export const PRIO = {
   CRITICA: ['Crítica', 'crit'],
   PRIORITARIA: ['Prioritaria', 'warn'],
-  NORMAL: ['Normal', 'mut'],
+  NORMAL: ['Normal', 'ok'],
 };
 
 /** Tiempo objetivo de espera por prioridad (min). Se marca en rojo al superarlo. */
@@ -93,9 +144,21 @@ export const MEDS = [
   { n: 'Loratadina 10 mg', g: ['loratadina', 'antihistaminico'] },
   { n: 'Omeprazol 20 mg', g: ['omeprazol'] },
   { n: 'Suero de rehidratación oral', g: [] },
+  { n: 'Enalapril 10 mg', g: ['enalapril', 'ieca'] },
+  { n: 'Metformina 850 mg', g: ['metformina'] },
+  { n: 'Nitrofurantoína 100 mg', g: ['nitrofurantoina'] },
 ];
 
 export const DESTINOS = ['Alta', 'Reposo médico', 'Derivación a hospital'];
+
+/** Motivos de cierre de un turno sin atención. Los dos primeros cuentan como abandono en el tablero. */
+export const CANCEL = {
+  noShow: 'No se presentó al llamado',
+  retiro: 'Retiro voluntario del paciente',
+  anulado: 'Anulado en admisión',
+  duplicado: 'Registro duplicado',
+};
+export const ABANDONO = [CANCEL.noShow, CANCEL.retiro];
 
 export const TH_FIELDS = [
   // clave crítica, clave alerta, etiqueta, regla, paso

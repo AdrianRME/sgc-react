@@ -1,163 +1,113 @@
-import { useState } from 'react';
-import { Modal, SisBadge } from './ui.jsx';
-import { useStore } from '../store/StoreProvider.jsx';
-import { fmtD, fmtDT, age, maskDni, fullName } from '../lib/format.js';
-import { hcAudit } from '../store/actions.js';
+import { Printer } from 'lucide-react';
+import { useStore } from '../store/useStore.js';
+import { fmtDT, age, maskDni, fullName } from '../lib/format.js';
+import { usePatientHistory } from '../hooks/usePatientHistory.js';
+import { Modal } from './Modal.jsx';
+import { Msg, SisBadge } from './ui.jsx';
+import { Icon3D } from './Icon3D.jsx';
+import { BrandMark } from './BrandMark.jsx';
+import { PatientTimeline, VitalTrends } from './PatientTimeline.jsx';
+import './documents.css';
 
-const DocHead = ({ title, code }) => (
-  <>
-    <div className="doc-h">
+const DocHead = ({ title, code, icon }) => (
+  <header className="doc-h">
+    <BrandMark />
+    <div>
+      <small>Centro de Salud (demo)</small>
       <h3>{title}</h3>
-      <b className="code">{code}</b>
     </div>
-    <div className="doc-sub">Centro de Salud (demo)</div>
-    <hr />
-  </>
+    {code && <b className="tcode doc-code">{code}</b>}
+    {icon && <Icon3D name={icon} size={44} />}
+  </header>
 );
 
-const DocActions = ({ onClose, print = true }) => (
+const DocActions = ({ onClose }) => (
   <div className="actions end no-print">
-    {print && <button className="btn sec" onClick={() => window.print()}>Imprimir</button>}
+    <button className="btn sec" onClick={() => window.print()}><Printer /> Imprimir</button>
     <button className="btn" onClick={onClose}>Cerrar</button>
   </div>
 );
 
-export function Recipe({ id, onClose }) {
-  const { db } = useStore();
-  const t = db.turns.find((x) => x.id === id);
-  const p = db.patients.find((x) => x.dni === t?.dni);
-  if (!t?.consult) return null;
+export function Recipe({ turn: t, onClose }) {
+  const { patient } = useStore();
+  const p = patient(t.dni);
   const c = t.consult;
   return (
-    <Modal label="Receta" onClose={onClose}>
+    <Modal label="Receta" onClose={onClose} className="doc">
       <DocHead title="Prescripción farmacológica" code={c.rec} />
-      <div className="meta">
-        <span><b>Paciente:</b> {fullName(p)}</span>
-        <span><b>DNI:</b> {p.dni}</span>
-        <span><b>HC:</b> {p.hc}</span>
-        <span><b>Edad:</b> {age(p.nac)} años</span>
-        <span><b>Fecha:</b> {fmtDT(c.t)}</span>
+      <dl className="doc-meta">
+        <div><dt>Paciente</dt><dd>{fullName(p)}</dd></div>
+        <div><dt>DNI</dt><dd>{p?.dni}</dd></div>
+        <div><dt>Historia</dt><dd>{p?.hc}</dd></div>
+        <div><dt>Edad</dt><dd>{p ? `${age(p.nac)} años` : '—'}</dd></div>
+        <div><dt>Fecha</dt><dd>{fmtDT(c.t)}</dd></div>
+      </dl>
+      {p?.alg && <Msg tone="crit"><b>Alergias:</b> {p.alg}</Msg>}
+      <div className="doc-sec">
+        <h4>Diagnóstico</h4>
+        <ul className="plain">{c.dx.map((d) => <li key={d[0]}><b className="code">{d[0]}</b> {d[1]} ({d[2] === 'D' ? 'definitivo' : 'presuntivo'})</li>)}</ul>
       </div>
-      {p.alg && <div className="meta"><span><b>Alergias:</b> {p.alg}</span></div>}
-      <div className="meta">
-        <span>
-          <b>Diagnóstico:</b>{' '}
-          {c.dx.map((d) => `${d[0]} – ${d[1]} (${d[2] === 'D' ? 'definitivo' : 'presuntivo'})`).join('; ')}
-        </span>
-      </div>
-      <hr />
       <div className="tblw">
-        <table>
-          <thead>
-            <tr><th>Medicamento</th><th>Dosis y frecuencia</th><th>Duración</th><th>Cant.</th></tr>
-          </thead>
+        <table className="tbl">
+          <thead><tr><th>Medicamento</th><th>Dosis y frecuencia</th><th>Duración</th><th className="num">Cant.</th></tr></thead>
           <tbody>
-            {c.meds.length ? c.meds.map((m, i) => (
-              <tr key={i}><td>{m.n}</td><td>{[m.dosis, m.frec].filter(Boolean).join(' · ')}</td><td>{m.dias ? `${m.dias} días` : ''}</td><td>{m.cant}</td></tr>
+            {c.meds.length ? c.meds.map((x, i) => (
+              <tr key={i}><td>{x.n}</td><td>{[x.dosis, x.frec].filter(Boolean).join(', ')}</td><td>{x.dias ? `${x.dias} días` : ''}</td><td className="num">{x.cant}</td></tr>
             )) : <tr><td colSpan="4">Sin medicamentos indicados</td></tr>}
           </tbody>
         </table>
       </div>
-      <hr />
-      <div className="meta">
-        <span><b>Destino:</b> {c.dest}{c.destx ? ` · ${c.dest === 'Reposo médico' ? `${c.destx} días` : c.destx}` : ''}</span>
-      </div>
-      <div className="sign">
-        {c.area} · Firma: {c.medico?.n} · {c.medico?.col} (ficticio)
-      </div>
-      <div className="wm">Documento de demostración sin validez clínica ni legal.</div>
+      <dl className="doc-meta">
+        <div><dt>Destino</dt><dd>{c.dest}{c.destx ? ` (${c.dest === 'Reposo médico' ? `${c.destx} días` : c.destx})` : ''}</dd></div>
+        <div><dt>Firma</dt><dd>{c.medico?.n}, {c.medico?.col} (ficticio), {c.area}</dd></div>
+      </dl>
+      <p className="wm">Documento de demostración sin validez clínica ni legal.</p>
       <DocActions onClose={onClose} />
     </Modal>
   );
 }
 
-export function Ticket({ id, onClose }) {
-  const { db } = useStore();
-  const t = db.turns.find((x) => x.id === id);
-  const p = db.patients.find((x) => x.dni === t?.dni);
-  if (!t) return null;
+export function Ticket({ turn: t, onClose }) {
+  const { patient } = useStore();
+  const p = patient(t.dni);
   return (
-    <Modal label="Ticket de turno" onClose={onClose} className="tk">
-      <div className="doc-sub">Centro de Salud (demo)</div>
-      <div style={{ margin: '10px 0 2px' }}>Su turno</div>
-      <div className="code tk-n">{t.id}</div>
-      <hr />
-      <div className="tk-b">
-        Diríjase a <b>Triaje</b>
-        <br />Emitido: {fmtDT(t.t0)}
-        <br />DNI {maskDni(p.dni)}
-      </div>
-      <div className="doc-sub" style={{ marginTop: 10 }}>Permanezca atento a la pantalla de sala.</div>
+    <Modal label="Ticket de turno" onClose={onClose} size="sm" className="doc ticket">
+      <DocHead title="Su turno" icon="ticket" />
+      <div className="tk-n tcode">{t.id}</div>
+      <p className="tk-b">Diríjase a <b>Triaje</b> y permanezca atento a la pantalla de sala.</p>
+      <dl className="doc-meta">
+        <div><dt>Emitido</dt><dd>{fmtDT(t.t0)}</dd></div>
+        <div><dt>DNI</dt><dd>{p ? maskDni(p.dni) : '—'}</dd></div>
+      </dl>
       <DocActions onClose={onClose} />
     </Modal>
   );
 }
 
-export function ClinicalHistory({ dni, onClose }) {
-  const { db } = useStore();
-  const p = db.patients.find((x) => x.dni === dni);
-  const h = db.turns.filter((t) => t.dni === dni && t.consult).sort((a, b) => b.consult.t - a.consult.t);
+export function ClinicalHistory({ dni, onClose, onRecipe }) {
+  const { patient } = useStore();
+  const p = patient(dni);
+  const h = usePatientHistory(dni);
   if (!p) return null;
   return (
-    <Modal label="Historia clínica" onClose={onClose}>
+    <Modal label="Historia clínica" onClose={onClose} className="doc wide">
       <DocHead title="Historia clínica digital" code={p.hc} />
-      <div className="meta">
-        <span><b>{fullName(p)}</b></span>
-        <span>DNI {p.dni}</span>
-        <span>{age(p.nac)} años · {p.sexo === 'F' ? 'Femenino' : 'Masculino'}</span>
-        <SisBadge sis={p.sis} />
+      <dl className="doc-meta">
+        <div><dt>Paciente</dt><dd>{fullName(p)}</dd></div>
+        <div><dt>DNI</dt><dd>{p.dni}</dd></div>
+        <div><dt>Edad y sexo</dt><dd>{age(p.nac)} años, {p.sexo === 'F' ? 'femenino' : 'masculino'}</dd></div>
+        <div><dt>Seguro</dt><dd><SisBadge sis={p.sis} /></dd></div>
+        <div><dt>Antecedentes</dt><dd>{p.ant || 'Ninguno registrado'}</dd></div>
+        <div><dt>Alergias</dt><dd className={p.alg ? 'alg' : ''}>{p.alg || 'Ninguna conocida'}</dd></div>
+      </dl>
+      <VitalTrends visits={h.visits} />
+      <div className="doc-sec">
+        <h4>Atenciones ({h.attended.length})</h4>
+        <PatientTimeline visits={h.attended} loading={h.loading} onRecipe={onRecipe} />
       </div>
-      <hr />
-      <div className="meta">
-        <span><b>Antecedentes:</b> {p.ant || 'Ninguno registrado'}</span>
-        <span><b>Alergias:</b> {p.alg || 'Ninguna conocida'}</span>
-      </div>
-      <hr />
-      <h4>Atenciones previas ({h.length})</h4>
-      {h.length ? (
-        <div className="tblw">
-          <table>
-            <thead><tr><th>Fecha</th><th>Diagnóstico</th><th>Tratamiento</th><th>Destino</th><th>Médico</th></tr></thead>
-            <tbody>
-              {h.map((t) => (
-                <tr key={t.id}>
-                  <td>{fmtD(t.consult.t)}</td>
-                  <td>{t.consult.dx.map((d) => d[0]).join(', ')}</td>
-                  <td>{t.consult.meds.map((m) => m.n).join(', ') || '—'}</td>
-                  <td>{t.consult.dest}</td>
-                  <td>{t.consult.medico?.n || '—'}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      ) : (
-        <div className="doc-sub">Sin atenciones previas.</div>
-      )}
-      <div className="wm info">Este acceso queda registrado en la auditoría (RF-18).</div>
+      {h.error && <Msg tone="crit">{h.error}</Msg>}
+      <p className="wm info">Este acceso queda registrado en la auditoría (RF-18).</p>
       <DocActions onClose={onClose} />
     </Modal>
   );
-}
-
-/** Abre ticket, receta o historia clínica desde cualquier vista. Abrir la HC queda auditado. */
-export function useDocuments() {
-  const { run } = useStore();
-  const [doc, setDoc] = useState(null);
-  const close = () => setDoc(null);
-  const openHC = (dni) => {
-    run(hcAudit, dni);
-    setDoc({ k: 'hc', dni });
-  };
-  const element =
-    doc?.k === 'tk' ? <Ticket id={doc.id} onClose={close} />
-    : doc?.k === 'rec' ? <Recipe id={doc.id} onClose={close} />
-    : doc?.k === 'hc' ? <ClinicalHistory dni={doc.dni} onClose={close} />
-    : null;
-  return {
-    openTicket: (id) => setDoc({ k: 'tk', id }),
-    openRecipe: (id) => setDoc({ k: 'rec', id }),
-    openHC,
-    element,
-  };
 }

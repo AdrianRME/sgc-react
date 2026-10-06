@@ -1,0 +1,99 @@
+/*
+ * Tokens del sistema de diseño.
+ * Idea central: la ruta del paciente como una línea de transporte. Cada estación (Admisión, Triaje,
+ * Consulta, Alta) tiene su color, que es también el color del espacio de trabajo de ese rol.
+ * Los colores de estado (crítico, alerta, normal) solo significan prioridad y siempre van con texto.
+ *
+ * Tema: cada color se declara una vez con light-dark(). Sin elección, sigue al sistema operativo;
+ * el botón de tema fija data-theme en <html>.
+ */
+:root { color-scheme: light dark; }
+:root[data-theme='light'] { color-scheme: light; }
+:root[data-theme='dark'] { color-scheme: dark; }
+
+:root {
+  /* Superficies: verde agua de las paredes de un centro de salud, no gris neutro */
+  --paper: light-dark(#e9efed, #0b1618);
+  --surface: light-dark(#fbfcfc, #122125);
+  --surface-2: light-dark(#f1f5f4, #17292d);
+  --sunken: light-dark(#e0e8e6, #0e1c1f);
+  --line: light-dark(#d2ddda, #23363a);
+  --line-strong: light-dark(#b5c4c0, #34494e);
+  --ink: light-dark(#0f2429, #e3edeb);
+  --ink-2: light-dark(#44595e, #a6b9ba);
+  --muted: light-dark(#6b7e83, #7f9396);
+  --overlay: light-dark(rgb(15 36 41 / 0.42), rgb(3 10 12 / 0.62));
+
+  /* Estaciones de la ruta = espacios de cada rol (validados para daltonismo entre vecinas) */
+  --st-adm: light-dark(#4a3aa7, #9085e9);
+  --st-enf: light-dark(#1baf7a, #199e70);
+  --st-med: light-dark(#2a78d6, #3987e5);
+  --st-jef: var(--ink);
+  /* Versiones para fondos de botón (contraste ≥ 4,5:1 con su texto) */
+  --st-adm-strong: light-dark(#4a3aa7, #9085e9);
+  --st-enf-strong: light-dark(#0e7a54, #2bbd88);
+  --st-med-strong: light-dark(#2163b5, #5a9ce9);
+  --st-jef-strong: var(--ink);
+  --on-strong: light-dark(#ffffff, #071214);
+
+  /* Estado (prioridad y alertas): fijos, siempre con ícono y etiqueta */
+  --crit: #d03b3b;
+  --warn: #fab219;
+  --good: #0ca30c;
+  --crit-text: light-dark(#b3261e, #ff8f87);
+  --warn-text: light-dark(#845700, #f6c35a);
+  --good-text: light-dark(#00650a, #5fd35f);
+  --info-text: light-dark(#1d5aa6, #8ab8f2);
+  --crit-bg: light-dark(#fbe8e6, #3a1c1d);
+  --warn-bg: light-dark(#fff3d4, #36290c);
+  --good-bg: light-dark(#e3f4e1, #11301a);
+  --info-bg: light-dark(#e5eefa, #13283f);
+
+  /* Datos: rejilla recesiva, gris de espera y rampa secuencial azul (claro→oscuro / oscuro→claro) */
+  --grid: light-dark(#e1e8e6, #1d3034);
+  --axis: light-dark(#c3cfcc, #2f4448);
+  --wait: light-dark(#b8c4c3, #3a4b4f);
+  --seq-1: light-dark(#cde2fb, #163454);
+  --seq-2: light-dark(#9ec5f4, #1c4a7a);
+  --seq-3: light-dark(#6da7ec, #2560a3);
+  --seq-4: light-dark(#3987e5, #2f77cc);
+  --seq-5: light-dark(#256abf, #4c8fe0);
+  --seq-6: light-dark(#184f95, #79abeb);
+  --seq-7: light-dark(#104281, #a9c9f3);
+  /* Categóricas (primeras tres ranuras de la paleta validada: distinguibles en todos los pares) */
+  --cat-1: light-dark(#2a78d6, #3987e5);
+  --cat-2: light-dark(#eb6834, #d95926);
+  --cat-3: light-dark(#1baf7a, #199e70);
+
+  /* Tipografía: Onest para trabajar, Bricolage Grotesque para títulos y códigos de turno */
+  --font: 'Onest Variable', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  --display: 'Bricolage Grotesque Variable', 'Onest Variable', system-ui, sans-serif;
+  --fs-xs: 0.78rem;
+  --fs-sm: 0.86rem;
+  --fs-md: 0.94rem;
+  --fs-lg: 1.06rem;
+  --fs-xl: 1.32rem;
+  --fs-2xl: 1.7rem;
+  --fs-3xl: 2.15rem;
+
+  /* Radios por jerarquía: panel > control > etiqueta */
+  --r-panel: 14px;
+  --r-ctl: 10px;
+  --r-sm: 6px;
+  --r-pill: 999px;
+
+  /* Las sombras son solo para capas flotantes (menús, diálogos, avisos) */
+  --shadow-float: 0 18px 40px -12px light-dark(rgb(15 36 41 / 0.28), rgb(0 0 0 / 0.6)),
+    0 2px 8px light-dark(rgb(15 36 41 / 0.08), rgb(0 0 0 / 0.3));
+  --ease: cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+/* Cada espacio toma el color de su estación */
+[data-role='adm'] { --role: var(--st-adm); --role-strong: var(--st-adm-strong); }
+[data-role='enf'] { --role: var(--st-enf); --role-strong: var(--st-enf-strong); }
+[data-role='med'] { --role: var(--st-med); --role-strong: var(--st-med-strong); }
+[data-role='jef'] { --role: var(--st-jef); --role-strong: var(--st-jef-strong); }
+:root, [data-role] {
+  --role-soft: color-mix(in oklab, var(--role, var(--st-med)) 12%, var(--surface));
+  --role-line: color-mix(in oklab, var(--role, var(--st-med)) 45%, var(--line));
+}

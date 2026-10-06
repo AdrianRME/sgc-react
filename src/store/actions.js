@@ -8,19 +8,19 @@
  */
 import {
   DomainError, assertTransition, evalTriage, validateVitals, validateThresholds,
-  allergyConflicts, validatePrescription,
+  allergyConflicts, validatePrescription, isCurrent, latestThresholds,
 } from '../lib/clinical.js';
 import { ACTIVE_STATES, TRIAGE_STATION, ROLES, PRIO } from '../lib/constants.js';
-import { nextTurnId, nextRecipe, nextHC, uid } from '../lib/ids.js';
+import { nextTurnId, nextRecipe, nextHC, uid, tempPassword } from '../lib/ids.js';
 import { maskDni, fullName, age } from '../lib/format.js';
 
-export const currentThresholds = (db) =>
-  [...db.thresholds].sort((a, b) => b.since - a.since)[0]?.vals;
+export const currentThresholds = (db) => latestThresholds(db.thresholds)?.vals;
 
 const auditEntry = (ctx, a, d) => ({ id: uid(), t: ctx.now, u: ctx.user?.u ?? '-', a, d, ip: ctx.ip });
 
-const findTurn = (db, id) => {
-  const t = db.turns.find((x) => x.id === id);
+/** El código se reinicia cada día: se busca entre los turnos de hoy y los que siguen abiertos. */
+const findTurn = (db, id, now) => {
+  const t = db.turns.find((x) => x.id === id && isCurrent(x, now));
   if (!t) throw new DomainError(`No se encontró el turno ${id}.`);
   return t;
 };
@@ -83,7 +83,7 @@ export function createTurn(db, ctx, { dni, form, sis }) {
     patient = { ...patient, tel: form.tel?.trim() ?? patient.tel, sis };
   }
 
-  const id = nextTurnId(db.turns);
+  const id = nextTurnId(db.turns, ctx.now);
   const turn = { id, dni, adm: ctx.user.u, state: 'EN_ESPERA_TRIAJE', prio: null, t0: ctx.now };
   audit.push(auditEntry(ctx, 'TURNO_CREADO', `${id} registrado${sis === 'PENDIENTE_VALIDACION' ? ' (contingencia SIS)' : ''}`));
   return {
@@ -94,7 +94,7 @@ export function createTurn(db, ctx, { dni, form, sis }) {
 }
 
 export function cancelTurn(db, ctx, id, motivo) {
-  const t = findTurn(db, id);
+  const t = findTurn(db, id, ctx.now);
   assertTransition(t, 'CANCELADO');
   const turn = { ...t, state: 'CANCELADO', cancel: { motivo, by: ctx.user.u, t: ctx.now } };
   return {
@@ -106,7 +106,7 @@ export function cancelTurn(db, ctx, id, motivo) {
 /* ---------- Llamado ---------- */
 
 export function callTurn(db, ctx, id) {
-  const t = findTurn(db, id);
+  const t = findTurn(db, id, ctx.now);
   const tri = t.state === 'EN_ESPERA_TRIAJE' || t.state === 'LLAMADO_TRIAJE';
   const to = tri ? 'LLAMADO_TRIAJE' : 'LLAMADO_CONSULTA';
   assertTransition(t, to);
@@ -135,7 +135,7 @@ export function callNext(db, ctx, queue, sorter) {
 /* ---------- Triaje ---------- */
 
 export function startTriage(db, ctx, id) {
-  const t = findTurn(db, id);
+  const t = findTurn(db, id, ctx.now);
   assertTransition(t, 'EN_TRIAJE');
   const busy = db.turns.find((x) => x.state === 'EN_TRIAJE' && x.id !== id);
   if (busy) throw new DomainError(`Ya hay un paciente en triaje (${busy.id}). Finalícelo o devuélvalo a la lista.`);
@@ -143,7 +143,7 @@ export function startTriage(db, ctx, id) {
 }
 
 export function returnToQueue(db, ctx, id) {
-  const t = findTurn(db, id);
+  const t = findTurn(db, id, ctx.now);
   const to = t.state === 'EN_TRIAJE' ? 'EN_ESPERA_TRIAJE' : 'EN_ESPERA_CONSULTA';
   assertTransition(t, to);
   const turn = { ...t, state: to, calledAt: null };
@@ -154,7 +154,7 @@ export function returnToQueue(db, ctx, id) {
 }
 
 export function saveTriage(db, ctx, id, vitals, allergies) {
-  const t = findTurn(db, id);
+  const t = findTurn(db, id, ctx.now);
   assertTransition(t, 'EN_ESPERA_CONSULTA');
   const errs = validateVitals(vitals);
   if (Object.keys(errs).length) throw new DomainError('Revise los signos vitales marcados.');
@@ -180,7 +180,7 @@ export function saveTriage(db, ctx, id, vitals, allergies) {
 /* ---------- Consulta ---------- */
 
 export function startConsult(db, ctx, id) {
-  const t = findTurn(db, id);
+  const t = findTurn(db, id, ctx.now);
   assertTransition(t, 'EN_CONSULTA');
   if (t.dest !== ctx.area) throw new DomainError(`${id} fue llamado a ${t.dest}, no a ${ctx.area}.`);
   const busy = db.turns.find((x) => x.state === 'EN_CONSULTA' && x.dest === ctx.area);
@@ -195,7 +195,7 @@ export function startConsult(db, ctx, id) {
 }
 
 export function finishConsult(db, ctx, id, { notas, dx, meds, dest, destx, allergyOverride }) {
-  const t = findTurn(db, id);
+  const t = findTurn(db, id, ctx.now);
   assertTransition(t, 'ATENDIDO');
   if (!notas?.trim()) throw new DomainError('Registre la anamnesis y el examen clínico.');
   if (!dx.length) throw new DomainError('Seleccione al menos un diagnóstico CIE-10.');
@@ -211,23 +211,19 @@ export function finishConsult(db, ctx, id, { notas, dx, meds, dest, destx, aller
     throw new DomainError(`Alergia registrada (${p.alg}): revise ${conflicts.map((c) => c.med).join(', ')} o confirme la prescripción.`);
   }
 
-  const rec = nextRecipe(db.turns);
+  const rec = nextRecipe(db.turns, new Date(ctx.now).getFullYear(), db.meta?.recMax);
   const consult = {
     notas: notas.trim(), dx, meds: list.map((m) => ({ ...m, dias: +m.dias })), dest, destx: destx?.trim() || '',
     rec, t: ctx.now, area: ctx.area, medico: { u: ctx.user.u, n: ctx.user.n, col: ctx.user.col },
   };
   const audit = [auditEntry(ctx, 'ATENCION_FINALIZADA', `${id} · ${rec} · ${dest}`)];
-  if (conflicts.length) audit.push(auditEntry(ctx, 'ALERGIA_CONFIRMADA', `${id} prescripción confirmada pese a alergia: ${conflicts.map((c) => c.med).join(', ')}`));
+  // Sin nombres de medicamentos: la auditoría la lee Jefatura, que no accede a recetas
+  if (conflicts.length) audit.push(auditEntry(ctx, 'ALERGIA_CONFIRMADA', `${id}: prescripción confirmada pese a alergia registrada`));
   return {
     changes: { turns: [{ ...t, state: 'ATENDIDO', tEnd: ctx.now, consult, calledAt: null }], audit },
     toast: ['ok', `Atención finalizada (${dest}). Receta ${rec} emitida; ${ctx.area} queda libre.`],
     result: id,
   };
-}
-
-export function hcAudit(db, ctx, dni) {
-  const p = db.patients.find((x) => x.dni === dni);
-  return { changes: { audit: [auditEntry(ctx, 'HC_CONSULTADA', `${p?.hc} consultada`)] } };
 }
 
 /* ---------- Jefatura ---------- */
@@ -240,10 +236,11 @@ export function createUser(db, ctx, f) {
   if (!ROLES[f.role]) throw new DomainError('Rol no válido.');
   if (f.role === 'med' && !/^CMP-\d{5}$/.test(f.col.trim())) throw new DomainError('La colegiatura del médico debe tener el formato CMP-00000.');
   if (f.role === 'enf' && f.col.trim() && !/^CEP-\d{5}$/.test(f.col.trim())) throw new DomainError('La colegiatura de enfermería debe tener el formato CEP-00000.');
-  const user = { u, n: f.n.trim(), role: f.role, col: f.col.trim(), on: true };
+  const clave = tempPassword();
+  const user = { u, n: f.n.trim(), role: f.role, col: f.col.trim(), on: true, clave_temporal: clave };
   return {
     changes: { users: [user], audit: [auditEntry(ctx, 'USUARIO', `${u} creado (${ROLES[f.role].n})`)] },
-    toast: ['ok', `Usuario ${u} creado. Contraseña temporal de demostración: demo1234.`],
+    result: { u, clave },
   };
 }
 
@@ -261,9 +258,12 @@ export function toggleUser(db, ctx, u) {
 }
 
 export function resetPassword(db, ctx, u) {
+  const x = db.users.find((y) => y.u === u);
+  if (!x) throw new DomainError('Usuario no encontrado.');
+  const clave = tempPassword();
   return {
-    changes: { audit: [auditEntry(ctx, 'RESET_CLAVE', `Clave temporal para ${u}`)] },
-    toast: ['ok', `Clave temporal generada para ${u} (demo: demo1234).`],
+    changes: { users: [{ ...x, clave_temporal: clave }], audit: [auditEntry(ctx, 'RESET_CLAVE', `Clave temporal para ${u}`)] },
+    result: { u, clave },
   };
 }
 

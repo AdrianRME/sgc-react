@@ -1,86 +1,156 @@
-import { useStore } from '../store/StoreProvider.jsx';
-import { logoutAudit, loginAudit } from '../store/actions.js';
-import { MODULES, ROLES, ACTIVE_STATES } from '../lib/constants.js';
-import { useConfirm } from './ui.jsx';
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import { AnimatePresence, m } from 'motion/react';
+import {
+  ChevronRight, ExternalLink, KeyRound, LogOut, Menu, Moon, PhoneCall, RotateCcw, Search, Sun, Tv, LayoutGrid,
+} from 'lucide-react';
+import { useStore } from '../store/useStore.js';
+import { QUEUE, ROLES } from '../lib/constants.js';
+import { byArrival, byPriority } from '../lib/clinical.js';
+import { callNext } from '../store/actions.js';
+import { fade } from '../lib/motion.js';
+import { go } from '../hooks/useHash.js';
+import { useTheme } from '../hooks/useTheme.js';
+import { useHotkey } from '../hooks/useHotkey.js';
+import { useActivity } from '../hooks/useActivity.js';
+import { useConfirm } from '../hooks/useConfirm.jsx';
+import { Avatar, Kbd, Msg } from './ui.jsx';
+import { Icon3D } from './Icon3D.jsx';
+import { BrandMark } from './BrandMark.jsx';
+import { ChangePassword } from './ChangePassword.jsx';
+import { CommandPalette } from './CommandPalette.jsx';
+import { Notifications } from './Notifications.jsx';
 
-export function Shell({ view, children }) {
-  const { db, user, repo, status, updateSession, run, resetDemo } = useStore();
+const SALA = ['sala', 'Pantalla de sala', 'tv'];
+const isMac = typeof navigator !== 'undefined' && /Mac|iPhone|iPad/.test(navigator.platform);
+
+/** Pacientes que esperan en la etapa de cada rol (contador del menú y del título de la pestaña). */
+const waitingFor = (role, turns) => (QUEUE[role] ? turns.filter((t) => QUEUE[role].includes(t.state)).length : 0);
+
+/** Marco del espacio de trabajo de cada rol: identidad, navegación, búsqueda, avisos y sesión. */
+export function Shell({ section, children }) {
+  const { db, user, repo, status, signOut, resetDemo, idleLeft, run, area, toast } = useStore();
   const [ask, dialog] = useConfirm();
-  const allowed = [...ROLES[user.role].mods, 'sala'];
+  const [pwd, setPwd] = useState(false);
+  const [palette, setPalette] = useState(false);
+  const [navOpen, setNavOpen] = useState(false);
+  const { effective, toggle } = useTheme();
+  const onCritical = useCallback((text) => toast('crit', text), [toast]);
+  const feed = useActivity(db, user, onCritical);
+  const role = ROLES[user.role];
+  const base = `/${role.slug}`;
+  const sections = role.sections;
+  const current = section === 'sala' ? SALA : sections.find(([k]) => k === section) || sections[0];
+  const waiting = waitingFor(user.role, db.turns);
 
-  // Contadores en el menú: cuántos pacientes esperan en cada módulo.
-  const count = {
-    adm: db.turns.filter((t) => ACTIVE_STATES.includes(t.state)).length,
-    enf: db.turns.filter((t) => ['EN_ESPERA_TRIAJE', 'LLAMADO_TRIAJE'].includes(t.state)).length,
-    med: db.turns.filter((t) => ['EN_ESPERA_CONSULTA', 'LLAMADO_CONSULTA'].includes(t.state)).length,
-  };
+  useHotkey((e) => (e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'k', () => setPalette(true));
+  useEffect(() => {
+    document.title = `${waiting ? `(${waiting}) ` : ''}${current[1]} · SGC`;
+  }, [waiting, current]);
 
-  const logout = () => {
-    run(logoutAudit);
-    updateSession({ u: null, view: null });
-  };
+  const confirmReset = useCallback(
+    () =>
+      ask({
+        title: 'Restablecer datos de demostración',
+        text: `Se borrarán los turnos, pacientes, atenciones y la auditoría${repo.kind === 'supabase' ? ' en Supabase para todos los equipos conectados' : ''}, y se cargarán varias semanas de atenciones de ejemplo. Las cuentas de usuario se conservan.`,
+        confirmLabel: 'Restablecer',
+        danger: true,
+        onConfirm: resetDemo,
+      }),
+    [ask, repo.kind, resetDemo],
+  );
 
-  const switchUser = (u) => {
-    const x = db.users.find((y) => y.u === u);
-    updateSession({ u, view: ROLES[x.role].mods[0] });
-    run(loginAudit);
-  };
+  const commands = useMemo(() => {
+    const nav = [...sections, SALA].map(([k, l]) => ({ id: `go-${k}`, group: 'Ir a', label: l, icon: k === 'sala' ? Tv : LayoutGrid, run: () => go(`${base}/${k}`) }));
+    const acts = [];
+    if (user.role === 'enf') acts.push({ id: 'next-tri', group: 'Acciones', label: 'Llamar al siguiente paciente de triaje', icon: PhoneCall, run: () => run(callNext, 'tri', byArrival) });
+    if (user.role === 'med') acts.push({ id: 'next-med', group: 'Acciones', label: `Llamar al siguiente paciente a ${area}`, icon: PhoneCall, run: () => run(callNext, 'med', byPriority) });
+    acts.push(
+      { id: 'sala-ext', group: 'Acciones', label: 'Abrir la pantalla de sala en otra ventana', icon: ExternalLink, run: () => window.open('#/sala', '_blank', 'noopener') },
+      { id: 'theme', group: 'Preferencias', label: effective === 'dark' ? 'Usar tema claro' : 'Usar tema oscuro', icon: effective === 'dark' ? Sun : Moon, keywords: 'tema modo oscuro claro', run: toggle },
+      { id: 'pwd', group: 'Cuenta', label: 'Cambiar mi contraseña', icon: KeyRound, run: () => setPwd(true) },
+    );
+    if (user.role === 'jef') acts.push({ id: 'reset', group: 'Cuenta', label: 'Restablecer datos de demostración', icon: RotateCcw, run: confirmReset });
+    acts.push({ id: 'out', group: 'Cuenta', label: 'Cerrar sesión', icon: LogOut, run: () => signOut() });
+    return [...nav, ...acts];
+  }, [sections, base, user.role, area, effective, run, toggle, signOut, confirmReset]);
+
+  const navItem = ([k, l, icon], count) => (
+    <a key={k} className="nb" href={`#${base}/${k}`} aria-current={current[0] === k ? 'page' : undefined} onClick={() => setNavOpen(false)}>
+      <i className="stop" aria-hidden="true" />
+      <Icon3D name={icon} size={22} />
+      <span className="lbl">{l}</span>
+      {count > 0 && <span className="cnt" title="Pacientes en espera en su etapa">{count}</span>}
+    </a>
+  );
 
   return (
-    <div className="shell" data-mod={view === 'sala' ? 'adm' : view}>
-      <aside>
+    <div className="app" data-role={user.role} data-nav={navOpen ? 'open' : undefined}>
+      <aside className="side" aria-label="Menú del espacio de trabajo">
         <div className="brand">
-          <div className="logo">SGC</div>
-          <div>
-            <b>Gestión Clínica</b>
-            <span>Centro de Salud (demo)</span>
-          </div>
+          <BrandMark />
+          <div><b>SGC</b><span>Gestión clínica · Centro de Salud</span></div>
         </div>
-        <div className="me">
-          <b>{user.n}</b>
-          {ROLES[user.role].n}
-          {user.col && ` · ${user.col}`}
+        <div className="space">
+          <Icon3D name={role.icon} size={44} />
+          <div><small>Su espacio</small><b>{role.n}</b><span>{role.tag}</span></div>
         </div>
-        <nav className="nav" aria-label="Módulos">
-          {allowed.map((m) => (
-            <button key={m} className="nb" aria-current={view === m} onClick={() => updateSession({ view: m })}>
-              <span>{MODULES[m]}</span>
-              {count[m] > 0 && <span className="cnt">{count[m]}</span>}
-            </button>
-          ))}
-          <a className="nb ext" href="#/sala" target="_blank" rel="noreferrer">Sala en otra ventana ↗</a>
+        <nav className="line-nav" aria-label="Secciones">
+          {sections.map((s, i) => navItem(s, i === 0 ? waiting : 0))}
+          <span className="ln-sep" aria-hidden="true" />
+          {navItem(SALA)}
+          <a className="nb ext" href="#/sala" target="_blank" rel="noreferrer">
+            <i className="stop" aria-hidden="true" />
+            <span className="lbl">Sala en otra ventana</span>
+            <ExternalLink aria-hidden="true" />
+          </a>
         </nav>
-        <div className="side-foot">
-          <label htmlFor="rs">Demo: cambiar de usuario</label>
-          <select id="rs" value={user.u} onChange={(e) => switchUser(e.target.value)}>
-            {db.users.filter((x) => x.on).map((x) => (
-              <option key={x.u} value={x.u}>{ROLES[x.role].n} · {x.n}</option>
-            ))}
-          </select>
-          <button
-            className="lnk"
-            onClick={() => ask({
-              title: 'Restablecer datos de demostración',
-              text: `Se borrarán los turnos, pacientes y registros creados${repo.kind === 'supabase' ? ' en Supabase para todos los equipos conectados' : ''}.`,
-              confirmLabel: 'Restablecer',
-              danger: true,
-              onConfirm: resetDemo,
-            })}
-          >
-            Restablecer datos demo
-          </button>
-          <button className="lnk" onClick={logout}>Cerrar sesión</button>
+        <div className="me">
+          <div className="me-card">
+            <Avatar name={user.n} />
+            <div><b>{user.n}</b><span>{user.u}{user.col ? ` (${user.col})` : ''}</span></div>
+          </div>
+          <button className="lnk" onClick={() => setPwd(true)}><KeyRound /> Cambiar contraseña</button>
+          {user.role === 'jef' && <button className="lnk" onClick={confirmReset}><RotateCcw /> Restablecer datos demo</button>}
+          <button className="lnk" onClick={() => signOut()}><LogOut /> Cerrar sesión</button>
+          <small className="sess">{repo.kind === 'supabase' ? 'Sesión segura: se cierra tras 15 minutos sin actividad.' : 'Modo local de desarrollo.'}</small>
         </div>
       </aside>
-      <main>
-        <div className="bar">
-          <b>{MODULES[view]}</b>
-          <span className={`pill ${status.ok ? '' : 'pill-bad'}`} title={status.msg}>
-            {status.ok ? `● ${repo.label}` : '● Sin conexión con el servidor'}
+      <AnimatePresence>{navOpen && <m.div {...fade} className="scrim" onClick={() => setNavOpen(false)} />}</AnimatePresence>
+
+      <div className="main">
+        <header className="topbar">
+          <button className="icon-btn menu-btn" aria-label="Abrir menú" onClick={() => setNavOpen(true)}><Menu /></button>
+          <div className="crumbs">
+            <span>{role.n}</span>
+            <ChevronRight aria-hidden="true" />
+            <b>{current[1]}</b>
+          </div>
+          <button className="top-search" onClick={() => setPalette(true)} aria-label="Buscar o ir a (Ctrl + K)">
+            <Search aria-hidden="true" />
+            <span className="txt">Buscar o ir a…</span>
+            <span className="keys" aria-hidden="true"><Kbd>{isMac ? '⌘' : 'Ctrl'}</Kbd><Kbd>K</Kbd></span>
+          </button>
+          <Notifications feed={feed} />
+          <button className="icon-btn" onClick={toggle} aria-label={effective === 'dark' ? 'Usar tema claro' : 'Usar tema oscuro'}>
+            {effective === 'dark' ? <Sun /> : <Moon />}
+          </button>
+          <span className={`conn ${status.ok ? '' : 'bad'}`} title={status.msg || repo.label}>
+            <i className="dot" aria-hidden="true" />
+            <span className="txt">{status.ok ? (repo.kind === 'supabase' ? 'En línea' : 'Local') : 'Sin conexión'}</span>
           </span>
-        </div>
-        {children}
-      </main>
+        </header>
+        {idleLeft != null && (
+          <div className="idle">
+            <Msg tone="warn" role="alert">
+              Su sesión se cerrará en <b>{Math.ceil(idleLeft / 1000)} s</b> por inactividad. Mueva el mouse o pulse una tecla para continuar.
+            </Msg>
+          </div>
+        )}
+        <main className="page" id="contenido">{children}</main>
+      </div>
+
+      <AnimatePresence>{palette && <CommandPalette key="palette" commands={commands} onClose={() => setPalette(false)} />}</AnimatePresence>
+      <AnimatePresence>{pwd && <ChangePassword key="pwd" onClose={() => setPwd(false)} />}</AnimatePresence>
       {dialog}
     </div>
   );

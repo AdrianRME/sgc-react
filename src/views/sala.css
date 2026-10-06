@@ -1,0 +1,56 @@
+/* Pantalla de sala: siempre oscura (televisor en una sala iluminada), con los colores de las estaciones */
+.sala {
+  --s-bg: #061316; --s-panel: #0d2024; --s-line: #1c373d; --s-ink: #eaf3f1; --s-ink2: #9db4b6;
+  --tri: #24c98d; --med: #5297ee;
+  color-scheme: dark; display: grid; grid-template-rows: auto 1fr auto; min-height: 640px;
+  border-radius: var(--r-panel); background: var(--s-bg); color: var(--s-ink); overflow: hidden;
+}
+.sala.full { min-height: 100dvh; border-radius: 0; }
+.sala-h { display: flex; align-items: center; gap: 14px; padding: 18px clamp(16px, 3vw, 32px); border-bottom: 1px solid var(--s-line); }
+.sala-h .brand-mark { width: 44px; height: 44px; --ink: #eaf3f1; --paper: #061316; }
+.sala-h b { display: block; font: 700 1.3rem / 1.1 var(--display); }
+.sala-h span { display: block; color: var(--s-ink2); font-size: var(--fs-sm); }
+.clock { margin-left: auto; text-align: right; }
+.clock b { font: 700 clamp(1.6rem, 3vw, 2.8rem) / 1 var(--display); font-variant-numeric: tabular-nums; }
+.clock span { margin-top: 4px; }
+
+.sala-body { display: grid; grid-template-columns: minmax(0, 1.55fr) minmax(0, 1fr); gap: clamp(16px, 2.5vw, 32px); padding: clamp(16px, 3vw, 32px); }
+.sala h2 { font: 600 clamp(1rem, 1.5vw, 1.35rem) / 1.2 var(--font); color: var(--s-ink2); margin-bottom: 14px; }
+.call {
+  --c: var(--med);
+  position: relative; display: flex; flex-direction: column; gap: clamp(12px, 2vw, 24px); padding: clamp(20px, 3.5vw, 44px);
+  border-radius: 24px; border: 2px solid var(--c); background: radial-gradient(120% 140% at 0% 0%, color-mix(in oklab, var(--c) 22%, var(--s-panel)) 0%, var(--s-panel) 55%);
+}
+.call.tri { --c: var(--tri); }
+.call-code { font: 800 clamp(4rem, 13vw, 12rem) / 0.9 var(--display); letter-spacing: -0.045em; font-variant-numeric: tabular-nums; }
+.call-to { display: flex; align-items: center; gap: 18px; }
+.call-to small { display: block; font-size: clamp(1rem, 1.6vw, 1.5rem); color: var(--s-ink2); }
+.call-to b { display: block; font: 700 clamp(1.8rem, 4vw, 3.6rem) / 1 var(--display); color: var(--c); }
+.call .ring { position: absolute; inset: -2px; border-radius: inherit; pointer-events: none; animation: call-ring 1.8s ease-out 3; }
+@keyframes call-ring { 0% { box-shadow: 0 0 0 0 color-mix(in oklab, var(--c) 55%, transparent); } 100% { box-shadow: 0 0 0 26px transparent; } }
+.call.none { display: grid; place-items: center; min-height: 260px; border-color: var(--s-line); background: var(--s-panel); color: var(--s-ink2); font-size: 1.4rem; }
+.also { margin-top: 22px; }
+.also h3 { font-size: var(--fs-md); color: var(--s-ink2); font-weight: 600; }
+.also ul { list-style: none; margin: 10px 0 0; padding: 0; display: flex; flex-wrap: wrap; gap: 10px; }
+.also li { --c: var(--med); display: flex; align-items: baseline; gap: 10px; padding: 10px 16px; border-radius: 14px; background: var(--s-panel); border-left: 5px solid var(--c); }
+.also li.tri { --c: var(--tri); }
+.also b { font: 700 1.6rem / 1 var(--display); }
+.also span { color: var(--s-ink2); }
+
+.next-cols { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
+.next-col { --c: var(--med); }
+.next-col.tri { --c: var(--tri); }
+.next-col h3 { display: flex; justify-content: space-between; align-items: baseline; padding-bottom: 8px; border-bottom: 3px solid var(--c); font-size: var(--fs-lg); }
+.next-col h3 span { color: var(--s-ink2); font-variant-numeric: tabular-nums; }
+.next-col ul { list-style: none; margin: 12px 0 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
+.next-col li { padding: 8px 14px; border-radius: 12px; background: var(--s-panel); font: 700 clamp(1.4rem, 2.3vw, 2.2rem) / 1.1 var(--display); font-variant-numeric: tabular-nums; }
+.none-sm { margin-top: 10px; color: var(--s-ink2); font-size: var(--fs-sm); }
+
+.sala-f { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px; padding: 14px clamp(16px, 3vw, 32px); border-top: 1px solid var(--s-line); color: var(--s-ink2); }
+.sala-f > span { display: inline-flex; align-items: center; gap: 8px; }
+.sala-f .err { color: #ff8f87; }
+.sala-f svg { width: 16px; height: 16px; }
+.sala-ctl { display: flex; flex-wrap: wrap; gap: 8px; }
+.sala-ctl button { display: inline-flex; align-items: center; gap: 8px; height: 36px; padding: 0 14px; border: 1px solid var(--s-line); border-radius: 10px; background: var(--s-panel); color: var(--s-ink); font-weight: 600; font-size: var(--fs-sm); }
+.sala-ctl button[aria-pressed='true'] { border-color: var(--tri); }
+@media (max-width: 900px) { .sala-body { grid-template-columns: minmax(0, 1fr); } }
