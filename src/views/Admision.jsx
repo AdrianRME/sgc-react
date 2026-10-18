@@ -1,11 +1,12 @@
 import { useState } from 'react';
 import { AnimatePresence, m } from 'motion/react';
-import { Ban, Search, Ticket as TicketIcon, UserRound, WifiOff } from 'lucide-react';
+import { Ban, LogIn, Search, Ticket as TicketIcon, UserRound, WifiOff } from 'lucide-react';
 import { useStore } from '../store/useStore.js';
-import { createTurn, cancelTurn, searchAudit, activeTurnOf, validatePatientForm } from '../store/actions.js';
-import { ACTIVE_STATES, CANCEL, ROUTE, STATE } from '../lib/constants.js';
+import { createTurn, cancelTurn, checkIn, searchAudit, activeTurnOf, validatePatientForm } from '../store/actions.js';
+import { ACTIVE_STATES, CANCEL, ROUTE, SIS_EXONERADO, STATE, TARIFA_CONSULTA } from '../lib/constants.js';
+import { sameDay } from '../lib/agenda.js';
 import { byArrival, normalize } from '../lib/clinical.js';
-import { age, fmtT, fullName, isoDay } from '../lib/format.js';
+import { age, fmtCitaDia, fmtSoles, fmtT, fmtHora, fullName, isoDay } from '../lib/format.js';
 import { listItem } from '../lib/motion.js';
 import { useNow } from '../hooks/useNow.js';
 import { WorkspaceHeader } from '../components/WorkspaceHeader.jsx';
@@ -16,7 +17,10 @@ import { Icon3D } from '../components/Icon3D.jsx';
 import './workspaces.css';
 
 const EMPTY_FORM = { nom: '', ape: '', nac: '', sexo: 'F', tel: '' };
-const TRIAGE = ROUTE.find((s) => s.k === 'enf').states;
+const statesOf = (k) => ROUTE.find((s) => s.k === k).states;
+/** Pacientes que están en el centro (los citados para otro día se ven en la sección de citas). */
+const EN_CENTRO = ACTIVE_STATES.filter((s) => s !== 'CITADO');
+const CANCELABLE = ['PENDIENTE_PAGO', 'EN_ESPERA_TRIAJE', 'PENDIENTE_CITA', 'EN_ESPERA_CONSULTA'];
 
 /** Simula la consulta al servicio SIS (en producción: API externa con tiempo límite de 2,5 s). */
 const sisLookup = (dni, patient, down) =>
@@ -38,6 +42,7 @@ function Registro() {
   const [found, setFound] = useState(null);
   const [form, setForm] = useState(EMPTY_FORM);
   const [errs, setErrs] = useState({});
+  const now = useNow(60_000);
   const [today] = useState(() => isoDay(Date.now()));
   const dniOk = /^\d{8}$/.test(q);
   const byName = !/^\d+$/.test(q) && q.trim().length >= 3;
@@ -125,8 +130,9 @@ function Registro() {
 
       {!loading && !found && !byName && (
         <Empty icon="search" title="Busque al paciente para generar su turno">
-          Pruebe <button className="linkbtn" onClick={() => setQ('70000001')}>70000001</button> (con historia y alergia) o un DNI nuevo, por ejemplo{' '}
-          <button className="linkbtn" onClick={() => setQ('70000019')}>70000019</button>.
+          Pruebe <button className="linkbtn" onClick={() => setQ('70000001')}>70000001</button> (con historia y alergia), un DNI nuevo con SIS como{' '}
+          <button className="linkbtn" onClick={() => setQ('70000013')}>70000013</button> o uno sin seguro como{' '}
+          <button className="linkbtn" onClick={() => setQ('70000027')}>70000027</button> (pasa por Caja).
         </Empty>
       )}
 
@@ -136,7 +142,17 @@ function Registro() {
             {found.cont && (
               <Msg tone="warn"><b>Modo contingencia (Regla 6):</b> el servicio SIS no respondió a tiempo. El turno se registra como «Pendiente de validación» para no detener la atención.</Msg>
             )}
-            {dup && <Msg tone="crit">Este paciente ya tiene el turno <b>{dup.id}</b> activo ({STATE[dup.state][0].toLowerCase()}). No se genera otro.</Msg>}
+            {dup && dup.state === 'CITADO' ? (
+              <Msg tone={sameDay(dup.cita.at, now) ? 'ok' : 'info'}>
+                Tiene cita <b>{fmtCitaDia(dup.cita.at, now)} a las {fmtHora(dup.cita.at)}</b> (turno {dup.id}). No necesita pagar ni pasar por triaje otra vez.
+                {sameDay(dup.cita.at, now)
+                  ? <div className="actions"><button type="button" className="btn sm" onClick={async () => { const r = await run(checkIn, dup.id); if (r.ok) clear(); }}><LogIn /> Registrar llegada</button></div>
+                  : ' Ese día registre su llegada aquí.'}
+              </Msg>
+            ) : dup && <Msg tone="crit">Este paciente ya tiene el turno <b>{dup.id}</b> activo ({STATE[dup.state][0].toLowerCase()}). No se genera otro.</Msg>}
+            {!dup && (SIS_EXONERADO.includes(found.sis)
+              ? <Msg tone="ok">Con SIS la consulta no se cobra: el turno pasa directo a la lista de triaje.</Msg>
+              : <Msg tone="warn">Paciente sin seguro: debe pagar <b>{fmtSoles(TARIFA_CONSULTA)}</b> en Caja antes del triaje.</Msg>)}
             <div className="patient-card">
               <Icon3D name={isNew ? 'sparkles' : 'idcard'} size={44} />
               <div className="pc-main">
@@ -183,11 +199,10 @@ function Activos() {
   const docs = useDocuments();
   const [ask, dialog] = useConfirm();
   const [filter, setFilter] = useState('todos');
-  const active = db.turns.filter((t) => ACTIVE_STATES.includes(t.state)).sort(byArrival);
+  const active = db.turns.filter((t) => EN_CENTRO.includes(t.state)).sort(byArrival);
   const groups = {
     todos: active,
-    triaje: active.filter((t) => TRIAGE.includes(t.state)),
-    consulta: active.filter((t) => !TRIAGE.includes(t.state)),
+    ...Object.fromEntries(['caj', 'enf', 'cita', 'med'].map((k) => [k, active.filter((t) => statesOf(k).includes(t.state))])),
   };
   const pat = (t) => patient(t.dni);
   const cancel = (t) =>
@@ -196,7 +211,7 @@ function Activos() {
       text: `${fullName(pat(t))} saldrá de la cola. Esta acción no se puede deshacer.`,
       confirmLabel: 'Cancelar turno',
       danger: true,
-      options: [CANCEL.anulado, CANCEL.retiro, CANCEL.duplicado],
+      options: t.state === 'PENDIENTE_PAGO' ? [CANCEL.sinPago, CANCEL.anulado, CANCEL.duplicado] : [CANCEL.anulado, CANCEL.retiro, CANCEL.duplicado],
       onConfirm: (motivo) => run(cancelTurn, t.id, motivo),
     });
 
@@ -205,7 +220,8 @@ function Activos() {
       title="Turnos activos"
       count={active.length}
       icon="clipboard"
-      actions={<Segmented label="Filtrar turnos" value={filter} onChange={setFilter} options={[['todos', 'Todos', groups.todos.length], ['triaje', 'Triaje', groups.triaje.length], ['consulta', 'Consulta', groups.consulta.length]]} />}
+      sub="Pacientes que están en el centro"
+      actions={<Segmented label="Filtrar turnos" value={filter} onChange={setFilter} options={[['todos', 'Todos', groups.todos.length], ['caj', 'Caja', groups.caj.length], ['enf', 'Triaje', groups.enf.length], ['cita', 'Cita', groups.cita.length], ['med', 'Consulta', groups.med.length]]} />}
     >
       {groups[filter].length ? (
         <ul className="queue">
@@ -227,7 +243,7 @@ function Activos() {
                   <div className="qside"><StateBadge state={t.state} /></div>
                   <div className="acts">
                     <button className="btn sec sm" onClick={() => docs.openTicket(t)}><TicketIcon /> Ticket</button>
-                    {['EN_ESPERA_TRIAJE', 'EN_ESPERA_CONSULTA'].includes(t.state) && (
+                    {CANCELABLE.includes(t.state) && (
                       <button className="btn dng sm" onClick={() => cancel(t)}><Ban /> Cancelar</button>
                     )}
                   </div>

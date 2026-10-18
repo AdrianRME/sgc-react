@@ -7,9 +7,10 @@ export const KEYS = {
   users: (r) => r.u,
   audit: (r) => r.id,
   thresholds: (r) => r.id,
+  horarios: (r) => r.id,
 };
 
-export const EMPTY_DB = { patients: [], turns: [], users: [], audit: [], thresholds: [], meta: {} };
+export const EMPTY_DB = { patients: [], turns: [], users: [], audit: [], thresholds: [], horarios: [], meta: {} };
 
 /** Aplica cambios (altas y actualizaciones por clave) sobre una copia de la base. */
 export function applyChanges(db, changes) {

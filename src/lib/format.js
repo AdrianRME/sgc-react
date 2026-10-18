@@ -18,6 +18,18 @@ export const fmtDT = (t) => `${fmtD(t)} ${fmtT(t)}`;
 /** «lun 22»: etiqueta corta de un día en los ejes. */
 export const fmtDay = (t) => dayFmt.format(t).replace('.', '');
 export const fmtLongDay = (t) => longDayFmt.format(t);
+const hourFmt = new Intl.DateTimeFormat(LOCALE, { hour: '2-digit', minute: '2-digit', hourCycle: 'h23' });
+/** Hora de una cita en 24 h («08:30»), como el horario de los médicos. */
+export const fmtHora = (t) => hourFmt.format(t);
+const moneyFmt = new Intl.NumberFormat(LOCALE, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+/** «S/ 20.00». */
+export const fmtSoles = (n) => `S/ ${moneyFmt.format(n ?? 0)}`;
+const citaDayFmt = new Intl.DateTimeFormat(LOCALE, { weekday: 'long', day: 'numeric', month: 'short' });
+/** Día de una cita relativo a hoy: «hoy», «mañana» o «martes 14 oct.». */
+export function fmtCitaDia(t, now = Date.now()) {
+  const d = Math.round((startOfDay(t) - startOfDay(now)) / DAY);
+  return d === 0 ? 'hoy' : d === 1 ? 'mañana' : citaDayFmt.format(t);
+}
 export const fmtNum = (n) => (n == null ? '—' : numFmt.format(n));
 export const fmtPct = (x) => (x == null ? '—' : `${Math.round(x * 100)} %`);
 

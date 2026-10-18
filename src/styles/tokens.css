@@ -1,7 +1,7 @@
 /*
  * Tokens del sistema de diseño.
- * Idea central: la ruta del paciente como una línea de transporte. Cada estación (Admisión, Triaje,
- * Consulta, Alta) tiene su color, que es también el color del espacio de trabajo de ese rol.
+ * Idea central: la ruta del paciente como una línea de transporte. Cada estación (Admisión, Caja,
+ * Triaje, Consulta, Alta) tiene su color, que es también el color del espacio de trabajo de ese rol.
  * Los colores de estado (crítico, alerta, normal) solo significan prioridad y siempre van con texto.
  *
  * Tema: cada color se declara una vez con light-dark(). Sin elección, sigue al sistema operativo;
@@ -26,11 +26,13 @@
 
   /* Estaciones de la ruta = espacios de cada rol (validados para daltonismo entre vecinas) */
   --st-adm: light-dark(#4a3aa7, #9085e9);
+  --st-caj: light-dark(#b5560f, #e8853f);
   --st-enf: light-dark(#1baf7a, #199e70);
   --st-med: light-dark(#2a78d6, #3987e5);
   --st-jef: var(--ink);
   /* Versiones para fondos de botón (contraste ≥ 4,5:1 con su texto) */
   --st-adm-strong: light-dark(#4a3aa7, #9085e9);
+  --st-caj-strong: light-dark(#a24b0b, #f0a066);
   --st-enf-strong: light-dark(#0e7a54, #2bbd88);
   --st-med-strong: light-dark(#2163b5, #5a9ce9);
   --st-jef-strong: var(--ink);
@@ -90,6 +92,7 @@
 
 /* Cada espacio toma el color de su estación */
 [data-role='adm'] { --role: var(--st-adm); --role-strong: var(--st-adm-strong); }
+[data-role='caj'] { --role: var(--st-caj); --role-strong: var(--st-caj-strong); }
 [data-role='enf'] { --role: var(--st-enf); --role-strong: var(--st-enf-strong); }
 [data-role='med'] { --role: var(--st-med); --role-strong: var(--st-med-strong); }
 [data-role='jef'] { --role: var(--st-jef); --role-strong: var(--st-jef-strong); }

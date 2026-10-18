@@ -10,12 +10,14 @@ import { useNow } from '../hooks/useNow.js';
 import './login.css';
 
 // Cuentas de demostración (solo se muestran en modo local de desarrollo)
-const DEV_USERS = [['a.admision', 'adm'], ['e.triaje', 'enf'], ['m.consulta', 'med'], ['j.jefatura', 'jef']];
+const DEV_USERS = [['a.admision', 'adm'], ['c.caja', 'caj'], ['e.triaje', 'enf'], ['m.consulta', 'med'], ['m.cardio', 'med'], ['j.jefatura', 'jef']];
 
 /** Estaciones de la ruta en la portada. */
 const STATIONS = [
   ['adm', 'Admisión', 'idcard', 'DNI, SIS y turno'],
+  ['caj', 'Caja', 'scroll', 'Pago de la consulta'],
   ['enf', 'Triaje', 'thermometer', 'Signos y prioridad'],
+  ['adm', 'Cita', 'calendar', 'Según el horario'],
   ['med', 'Consulta', 'stethoscope', 'Diagnóstico y receta'],
   ['jef', 'Alta', 'check', 'Destino del paciente'],
 ];
@@ -23,9 +25,9 @@ const STATIONS = [
 /** La ruta se dibuja una sola vez al abrir: es el único movimiento que no responde a una acción. */
 function RouteArt() {
   return (
-    <ol className="route-art" aria-label="Ruta del paciente: admisión, triaje, consulta y alta">
+    <ol className="route-art" aria-label="Ruta del paciente: admisión, caja, triaje, cita, consulta y alta">
       {STATIONS.map(([k, n, icon, sub], i) => (
-        <li key={k} style={{ '--c': `var(--st-${k})` }}>
+        <li key={n} style={{ '--c': `var(--st-${k})` }}>
           {i > 0 && (
             <m.i
               className="ra-line"
@@ -94,13 +96,13 @@ export function Login() {
         </div>
         <div className="hero-copy">
           <h1>La ruta del paciente, de la puerta a la receta.</h1>
-          <p>Admisión, triaje, consulta y alta conectados en tiempo real en el Centro de Salud de primer nivel.</p>
+          <p>Admisión, caja, triaje, citas por especialidad, consulta y alta conectados en tiempo real en el Centro de Salud de primer nivel.</p>
         </div>
         <RouteArt />
         <ul className="login-facts">
           <li><Icon3D name="shield" size={28} />Cada rol trabaja en su propio espacio y solo ve lo que necesita.</li>
           <li><Icon3D name="thermometer" size={28} />La prioridad de triaje la calcula el sistema con umbrales aprobados por un médico.</li>
-          <li><Icon3D name="tv" size={28} />La pantalla de sala muestra códigos de turno, nunca nombres.</li>
+          <li><Icon3D name="calendar" size={28} />La cita se da con el horario de cada médico: si el especialista no atiende hoy, el sistema ofrece el primer día con cupo.</li>
         </ul>
       </section>
 

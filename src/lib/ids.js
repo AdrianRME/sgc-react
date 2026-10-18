@@ -1,4 +1,5 @@
 import { isCurrent } from './clinical.js';
+import { SERIE_BOLETA } from './constants.js';
 
 /**
  * Correlativos derivados de los datos existentes (no de un contador en memoria),
@@ -28,6 +29,16 @@ export const lastRecipe = (turns, year = new Date().getFullYear()) =>
  */
 export const nextRecipe = (turns, year = new Date().getFullYear(), known = 0) =>
   `REC-${year}-` + String(Math.max(known || 0, lastRecipe(turns, year)) + 1).padStart(6, '0');
+
+/** Último número de boleta (serie B001) entre los turnos dados. */
+export const lastComprobante = (turns) => maxNum(turns.map((t) => t.pago?.comp), new RegExp(`^${SERIE_BOLETA}-(\\d+)$`));
+
+/**
+ * La boleta de la consulta es correlativa en su serie. Como en la receta, `known` trae el último número
+ * que informa el servidor (cada estación solo carga los turnos de hoy).
+ */
+export const nextComprobante = (turns, known = 0) =>
+  `${SERIE_BOLETA}-` + String(Math.max(known || 0, lastComprobante(turns)) + 1).padStart(6, '0');
 
 export const nextHC = (patients) =>
   'HC-' + String(maxNum(patients.map((p) => p.hc), /^HC-(\d+)$/) + 1).padStart(6, '0');

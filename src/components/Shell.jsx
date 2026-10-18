@@ -5,7 +5,7 @@ import {
 } from 'lucide-react';
 import { useStore } from '../store/useStore.js';
 import { QUEUE, ROLES } from '../lib/constants.js';
-import { byArrival, byPriority } from '../lib/clinical.js';
+import { byArrival, byConsulta } from '../lib/clinical.js';
 import { callNext } from '../store/actions.js';
 import { fade } from '../lib/motion.js';
 import { go } from '../hooks/useHash.js';
@@ -23,8 +23,12 @@ import { Notifications } from './Notifications.jsx';
 const SALA = ['sala', 'Pantalla de sala', 'tv'];
 const isMac = typeof navigator !== 'undefined' && /Mac|iPhone|iPad/.test(navigator.platform);
 
-/** Pacientes que esperan en la etapa de cada rol (contador del menú y del título de la pestaña). */
-const waitingFor = (role, turns) => (QUEUE[role] ? turns.filter((t) => QUEUE[role].includes(t.state)).length : 0);
+/**
+ * Pacientes que esperan en la etapa de cada rol (contador del menú y del título de la pestaña).
+ * El médico solo cuenta a los pacientes que tienen cita con él.
+ */
+const waitingFor = (user, turns) =>
+  QUEUE[user.role] ? turns.filter((t) => QUEUE[user.role].includes(t.state) && (user.role !== 'med' || !t.cita || t.cita.med === user.u)).length : 0;
 
 /** Marco del espacio de trabajo de cada rol: identidad, navegación, búsqueda, avisos y sesión. */
 export function Shell({ section, children }) {
@@ -40,7 +44,8 @@ export function Shell({ section, children }) {
   const base = `/${role.slug}`;
   const sections = role.sections;
   const current = section === 'sala' ? SALA : sections.find(([k]) => k === section) || sections[0];
-  const waiting = waitingFor(user.role, db.turns);
+  const waiting = waitingFor(user, db.turns);
+  const queueSection = role.queue || sections[0][0];
 
   useHotkey((e) => (e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'k', () => setPalette(true));
   useEffect(() => {
@@ -63,7 +68,7 @@ export function Shell({ section, children }) {
     const nav = [...sections, SALA].map(([k, l]) => ({ id: `go-${k}`, group: 'Ir a', label: l, icon: k === 'sala' ? Tv : LayoutGrid, run: () => go(`${base}/${k}`) }));
     const acts = [];
     if (user.role === 'enf') acts.push({ id: 'next-tri', group: 'Acciones', label: 'Llamar al siguiente paciente de triaje', icon: PhoneCall, run: () => run(callNext, 'tri', byArrival) });
-    if (user.role === 'med') acts.push({ id: 'next-med', group: 'Acciones', label: `Llamar al siguiente paciente a ${area}`, icon: PhoneCall, run: () => run(callNext, 'med', byPriority) });
+    if (user.role === 'med') acts.push({ id: 'next-med', group: 'Acciones', label: `Llamar al siguiente paciente a ${area}`, icon: PhoneCall, run: () => run(callNext, 'med', byConsulta) });
     acts.push(
       { id: 'sala-ext', group: 'Acciones', label: 'Abrir la pantalla de sala en otra ventana', icon: ExternalLink, run: () => window.open('#/sala', '_blank', 'noopener') },
       { id: 'theme', group: 'Preferencias', label: effective === 'dark' ? 'Usar tema claro' : 'Usar tema oscuro', icon: effective === 'dark' ? Sun : Moon, keywords: 'tema modo oscuro claro', run: toggle },
@@ -95,7 +100,7 @@ export function Shell({ section, children }) {
           <div><small>Su espacio</small><b>{role.n}</b><span>{role.tag}</span></div>
         </div>
         <nav className="line-nav" aria-label="Secciones">
-          {sections.map((s, i) => navItem(s, i === 0 ? waiting : 0))}
+          {sections.map((s) => navItem(s, s[0] === queueSection ? waiting : 0))}
           <span className="ln-sep" aria-hidden="true" />
           {navItem(SALA)}
           <a className="nb ext" href="#/sala" target="_blank" rel="noreferrer">

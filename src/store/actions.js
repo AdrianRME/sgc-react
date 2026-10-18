@@ -1,18 +1,21 @@
 /**
  * Reglas de negocio del sistema. Cada acción es una función pura:
  *   (db, ctx, ...args) => { changes, toast?, result? }
- * - db: { patients, turns, users, audit, thresholds }
+ * - db: { patients, turns, users, audit, thresholds, horarios }
  * - ctx: { user, area, now, ip }
  * - changes: registros a insertar/actualizar por tabla (el repositorio los persiste).
  * Si una regla no se cumple se lanza DomainError con un mensaje para el usuario.
  */
 import {
   DomainError, assertTransition, evalTriage, validateVitals, validateThresholds,
-  allergyConflicts, validatePrescription, isCurrent, latestThresholds,
+  allergyConflicts, validatePrescription, isCurrent, latestThresholds, turnKey,
 } from '../lib/clinical.js';
-import { ACTIVE_STATES, TRIAGE_STATION, ROLES, PRIO } from '../lib/constants.js';
-import { nextTurnId, nextRecipe, nextHC, uid, tempPassword } from '../lib/ids.js';
-import { maskDni, fullName, age } from '../lib/format.js';
+import {
+  ACTIVE_STATES, TRIAGE_STATION, ROLES, PRIO, TARIFA_CONSULTA, METODOS_PAGO, SIS_EXONERADO, ESPECIALIDADES,
+} from '../lib/constants.js';
+import { nextTurnId, nextRecipe, nextHC, nextComprobante, uid, tempPassword } from '../lib/ids.js';
+import { maskDni, fullName, age, fmtD, fmtHora, fmtLongDay } from '../lib/format.js';
+import { citasEnBloque, especialidad, sameDay, validarCita, validarHorario } from '../lib/agenda.js';
 
 export const currentThresholds = (db) => latestThresholds(db.thresholds)?.vals;
 
@@ -83,12 +86,48 @@ export function createTurn(db, ctx, { dni, form, sis }) {
     patient = { ...patient, tel: form.tel?.trim() ?? patient.tel, sis };
   }
 
+  // Con SIS la consulta no se cobra: se registra un pago de S/ 0.00 y el paciente pasa directo a triaje.
+  // Sin seguro, el turno espera en Caja: no entra a triaje hasta pagar.
   const id = nextTurnId(db.turns, ctx.now);
-  const turn = { id, dni, adm: ctx.user.u, state: 'EN_ESPERA_TRIAJE', prio: null, t0: ctx.now };
+  const exonerado = SIS_EXONERADO.includes(sis);
+  const turn = {
+    id, dni, adm: ctx.user.u, state: exonerado ? 'EN_ESPERA_TRIAJE' : 'PENDIENTE_PAGO', prio: null, t0: ctx.now,
+    ...(exonerado && { tPago: ctx.now, pago: { metodo: 'SIS', monto: 0, comp: null, by: ctx.user.u, t: ctx.now } }),
+  };
   audit.push(auditEntry(ctx, 'TURNO_CREADO', `${id} registrado${sis === 'PENDIENTE_VALIDACION' ? ' (contingencia SIS)' : ''}`));
+  if (exonerado) audit.push(auditEntry(ctx, 'PAGO_REGISTRADO', `${id} exonerado por SIS`));
   return {
     changes: { patients: [patient], turns: [turn], audit },
-    toast: ['ok', `Turno ${id} generado para ${fullName(patient)}. Pasa a la lista de triaje.`],
+    toast: ['ok', exonerado
+      ? `Turno ${id} generado para ${fullName(patient)}. Con SIS no paga: pasa directo a triaje.`
+      : `Turno ${id} generado para ${fullName(patient)}. Debe pagar S/ ${TARIFA_CONSULTA.toFixed(2)} en Caja antes del triaje.`],
+    result: turn,
+  };
+}
+
+/* ---------- Caja ---------- */
+
+/**
+ * Cobro de la consulta: emite la boleta y libera al paciente para triaje.
+ * En efectivo, el monto recibido debe cubrir la tarifa (el vuelto se calcula en pantalla).
+ */
+export function registerPayment(db, ctx, id, { metodo, recibido }) {
+  const t = findTurn(db, id, ctx.now);
+  if (t.state !== 'PENDIENTE_PAGO') throw new DomainError(`El turno ${id} no tiene un pago pendiente.`);
+  assertTransition(t, 'EN_ESPERA_TRIAJE');
+  if (!METODOS_PAGO[metodo] || metodo === 'SIS') throw new DomainError('Elija el medio de pago: efectivo, tarjeta o billetera digital.');
+  if (metodo === 'EFECTIVO' && !(+recibido >= TARIFA_CONSULTA)) {
+    throw new DomainError(`El monto recibido no cubre la tarifa de S/ ${TARIFA_CONSULTA.toFixed(2)}.`);
+  }
+  const comp = nextComprobante(db.turns, db.meta?.compMax);
+  const pago = { metodo, monto: TARIFA_CONSULTA, comp, by: ctx.user.u, t: ctx.now };
+  const turn = { ...t, state: 'EN_ESPERA_TRIAJE', tPago: ctx.now, pago };
+  return {
+    changes: {
+      turns: [turn],
+      audit: [auditEntry(ctx, 'PAGO_REGISTRADO', `${id} · ${comp} · S/ ${TARIFA_CONSULTA.toFixed(2)} · ${METODOS_PAGO[metodo]}`)],
+    },
+    toast: ['ok', `Pago registrado (${comp}). ${id} pasa a la lista de triaje.`],
     result: turn,
   };
 }
@@ -110,6 +149,9 @@ export function callTurn(db, ctx, id) {
   const tri = t.state === 'EN_ESPERA_TRIAJE' || t.state === 'LLAMADO_TRIAJE';
   const to = tri ? 'LLAMADO_TRIAJE' : 'LLAMADO_CONSULTA';
   assertTransition(t, to);
+  if (!tri && t.cita && t.cita.med !== ctx.user.u) {
+    throw new DomainError(`${id} tiene cita con ${medName(db, t.cita.med)}: solo su médico puede llamarlo.`);
+  }
   if (!tri && t.state === 'LLAMADO_CONSULTA' && t.dest !== ctx.area) {
     throw new DomainError(`${id} ya fue llamado a ${t.dest}.`);
   }
@@ -127,7 +169,9 @@ export function callTurn(db, ctx, id) {
 
 export function callNext(db, ctx, queue, sorter) {
   const waiting = queue === 'tri' ? 'EN_ESPERA_TRIAJE' : 'EN_ESPERA_CONSULTA';
-  const next = db.turns.filter((t) => t.state === waiting).sort(sorter)[0];
+  // En consulta, cada médico llama solo a los pacientes que tienen cita con él
+  const mine = (t) => queue === 'tri' || !t.cita || t.cita.med === ctx.user.u;
+  const next = db.turns.filter((t) => t.state === waiting && mine(t)).sort(sorter)[0];
   if (!next) throw new DomainError('No hay pacientes en espera.');
   return callTurn(db, ctx, next.id);
 }
@@ -155,7 +199,7 @@ export function returnToQueue(db, ctx, id) {
 
 export function saveTriage(db, ctx, id, vitals, allergies) {
   const t = findTurn(db, id, ctx.now);
-  assertTransition(t, 'EN_ESPERA_CONSULTA');
+  assertTransition(t, 'PENDIENTE_CITA');
   const errs = validateVitals(vitals);
   if (Object.keys(errs).length) throw new DomainError('Revise los signos vitales marcados.');
   const tri = {
@@ -163,7 +207,7 @@ export function saveTriage(db, ctx, id, vitals, allergies) {
     peso: +vitals.peso, talla: +vitals.talla, motivo: vitals.motivo.trim(),
   };
   const r = evalTriage(tri, currentThresholds(db));
-  const turn = { ...t, tri, prio: r.prio, state: 'EN_ESPERA_CONSULTA', tTriSave: ctx.now, enf: ctx.user.u, calledAt: null };
+  const turn = { ...t, tri, prio: r.prio, state: 'PENDIENTE_CITA', tTriSave: ctx.now, enf: ctx.user.u, calledAt: null };
   const changes = { turns: [turn], audit: [auditEntry(ctx, 'TRIAJE_GUARDADO', `${id} prioridad ${r.prio}`)] };
   const p = db.patients.find((x) => x.dni === t.dni);
   if (p && (allergies ?? '').trim() !== (p.alg ?? '')) {
@@ -173,7 +217,66 @@ export function saveTriage(db, ctx, id, vitals, allergies) {
   return {
     changes,
     toast: [r.prio === 'CRITICA' ? 'crit' : 'ok',
-      `Triaje de ${id} guardado · prioridad ${PRIO[r.prio][0].toUpperCase()}${r.prio === 'CRITICA' ? ': pasa al inicio de la lista del médico.' : '.'}`],
+      `Triaje de ${id} guardado · prioridad ${PRIO[r.prio][0].toUpperCase()}. ${r.prio === 'CRITICA'
+        ? 'Admisión debe darle un sobrecupo para hoy.' : 'El paciente pasa a Admisión para sacar su cita.'}`],
+  };
+}
+
+/* ---------- Citas ---------- */
+
+const medName = (db, u) => db.users.find((x) => x.u === u)?.n ?? u;
+const citaText = (db, c) => `${especialidad(c.esp)?.n} con ${medName(db, c.med)}, ${fmtD(c.at)} ${fmtHora(c.at)}${c.sobre ? ' (sobrecupo)' : ''}`;
+
+/**
+ * Asigna o reprograma la cita de un paciente que ya pasó por triaje. El sistema valida que el médico
+ * atienda ese día y a esa hora (su horario), que el cupo esté libre y las reglas de prioridad.
+ * - Paciente recién salido de triaje con cita para hoy: pasa a la espera de consulta.
+ * - Cita otro día (o reprogramación): el turno queda CITADO hasta que vuelva y se registre su llegada.
+ */
+export function assignCita(db, ctx, id, { esp, med, at, sobre = false }) {
+  const t = findTurn(db, id, ctx.now);
+  if (!['PENDIENTE_CITA', 'CITADO'].includes(t.state)) throw new DomainError(`El turno ${id} no está esperando una cita.`);
+  const c = { esp, med, at: +at, sobre: !!sobre };
+  const { area } = validarCita(db, c, { now: ctx.now, prio: t.prio, except: turnKey(t) });
+  const presente = t.state === 'PENDIENTE_CITA' && sameDay(c.at, ctx.now);
+  const to = presente ? 'EN_ESPERA_CONSULTA' : 'CITADO';
+  assertTransition(t, to);
+  const reprog = t.state === 'CITADO';
+  const cita = { ...c, area, by: ctx.user.u, t: t.cita?.t ?? ctx.now };
+  const { tLlega: _l, llego: _g, ...base } = t;
+  const turn = {
+    ...base, state: to, cita, tCita: t.tCita ?? ctx.now,
+    ...(presente && { llego: ctx.now, tLlega: Math.max(ctx.now, c.at) }),
+  };
+  return {
+    changes: {
+      turns: [turn],
+      audit: [auditEntry(ctx, reprog ? 'CITA_REPROGRAMADA' : 'CITA_ASIGNADA', `${id} → ${citaText(db, cita)}`)],
+    },
+    toast: ['ok', presente
+      ? `Cita para hoy a las ${fmtHora(c.at)} con ${medName(db, med)} (${area}). ${id} pasa a la sala de espera de consulta.`
+      : `Cita ${reprog ? 'reprogramada' : 'programada'} para el ${fmtLongDay(c.at)} a las ${fmtHora(c.at)} con ${medName(db, med)}. El paciente vuelve ese día.`],
+    result: turn,
+  };
+}
+
+/**
+ * Llegada de un paciente citado: solo el día de su cita. Pasa a la espera de consulta de su médico; su
+ * espera cuenta desde la hora de la cita (si llegó antes) o desde que llegó (si llegó tarde).
+ */
+export function checkIn(db, ctx, id) {
+  const t = findTurn(db, id, ctx.now);
+  if (t.state !== 'CITADO') throw new DomainError(`El turno ${id} no tiene una cita pendiente.`);
+  if (!sameDay(t.cita.at, ctx.now)) {
+    throw new DomainError(t.cita.at < ctx.now
+      ? `La cita de ${id} fue el ${fmtD(t.cita.at)} y venció. Reprográmela o márquela como no asistida.`
+      : `La cita de ${id} es el ${fmtLongDay(t.cita.at)}. La llegada se registra el mismo día de la cita.`);
+  }
+  assertTransition(t, 'EN_ESPERA_CONSULTA');
+  const turn = { ...t, state: 'EN_ESPERA_CONSULTA', llego: ctx.now, tLlega: Math.max(ctx.now, t.cita.at) };
+  return {
+    changes: { turns: [turn], audit: [auditEntry(ctx, 'LLEGADA_CITA', `${id} llegó a su cita de las ${fmtHora(t.cita.at)}`)] },
+    toast: ['ok', `Llegada registrada. ${id} espera en sala: cita de las ${fmtHora(t.cita.at)} con ${medName(db, t.cita.med)} (${t.cita.area}).`],
   };
 }
 
@@ -236,8 +339,11 @@ export function createUser(db, ctx, f) {
   if (!ROLES[f.role]) throw new DomainError('Rol no válido.');
   if (f.role === 'med' && !/^CMP-\d{5}$/.test(f.col.trim())) throw new DomainError('La colegiatura del médico debe tener el formato CMP-00000.');
   if (f.role === 'enf' && f.col.trim() && !/^CEP-\d{5}$/.test(f.col.trim())) throw new DomainError('La colegiatura de enfermería debe tener el formato CEP-00000.');
+  if (f.role === 'med' && !ESPECIALIDADES.some((e) => e.k === f.esp)) throw new DomainError('Elija la especialidad del médico.');
   const clave = tempPassword();
-  const user = { u, n: f.n.trim(), role: f.role, col: f.col.trim(), on: true, clave_temporal: clave };
+  const user = {
+    u, n: f.n.trim(), role: f.role, col: f.col.trim(), on: true, clave_temporal: clave, ...(f.role === 'med' && { esp: f.esp }),
+  };
   return {
     changes: { users: [user], audit: [auditEntry(ctx, 'USUARIO', `${u} creado (${ROLES[f.role].n})`)] },
     result: { u, clave },
@@ -264,6 +370,32 @@ export function resetPassword(db, ctx, u) {
   return {
     changes: { users: [{ ...x, clave_temporal: clave }], audit: [auditEntry(ctx, 'RESET_CLAVE', `Clave temporal para ${u}`)] },
     result: { u, clave },
+  };
+}
+
+/* ---------- Horarios (Jefatura) ---------- */
+
+/** Agrega un bloque al horario semanal de un médico. Con él, el sistema calcula los cupos de cita. */
+export function saveHorario(db, ctx, h) {
+  const row = { id: h.id || uid(), med: h.med, dow: +h.dow, ini: h.ini, fin: h.fin, area: h.area, on: true };
+  const { cupos, esp } = validarHorario(db, row);
+  return {
+    changes: { horarios: [row], audit: [auditEntry(ctx, 'HORARIO', `Horario agregado: ${medName(db, row.med)}, día ${row.dow}, ${row.ini}-${row.fin}, ${row.area}`)] },
+    toast: ['ok', `Horario guardado: ${cupos} cupos de ${esp.n} ese día.`],
+  };
+}
+
+/** Quita un bloque del horario. No se puede si tiene citas por atender: primero hay que reprogramarlas. */
+export function removeHorario(db, ctx, id) {
+  const h = db.horarios.find((x) => x.id === id);
+  if (!h || !h.on) throw new DomainError('El bloque de horario ya no existe.');
+  const pend = citasEnBloque(db, h, ctx.now);
+  if (pend.length) {
+    throw new DomainError(`Hay ${pend.length} cita${pend.length > 1 ? 's' : ''} por atender en este horario (${pend.map((t) => t.id).join(', ')}). Reprográmelas antes de quitarlo.`);
+  }
+  return {
+    changes: { horarios: [{ ...h, on: false }], audit: [auditEntry(ctx, 'HORARIO', `Horario retirado: ${medName(db, h.med)}, día ${h.dow}, ${h.ini}-${h.fin}`)] },
+    toast: ['info', 'Bloque de horario retirado.'],
   };
 }
 

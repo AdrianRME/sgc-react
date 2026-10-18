@@ -4,7 +4,8 @@ import { KeyRound, Power, UserPlus } from 'lucide-react';
 import { useStore } from '../../store/useStore.js';
 import { createUser, toggleUser, resetPassword } from '../../store/actions.js';
 import { normalize } from '../../lib/clinical.js';
-import { ROLES } from '../../lib/constants.js';
+import { ESPECIALIDADES, ROLES } from '../../lib/constants.js';
+import { especialidad } from '../../lib/agenda.js';
 import { listItem } from '../../lib/motion.js';
 import { WorkspaceHeader } from '../../components/WorkspaceHeader.jsx';
 import { Avatar, Badge, Empty, Field, Panel, Segmented } from '../../components/ui.jsx';
@@ -13,7 +14,7 @@ import { useConfirm } from '../../hooks/useConfirm.jsx';
 import { Icon3D } from '../../components/Icon3D.jsx';
 import './jefatura.css';
 
-const EMPTY = { u: '', n: '', role: 'adm', col: '' };
+const EMPTY = { u: '', n: '', role: 'adm', col: '', esp: 'MG' };
 
 export default function Usuarios() {
   const { db, run, user } = useStore();
@@ -76,7 +77,7 @@ export default function Usuarios() {
           {list.length ? (
             <div className="tblw">
               <table className="tbl">
-                <thead><tr><th>Persona</th><th>Rol</th><th>Colegiatura</th><th>Estado</th><th /></tr></thead>
+                <thead><tr><th>Persona</th><th>Rol</th><th>Colegiatura y especialidad</th><th>Estado</th><th /></tr></thead>
                 <tbody>
                   <AnimatePresence initial={false}>
                     {list.map((x) => (
@@ -88,7 +89,7 @@ export default function Usuarios() {
                           </div>
                         </td>
                         <td><span data-role={x.role}><Badge tone="role">{ROLES[x.role]?.n}</Badge></span></td>
-                        <td className="nowrap">{x.col || '—'}</td>
+                        <td className="nowrap">{x.col || '—'}{x.esp && <small className="block">{especialidad(x.esp)?.n}</small>}</td>
                         <td><Badge tone={x.on ? 'ok' : 'mut'}>{x.on ? 'Activo' : 'Inactivo'}</Badge></td>
                         <td>
                           <div className="row-acts">
@@ -122,6 +123,15 @@ export default function Usuarios() {
                 {(a) => <input {...a} value={f.col} onChange={set('col')} placeholder={f.role === 'enf' ? 'CEP-00000' : 'CMP-00000'} disabled={!['med', 'enf'].includes(f.role)} />}
               </Field>
             </div>
+            {f.role === 'med' && (
+              <Field label="Especialidad" hint="Define a qué pacientes se le dan citas. Su horario se registra en «Horarios médicos».">
+                {(a) => (
+                  <select {...a} value={f.esp} onChange={set('esp')}>
+                    {ESPECIALIDADES.map((e) => <option key={e.k} value={e.k}>{e.n}</option>)}
+                  </select>
+                )}
+              </Field>
+            )}
             <div className="actions">
               <button className="btn" disabled={!f.u || !f.n}><UserPlus /> Crear usuario</button>
             </div>

@@ -3,7 +3,7 @@ import { ArrowDownRight, ArrowUpRight, Download, Minus } from 'lucide-react';
 import { useStore } from '../../store/useStore.js';
 import { AREAS, DAY, PRIO, WAIT_TARGET } from '../../lib/constants.js';
 import {
-  RANGES, periodOf, slice, summarize, series, heatmap, topDx, destinos, perfil, cumplimiento, porConsultorio, delta, toCSV,
+  RANGES, periodOf, slice, summarize, series, heatmap, topDx, destinos, perfil, cumplimiento, porConsultorio, porEspecialidad, delta, toCSV,
 } from '../../lib/analytics.js';
 import { DOW_NAMES, fmtDay, fmtLongDay, fmtMin, fmtNum, fmtPct, isoDay } from '../../lib/format.js';
 import { downloadText } from '../../lib/download.js';
@@ -80,7 +80,7 @@ export default function Tablero() {
     const byHour = p.range.days === 1;
     const days = series(cur, p.from, p.to, byHour).map((d) => ({ ...d, label: d.label || fmtDay(d.t), title: byHour ? `${d.label} a ${parseInt(d.label, 10) + 1} h` : fmtLongDay(d.t) }));
     const heat = heatmap(cur, p.from, p.to);
-    return { cur, S, P, days, heat, dx: topDx(cur), dest: destinos(cur), perfil: perfil(cur), cumpl: cumplimiento(cur), cons: porConsultorio(cur), byHour };
+    return { cur, S, P, days, heat, dx: topDx(cur), dest: destinos(cur), perfil: perfil(cur), cumpl: cumplimiento(cur), cons: porConsultorio(cur), esp: porEspecialidad(cur), byHour };
   }, [q.data, p.from, p.to, p.prevFrom, p.prevTo, p.range.days, area]);
 
   const exportCSV = () => {
@@ -123,9 +123,9 @@ export default function Tablero() {
         <div className={`dash ${q.loading ? 'refetch' : ''}`} aria-busy={q.loading}>
           <div className="kpis">
             <Kpi label="Pacientes atendidos" value={v.S.atendidos} format={minFmt} change={v.P && delta(v.S.atendidos, v.P.atendidos)} changeFmt={relFmt} good trend={v.days.map((d) => d.atendidos)} />
-            <Kpi label="Tiempo total medio, de la llegada al alta" value={v.S.tiempoTotal} format={fmtMin} change={v.P && delta(v.S.tiempoTotal, v.P.tiempoTotal)} changeFmt={relFmt} good={false} trend={v.days.map((d) => d.tiempoTotal)} />
+            <Kpi label="Tiempo total medio en el centro (sin contar la espera hasta la cita)" value={v.S.tiempoTotal} format={fmtMin} change={v.P && delta(v.S.tiempoTotal, v.P.tiempoTotal)} changeFmt={relFmt} good={false} trend={v.days.map((d) => d.tiempoTotal)} />
             <Kpi label="Esperas dentro del tiempo objetivo" value={v.S.enObjetivo} format={fmtPct} change={v.P && v.S.enObjetivo != null && v.P.enObjetivo != null ? v.S.enObjetivo - v.P.enObjetivo : null} changeFmt={ppFmt} good trend={v.days.map((d) => d.enObjetivo)} />
-            <Kpi label="Abandono (no se presentó o se retiró)" value={v.S.abandono} format={fmtPct} change={v.P && v.S.abandono != null && v.P.abandono != null ? v.S.abandono - v.P.abandono : null} changeFmt={ppFmt} good={false} trend={v.days.map((d) => d.abandono)} />
+            <Kpi label="Abandono (no pagó, no se presentó, se retiró o faltó a su cita)" value={v.S.abandono} format={fmtPct} change={v.P && v.S.abandono != null && v.P.abandono != null ? v.S.abandono - v.P.abandono : null} changeFmt={ppFmt} good={false} trend={v.days.map((d) => d.abandono)} />
           </div>
 
           <Insights v={v} />
@@ -161,6 +161,7 @@ export default function Tablero() {
               <LineChart
                 data={v.days.map((d) => ({ label: d.label, title: d.title, values: d }))}
                 series={[
+                  { k: 'espPago', label: 'Espera de pago', short: 'pago', color: 'var(--st-caj)' },
                   { k: 'espTri', label: 'Espera de triaje', short: 'triaje', color: 'var(--st-enf)' },
                   { k: 'espMed', label: 'Espera de consulta', short: 'consulta', color: 'var(--st-med)' },
                 ]}
@@ -205,6 +206,25 @@ export default function Tablero() {
                 <div><dt>Mujeres</dt><dd>{fmtPct(v.perfil.total ? v.perfil.mujeres / v.perfil.total : null)}</dd></div>
                 <div><dt>Con SIS activo</dt><dd>{fmtPct(v.perfil.total ? v.perfil.sis / v.perfil.total : null)}</dd></div>
               </dl>
+            </Panel>
+
+            <Panel title="Citas por especialidad" sub="Si la especialidad no atiende ese día o no tiene cupo, la cita se da para otro día" className="span-3">
+              <div className="tblw">
+                <table className="tbl">
+                  <thead><tr><th>Especialidad</th><th className="num">Citas</th><th className="num">Para otro día</th><th className="num">Atendidas</th><th>Citas para otro día</th></tr></thead>
+                  <tbody>
+                    {v.esp.map((e) => {
+                      const share = e.citas ? e.otroDia / e.citas : 0;
+                      return (
+                        <tr key={e.k}>
+                          <td>{e.n}</td><td className="num">{fmtNum(e.citas)}</td><td className="num">{fmtNum(e.otroDia)}</td><td className="num">{fmtNum(e.atendidos)}</td>
+                          <td><span className="share"><i style={{ width: `${share * 100}%` }} /></span> {fmtPct(e.citas ? share : null)}</td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
             </Panel>
 
             <Panel title="Productividad por consultorio" className="span-3">

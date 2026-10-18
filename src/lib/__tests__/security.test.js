@@ -14,9 +14,14 @@ describe('seguridad', () => {
     set.forEach((p) => expect(PASSWORD_RULE.re.test(p)).toBe(true));
   });
 
+  it('un médico se crea con su especialidad', () => {
+    const db = buildSeed();
+    expect(() => createUser(db, ctx(db), { u: 'm.otro', n: 'Dr. Sin Especialidad', role: 'med', col: 'CMP-12346' })).toThrow(/especialidad/);
+  });
+
   it('las contraseñas temporales nunca quedan en el estado local', () => {
     const db = buildSeed();
-    const r = createUser(db, ctx(db), { u: 'm.nuevo', n: 'Dra. Ana Gil', role: 'med', col: 'CMP-12345' });
+    const r = createUser(db, ctx(db), { u: 'm.nuevo', n: 'Dra. Ana Gil', role: 'med', col: 'CMP-12345', esp: 'MG' });
     expect(r.result.clave).toMatch(PASSWORD_RULE.re);
     const next = applyChanges(db, r.changes);
     expect(JSON.stringify(next)).not.toContain(r.result.clave);

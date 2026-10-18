@@ -2,9 +2,10 @@ import { applyChanges, EMPTY_DB } from './merge.js';
 import { DEMO_PASSWORD, ACTIVE_STATES, DAY } from '../lib/constants.js';
 import { isCurrent } from '../lib/clinical.js';
 import { toFacts } from '../lib/analytics.js';
-import { lastRecipe, uid } from '../lib/ids.js';
+import { lastComprobante, lastRecipe, uid } from '../lib/ids.js';
 
-const KEY = 'sgc-db-v3';
+// v4: pago, cita y horarios médicos (los datos guardados con versiones anteriores se vuelven a sembrar)
+const KEY = 'sgc-db-v4';
 const SESSION = 'sgc-local-session';
 const dayStart = (iso) => new Date(`${iso}T00:00:00`).getTime();
 
@@ -91,7 +92,7 @@ export function createLocalRepo() {
       return {
         ...db,
         turns: db.turns.filter((t) => isCurrent(t, now)),
-        meta: { recMax: lastRecipe(db.turns) },
+        meta: { recMax: lastRecipe(db.turns), compMax: lastComprobante(db.turns) },
         me: me && { username: me.u },
       };
     },

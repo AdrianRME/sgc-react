@@ -14,11 +14,17 @@ export const IDLE_WARN_MS = 60_000;
 /**
  * Cada rol tiene su propio espacio de trabajo con su dirección (#/admision, #/triaje…),
  * su color y sus módulos. La pantalla de sala es pública y no pertenece a ningún rol.
+ * `queue` es la sección que lleva el contador de pacientes en espera (por defecto, la primera).
  */
 export const ROLES = {
   adm: {
-    n: 'Admisión', slug: 'admision', icon: 'idcard', space: 'Espacio de Admisión', tag: 'Registro de pacientes y turnos',
-    sections: [['registro', 'Registro y turnos', 'ticket'], ['flujo', 'Flujo en vivo', 'satellite']],
+    n: 'Admisión', slug: 'admision', icon: 'idcard', space: 'Espacio de Admisión', tag: 'Registro, citas y llegada de pacientes',
+    queue: 'citas',
+    sections: [['registro', 'Registro y turnos', 'ticket'], ['citas', 'Citas', 'calendar'], ['flujo', 'Flujo en vivo', 'satellite']],
+  },
+  caj: {
+    n: 'Caja', slug: 'caja', icon: 'scroll', space: 'Espacio de Caja', tag: 'Cobro de la consulta y comprobantes',
+    sections: [['cobros', 'Cobros', 'scroll']],
   },
   enf: {
     n: 'Enfermería', slug: 'triaje', icon: 'thermometer', space: 'Espacio de Triaje', tag: 'Signos vitales y prioridad',
@@ -32,7 +38,7 @@ export const ROLES = {
     n: 'Jefatura', slug: 'jefatura', icon: 'barchart', space: 'Espacio de Jefatura', tag: 'Indicadores, usuarios y control',
     sections: [
       ['tablero', 'Tablero gerencial', 'barchart'], ['flujo', 'Flujo en vivo', 'satellite'], ['usuarios', 'Usuarios', 'people'],
-      ['auditoria', 'Auditoría', 'scroll'], ['umbrales', 'Umbrales clínicos', 'knobs'],
+      ['horarios', 'Horarios médicos', 'calendar'], ['auditoria', 'Auditoría', 'scroll'], ['umbrales', 'Umbrales clínicos', 'knobs'],
     ],
   },
 };
@@ -43,11 +49,17 @@ export const HISTORY_DAYS = 35;
 /** Política de contraseñas (también la valida la base de datos). */
 export const PASSWORD_RULE = { min: 8, re: /^(?=.*[A-Za-z])(?=.*\d).{8,72}$/, text: 'Mínimo 8 caracteres, con letras y números.' };
 
-/** Estados del turno: [etiqueta, tono del badge]. */
+/**
+ * Estados del turno: [etiqueta, tono del badge]. La ruta es pago → triaje → cita → consulta.
+ * Si la cita es otro día, el turno queda CITADO hasta que el paciente vuelve y Admisión registra su llegada.
+ */
 export const STATE = {
+  PENDIENTE_PAGO: ['Pendiente de pago', 'warn'],
   EN_ESPERA_TRIAJE: ['En espera de triaje', 'info'],
   LLAMADO_TRIAJE: ['Llamado a triaje', 'ok'],
   EN_TRIAJE: ['En triaje', 'warn'],
+  PENDIENTE_CITA: ['Pendiente de cita', 'info'],
+  CITADO: ['Cita programada', 'info'],
   EN_ESPERA_CONSULTA: ['En espera de consulta', 'info'],
   LLAMADO_CONSULTA: ['Llamado a consulta', 'ok'],
   EN_CONSULTA: ['En consulta', 'warn'],
@@ -57,34 +69,42 @@ export const STATE = {
 
 /** Estados que esperan la acción de cada estación (cola y contador del menú). */
 export const QUEUE = {
+  caj: ['PENDIENTE_PAGO'],
   enf: ['EN_ESPERA_TRIAJE', 'LLAMADO_TRIAJE'],
+  adm: ['PENDIENTE_CITA'],
   med: ['EN_ESPERA_CONSULTA', 'LLAMADO_CONSULTA'],
 };
 
 export const ACTIVE_STATES = [
-  'EN_ESPERA_TRIAJE', 'LLAMADO_TRIAJE', 'EN_TRIAJE',
+  'PENDIENTE_PAGO', 'EN_ESPERA_TRIAJE', 'LLAMADO_TRIAJE', 'EN_TRIAJE', 'PENDIENTE_CITA', 'CITADO',
   'EN_ESPERA_CONSULTA', 'LLAMADO_CONSULTA', 'EN_CONSULTA',
 ];
 
 /**
- * La ruta del paciente: cada estación tiene su color (el del rol que la atiende) y los estados
- * del turno que pertenecen a ella. Admisión no tiene estados propios: el turno nace en triaje.
+ * La ruta del paciente: cada estación tiene su color (`c`, el del rol que la atiende) y los estados
+ * del turno que pertenecen a ella. Admisión registra al paciente y, después del triaje, le da la cita.
  */
 export const ROUTE = [
-  { k: 'adm', n: 'Admisión', states: [] },
-  { k: 'enf', n: 'Triaje', states: ['EN_ESPERA_TRIAJE', 'LLAMADO_TRIAJE', 'EN_TRIAJE'] },
-  { k: 'med', n: 'Consulta', states: ['EN_ESPERA_CONSULTA', 'LLAMADO_CONSULTA', 'EN_CONSULTA'] },
-  { k: 'alta', n: 'Alta', states: ['ATENDIDO'] },
+  { k: 'adm', n: 'Admisión', c: 'adm', states: [] },
+  { k: 'caj', n: 'Caja', c: 'caj', states: ['PENDIENTE_PAGO'] },
+  { k: 'enf', n: 'Triaje', c: 'enf', states: ['EN_ESPERA_TRIAJE', 'LLAMADO_TRIAJE', 'EN_TRIAJE'] },
+  { k: 'cita', n: 'Cita', c: 'adm', states: ['PENDIENTE_CITA', 'CITADO'] },
+  { k: 'med', n: 'Consulta', c: 'med', states: ['EN_ESPERA_CONSULTA', 'LLAMADO_CONSULTA', 'EN_CONSULTA'] },
+  { k: 'alta', n: 'Alta', c: 'jef', states: ['ATENDIDO'] },
 ];
 
 /**
  * Etapas de la ruta: qué estados del turno caen en cada una (tablero en vivo) y entre qué marcas
  * de tiempo se mide su duración (indicadores). `st` es la estación a la que pertenecen.
+ * La espera de consulta empieza en `tLlega`: la llegada del paciente o la hora de su cita, la que sea
+ * posterior. Así no se cuenta como espera el tiempo que falta para el día y la hora de la cita.
  */
 export const STAGES = [
-  { k: 'espTri', n: 'Espera de triaje', st: 'enf', wait: true, states: ['EN_ESPERA_TRIAJE'], from: 't0', to: 'tTriCall' },
+  { k: 'espPago', n: 'Espera de pago', st: 'caj', wait: true, states: ['PENDIENTE_PAGO'], from: 't0', to: 'tPago' },
+  { k: 'espTri', n: 'Espera de triaje', st: 'enf', wait: true, states: ['EN_ESPERA_TRIAJE'], from: 'tPago', to: 'tTriCall' },
   { k: 'tri', n: 'Triaje', st: 'enf', wait: false, states: ['LLAMADO_TRIAJE', 'EN_TRIAJE'], from: 'tTriCall', to: 'tTriSave' },
-  { k: 'espMed', n: 'Espera de consulta', st: 'med', wait: true, states: ['EN_ESPERA_CONSULTA'], from: 'tTriSave', to: 'tMedCall' },
+  { k: 'espCita', n: 'Espera de cita', st: 'adm', wait: true, states: ['PENDIENTE_CITA'], from: 'tTriSave', to: 'tCita' },
+  { k: 'espMed', n: 'Espera de consulta', st: 'med', wait: true, states: ['EN_ESPERA_CONSULTA'], from: 'tLlega', to: 'tMedCall' },
   { k: 'med', n: 'Consulta', st: 'med', wait: false, states: ['LLAMADO_CONSULTA', 'EN_CONSULTA'], from: 'tMedCall', to: 'tEnd' },
 ];
 
@@ -103,8 +123,11 @@ export const PRIO = {
   NORMAL: ['Normal', 'ok'],
 };
 
-/** Tiempo objetivo de espera por prioridad (min). Se marca en rojo al superarlo. */
-export const WAIT_TARGET = { CRITICA: 5, PRIORITARIA: 20, NORMAL: 60, SIN_TRIAJE: 30 };
+/**
+ * Tiempo objetivo de espera (min). Se marca en rojo al superarlo. La espera de consulta depende de la
+ * prioridad de triaje; las demás esperas tienen un objetivo por etapa.
+ */
+export const WAIT_TARGET = { CRITICA: 5, PRIORITARIA: 20, NORMAL: 60, espPago: 15, espTri: 30, espCita: 15 };
 
 export const SIS = {
   ACTIVO: ['SIS activo', 'ok'],
@@ -114,6 +137,33 @@ export const SIS = {
 
 export const TRIAGE_STATION = 'Módulo de Triaje 1';
 export const AREAS = ['Consultorio 1', 'Consultorio 2'];
+
+/* ---------- Caja ---------- */
+
+/** Tarifa de la consulta externa (S/). La paga el paciente no asegurado antes del triaje. */
+export const TARIFA_CONSULTA = 20;
+export const CONCEPTO_PAGO = 'Consulta externa';
+/** Medios de pago. SIS: el seguro cubre la consulta y se registra un pago de S/ 0.00 sin comprobante. */
+export const METODOS_PAGO = { EFECTIVO: 'Efectivo', TARJETA: 'Tarjeta', BILLETERA: 'Yape o Plin', SIS: 'SIS (exonerado)' };
+/** Condiciones de seguro exoneradas del pago. En contingencia (SIS sin validar) no se detiene la atención. */
+export const SIS_EXONERADO = ['ACTIVO', 'PENDIENTE_VALIDACION'];
+export const SERIE_BOLETA = 'B001';
+
+/* ---------- Citas ---------- */
+
+/**
+ * Especialidades del centro. `dur` es la duración de cada cita (min): el horario de cada médico se
+ * divide en cupos de esa duración.
+ */
+export const ESPECIALIDADES = [
+  { k: 'MG', n: 'Medicina General', dur: 20 },
+  { k: 'PED', n: 'Pediatría', dur: 20 },
+  { k: 'CAR', n: 'Cardiología', dur: 30 },
+];
+/** Hasta cuántos días adelante se pueden dar citas. */
+export const CITA_DIAS_MAX = 30;
+/** Días de la semana con numeración ISO (1 = lunes … 7 = domingo), igual que en la base. */
+export const DIAS_SEMANA = [[1, 'Lunes'], [2, 'Martes'], [3, 'Miércoles'], [4, 'Jueves'], [5, 'Viernes'], [6, 'Sábado'], [7, 'Domingo']];
 
 export const CIE = [
   ['J00', 'Rinofaringitis aguda (resfriado común)'],
@@ -151,14 +201,16 @@ export const MEDS = [
 
 export const DESTINOS = ['Alta', 'Reposo médico', 'Derivación a hospital'];
 
-/** Motivos de cierre de un turno sin atención. Los dos primeros cuentan como abandono en el tablero. */
+/** Motivos de cierre de un turno sin atención. Los de ABANDONO cuentan como abandono en el tablero. */
 export const CANCEL = {
   noShow: 'No se presentó al llamado',
   retiro: 'Retiro voluntario del paciente',
+  sinPago: 'No realizó el pago',
+  noAsistio: 'No asistió a su cita',
   anulado: 'Anulado en admisión',
   duplicado: 'Registro duplicado',
 };
-export const ABANDONO = [CANCEL.noShow, CANCEL.retiro];
+export const ABANDONO = [CANCEL.noShow, CANCEL.retiro, CANCEL.sinPago, CANCEL.noAsistio];
 
 export const TH_FIELDS = [
   // clave crítica, clave alerta, etiqueta, regla, paso
@@ -175,6 +227,7 @@ export const TH_DEFAULT = {
 };
 
 export const FAKE_IPS = {
-  'a.admision': '192.168.1.11', 'e.triaje': '192.168.1.12',
-  'm.consulta': '192.168.1.20', 'm.consulta2': '192.168.1.21', 'j.jefatura': '192.168.1.30',
+  'a.admision': '192.168.1.11', 'e.triaje': '192.168.1.12', 'c.caja': '192.168.1.13',
+  'm.consulta': '192.168.1.20', 'm.consulta2': '192.168.1.21', 'm.pediatria': '192.168.1.22', 'm.cardio': '192.168.1.23',
+  'j.jefatura': '192.168.1.30',
 };

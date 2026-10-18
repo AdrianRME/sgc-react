@@ -8,7 +8,7 @@ import { useNow } from '../hooks/useNow.js';
 import { spring } from '../lib/motion.js';
 
 const MAX_TOKENS = 6;
-const stationColor = (k) => `var(--st-${k === 'alta' ? 'jef' : k})`;
+const stationColor = (c) => `var(--st-${c})`;
 
 /** Ficha de un turno sobre la ruta. Solo el código: la ruta se ve también en equipos de Jefatura. */
 function Token({ t, now }) {
@@ -32,7 +32,7 @@ function Tokens({ list, now }) {
 }
 
 /**
- * La ruta del paciente en vivo: cuatro estaciones y, entre ellas, quién está esperando.
+ * La ruta del paciente en vivo: seis estaciones y, entre ellas, quién está esperando.
  * Cuando un turno avanza, su ficha se desliza a la siguiente etapa.
  */
 export function RouteStrip({ here }) {
@@ -40,15 +40,20 @@ export function RouteStrip({ here }) {
   const now = useNow(30_000);
   const g = byStage(db.turns);
   const today = startOfToday();
+  const citados = db.turns.filter((t) => t.state === 'CITADO').length;
   const stations = {
     adm: { v: db.turns.filter((t) => t.t0 >= today).length, c: 'registrados hoy' },
+    caj: { v: db.turns.filter((t) => t.pago && t.pago.metodo !== 'SIS' && t.pago.t >= today).length, c: 'cobros hoy' },
     enf: { v: g.tri.length, c: g.tri.length === 1 ? 'paciente en triaje' : 'en triaje o llamados', toks: g.tri },
+    cita: { v: db.turns.filter((t) => t.tCita >= today).length, c: citados ? `citas hoy · ${citados} citados` : 'citas dadas hoy' },
     med: { v: g.med.length, c: 'en consulta o llamados', toks: g.med },
     alta: { v: db.turns.filter((t) => t.state === 'ATENDIDO' && t.tEnd >= today).length, c: 'atendidos hoy' },
   };
   const segments = [
-    { c: 'enf', list: g.espTri, lbl: `${g.espTri.length} en espera de triaje` },
-    { c: 'med', list: g.espMed, lbl: `${g.espMed.length} en espera de consulta` },
+    { c: 'caj', list: g.espPago, lbl: `${g.espPago.length} por pagar` },
+    { c: 'enf', list: g.espTri, lbl: `${g.espTri.length} esperan triaje` },
+    { c: 'adm', list: g.espCita, lbl: `${g.espCita.length} esperan cita` },
+    { c: 'med', list: g.espMed, lbl: `${g.espMed.length} esperan consulta` },
     { c: 'jef', list: [], lbl: 'receta y alta' },
   ];
   return (
@@ -56,7 +61,7 @@ export function RouteStrip({ here }) {
       <section className="route" aria-label="Ruta del paciente en este momento">
         {ROUTE.map((s, i) => (
           <Fragment key={s.k}>
-            <div className={`station ${here === s.k ? 'here' : ''}`} style={{ '--c': stationColor(s.k) }}>
+            <div className={`station ${here === s.k ? 'here' : ''}`} style={{ '--c': stationColor(s.c) }}>
               <i className="st-dot" aria-hidden="true" />
               <span className="st-n">{s.n}</span>
               <b className="st-v">{stations[s.k].v}</b>

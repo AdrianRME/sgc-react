@@ -5,18 +5,49 @@
  * Reglas que siguen los datos, para que el tablero cuente algo creíble:
  * - Lunes a sábado (el sábado solo por la mañana); la demanda se concentra entre 7 y 10 h.
  * - La prioridad NO se inventa: se calcula con evalTriage sobre los signos generados, igual que en triaje.
- * - La espera de consulta depende de la prioridad y de la carga de esa hora; mejora semana a semana.
+ * - Ruta completa: el no asegurado paga en Caja antes del triaje (con SIS no paga); después del triaje
+ *   recibe una cita con las mismas reglas que usa Admisión (agenda.js): el primer cupo libre de la
+ *   especialidad según el horario de cada médico. Si la especialidad no atiende ese día, la cita es otro día.
+ * - La espera de consulta se cuenta desde la hora de la cita y mejora semana a semana.
  * - La receta respeta las alergias registradas del paciente.
  */
 import { allergyConflicts, evalTriage } from './clinical.js';
-import { CANCEL, CIE, DAY, MIN, TH_DEFAULT, AREAS } from './constants.js';
+import { CANCEL, CIE, DAY, MIN, TH_DEFAULT, TARIFA_CONSULTA, SIS_EXONERADO, TRIAGE_STATION, ACTIVE_STATES } from './constants.js';
 import { startOfDay } from './format.js';
+import { especialidadSugerida, sameDay, sugerirCita } from './agenda.js';
 
-export const DOCTORS = {
-  'Consultorio 1': { u: 'm.consulta', n: 'Dra. Elena Ríos (demo)', col: 'CMP-00000' },
-  'Consultorio 2': { u: 'm.consulta2', n: 'Dr. Luis Paz (demo)', col: 'CMP-00001' },
+/** Personal de la demostración. Las cuentas de Supabase se crean con los mismos datos en schema.sql. */
+export const DEMO_USERS = [
+  { u: 'a.admision', n: 'Carla Vidal (demo)', role: 'adm', col: '', on: true },
+  { u: 'c.caja', n: 'Rocío Tello (demo)', role: 'caj', col: '', on: true },
+  { u: 'e.triaje', n: 'Pedro Luna (demo)', role: 'enf', col: 'CEP-00000', on: true },
+  { u: 'm.consulta', n: 'Dra. Elena Ríos (demo)', role: 'med', col: 'CMP-00000', on: true, esp: 'MG' },
+  { u: 'm.consulta2', n: 'Dr. Luis Paz (demo)', role: 'med', col: 'CMP-00001', on: true, esp: 'MG' },
+  { u: 'm.pediatria', n: 'Dra. Sofía Mora (demo)', role: 'med', col: 'CMP-00002', on: true, esp: 'PED' },
+  { u: 'm.cardio', n: 'Dr. Raúl Vega (demo)', role: 'med', col: 'CMP-00003', on: true, esp: 'CAR' },
+  { u: 'j.jefatura', n: 'Marco Soto (demo)', role: 'jef', col: '', on: true },
+  { u: 'e.turno2', n: 'Iris Campos (demo)', role: 'enf', col: 'CEP-00001', on: false },
+];
+
+const bloque = (med, dows, ini, fin, area) => dows.map((dow) => ({ id: `hor-${med}-${dow}`, med, dow, ini, fin, area, on: true }));
+
+/**
+ * Horario semanal de la demostración (el mismo que inserta schema.sql): Medicina General de mañana y de
+ * tarde, Pediatría lunes, miércoles y viernes, y Cardiología solo martes y jueves.
+ */
+export const DEMO_HORARIOS = [
+  ...bloque('m.consulta', [1, 2, 3, 4, 5, 6], '07:00', '13:00', 'Consultorio 1'),
+  ...bloque('m.consulta2', [1, 2, 3, 4, 5], '13:00', '19:00', 'Consultorio 1'),
+  ...bloque('m.pediatria', [1, 3, 5], '08:00', '14:00', 'Consultorio 2'),
+  ...bloque('m.cardio', [2, 4], '08:00', '13:00', 'Consultorio 2'),
+];
+
+/** Datos del médico tal como firma la atención. */
+export const medico = (u) => {
+  const x = DEMO_USERS.find((y) => y.u === u);
+  return { u: x.u, n: x.n, col: x.col };
 };
-export const STAFF = ['a.admision', 'e.triaje', 'm.consulta', 'm.consulta2'];
+export const STAFF = ['a.admision', 'c.caja', 'e.triaje', 'm.consulta', 'm.consulta2'];
 
 /** Generador pseudoaleatorio reproducible (mulberry32). */
 export function rng(seed) {
@@ -140,6 +171,7 @@ const DEST_BY_PRIO = {
  * Genera `days` días de atenciones previos a `now` y la mañana de hoy hasta `todayUntil`.
  * Devuelve pacientes nuevos, turnos (sin código: los numera buildSeed por día) y auditoría.
  * `fixed` son visitas pasadas de pacientes con nombre, que se integran en su día.
+ * Lo que todavía no ocurrió respecto de `now` (una cita futura, una consulta pendiente) queda abierto.
  */
 export function generateHistory({ now, days, todayUntil, seed = 2026, firstHc = 107, fixed = [] }) {
   const r = rng(seed);
@@ -147,6 +179,9 @@ export function generateHistory({ now, days, todayUntil, seed = 2026, firstHc = 
   const turns = [];
   const audit = [];
   const lastVisitDay = new Map();
+  const busyUntil = new Map();
+  // La agenda ve los turnos generados hasta el momento: así cada cita ocupa su cupo
+  const agenda = { users: DEMO_USERS, horarios: DEMO_HORARIOS, turns };
   let dniSeq = 71000000;
   let hcSeq = firstHc;
 
@@ -171,8 +206,9 @@ export function generateHistory({ now, days, todayUntil, seed = 2026, firstHc = 
     return p;
   };
 
-  const choosePatient = (dayKey) => {
-    const returning = patients.filter((p) => lastVisitDay.get(p.dni) !== dayKey);
+  // Un paciente con un turno abierto (por ejemplo, una cita pendiente) no vuelve a registrarse
+  const choosePatient = (dayKey, t0) => {
+    const returning = patients.filter((p) => lastVisitDay.get(p.dni) !== dayKey && (busyUntil.get(p.dni) ?? 0) < t0);
     const p = returning.length > 25 && r.chance(0.42) ? r.pick(returning) : newPatient();
     lastVisitDay.set(p.dni, dayKey);
     return p;
@@ -185,28 +221,56 @@ export function generateHistory({ now, days, todayUntil, seed = 2026, firstHc = 
     return r.weighted(fit.map((x) => [x, x.w]));
   };
 
+  /** Cita con la misma regla que propone el sistema en Admisión. */
+  const book = (p, tri, prio, at) => {
+    const s = sugerirCita(agenda, especialidadSugerida(p, tri, at), prio, at);
+    return s ? s.cita : { esp: 'MG', med: 'm.consulta', area: 'Consultorio 1', at, sobre: true };
+  };
+
   const buildTurn = (p, t0, load, eff, fixedVisit) => {
     const ageYears = Math.floor((t0 - new Date(p.nac)) / (365.25 * DAY));
     const profile = fixedVisit?.profile || chooseProfile(p, ageYears);
     const tri = { ...vitalsFor(r, profile, p, ageYears), motivo: r.pick(profile.motivo) };
     const { prio } = evalTriage(tri, TH_DEFAULT);
-    const area = r.chance(0.55) ? AREAS[0] : AREAS[1];
-    const doc = DOCTORS[area];
-    const tTriCall = t0 + Math.round((3 + r.next() * 6 + load * 0.9) * eff * MIN);
     const turn = { dni: p.dni, adm: 'a.admision', t0 };
 
+    // Caja: con SIS no se cobra; el no asegurado paga antes del triaje
+    const sis = SIS_EXONERADO.includes(p.sis);
+    if (!sis && !fixedVisit && r.chance(0.03)) {
+      return { ...turn, state: 'CANCELADO', prio: null, cancel: { motivo: CANCEL.sinPago, by: 'c.caja', t: t0 + 30 * MIN } };
+    }
+    const tPago = sis ? t0 : t0 + Math.round(r.between(2, 9) * eff * MIN);
+    const pago = sis
+      ? { metodo: 'SIS', monto: 0, comp: null, by: 'a.admision', t: tPago }
+      : { metodo: r.weighted([['EFECTIVO', 55], ['BILLETERA', 30], ['TARJETA', 15]]), monto: TARIFA_CONSULTA, comp: null, by: 'c.caja', t: tPago };
+    const paid = { ...turn, tPago, pago };
+
+    const tTriCall = tPago + Math.round((3 + r.next() * 6 + load * 0.9) * eff * MIN);
     if (!fixedVisit && r.chance(0.03)) {
-      return { ...turn, state: 'CANCELADO', prio: null, tTriCall, calls: 3, dest: 'Módulo de Triaje 1',
+      return { ...paid, state: 'CANCELADO', prio: null, tTriCall, calls: 3, dest: TRIAGE_STATION,
         cancel: { motivo: CANCEL.noShow, by: 'e.triaje', t: tTriCall + 6 * MIN } };
     }
     const tTriSave = tTriCall + Math.round(r.between(4, 9) * MIN);
-    const waitMed = prio === 'CRITICA' ? r.between(1, 6) : prio === 'PRIORITARIA' ? r.between(5, 22) : (10 + r.next() * 28 + load * 2.2) * eff;
-    const tMedCall = tTriSave + Math.round(waitMed * MIN);
-    const base = { ...turn, prio, tTriCall, tTriSave, enf: 'e.triaje', tri };
+
+    // Cita: el primer cupo libre de la especialidad (sobrecupo si es crítico)
+    const tCita = tTriSave + Math.round(r.between(1, 5) * eff * MIN);
+    const c = book(p, tri, prio, tCita);
+    const base = { ...paid, prio, tTriCall, tTriSave, enf: 'e.triaje', tri, tCita, cita: { ...c, by: 'a.admision', t: tCita } };
+    const otherDay = !sameDay(c.at, tCita);
+    if (otherDay && !fixedVisit && r.chance(0.06)) {
+      return { ...base, state: 'CANCELADO', cancel: { motivo: CANCEL.noAsistio, by: 'a.admision', t: c.at + 60 * MIN } };
+    }
+    // Quien vuelve otro día llega un rato antes de su hora; la espera cuenta desde la hora de la cita
+    const llego = otherDay ? c.at - Math.round(r.between(5, 25) * MIN) : tCita;
+    const tLlega = Math.max(llego, c.at);
+    // El médico a veces viene atrasado: la espera crece con la carga de esa hora y mejora semana a semana
+    const waitMed = prio === 'CRITICA' ? r.between(1, 8) : prio === 'PRIORITARIA' ? r.between(3, 26) * eff : (4 + r.next() * 40 + load * 3) * eff;
+    const tMedCall = tLlega + Math.round(waitMed * MIN);
+    const arrived = { ...base, llego, tLlega };
 
     if (!fixedVisit && r.chance(0.02)) {
-      return { ...base, state: 'CANCELADO', tMedCall, calls: 2, dest: area,
-        cancel: { motivo: r.pick([CANCEL.noShow, CANCEL.retiro]), by: doc.u, t: tMedCall + 5 * MIN } };
+      return { ...arrived, state: 'CANCELADO', tMedCall, calls: 2, dest: c.area,
+        cancel: { motivo: r.pick([CANCEL.noShow, CANCEL.retiro]), by: c.med, t: tMedCall + 5 * MIN } };
     }
     const tEnd = tMedCall + Math.round(r.between(8, 21) * MIN);
     const destino = r.weighted(DEST_BY_PRIO[prio]);
@@ -215,16 +279,37 @@ export function generateHistory({ now, days, todayUntil, seed = 2026, firstHc = 
     ).filter((m) => !allergyConflicts(p.alg, [m.n]).length);
     const code = fixedVisit?.dx || r.pick(profile.dx);
     return {
-      ...base, state: 'ATENDIDO', tMedCall, tEnd, dest: area, med: doc.u,
+      ...arrived, state: 'ATENDIDO', tMedCall, tEnd, dest: c.area, med: c.med,
       consult: {
         notas: profile.notas,
         dx: [[...cie(code), r.chance(0.72) ? 'D' : 'P']],
         meds,
         dest: destino,
         destx: destino === 'Reposo médico' ? String(r.between(1, 3)) : destino === 'Derivación a hospital' ? 'Hospital Regional (demo)' : '',
-        t: tEnd, area, medico: doc,
+        t: tEnd, area: c.area, medico: medico(c.med),
       },
     };
+  };
+
+  /**
+   * Lo que aún no ocurrió respecto de `now` se quita: el paciente que todavía no vuelve para su cita queda
+   * CITADO y el que ya llegó, en espera de consulta. (Los turnos de hoy llegan con margen: ya pagaron y
+   * pasaron por triaje.)
+   */
+  const cut = (t) => {
+    const end = t.cancel?.t ?? t.tEnd;
+    if (end == null || end <= now || !t.cita) return t;
+    const { tMedCall: _c, tEnd: _e, consult: _k, med: _m, dest: _d, calls: _n, cancel: _x, ...rest } = t;
+    if (rest.llego == null || rest.llego > now) {
+      const { llego: _l, tLlega: _t, ...citado } = rest;
+      return { ...citado, state: 'CITADO' };
+    }
+    return { ...rest, state: 'EN_ESPERA_CONSULTA' };
+  };
+  const add = (t) => {
+    const x = cut(t);
+    turns.push(x);
+    busyUntil.set(x.dni, ACTIVE_STATES.includes(x.state) ? Infinity : x.cancel?.t ?? x.tEnd ?? x.t0);
   };
 
   // Las visitas fijas que caen en domingo (cerrado) pasan al sábado anterior
@@ -250,13 +335,12 @@ export function generateHistory({ now, days, todayUntil, seed = 2026, firstHc = 
     const dayKey = dayStart;
     arrivals.forEach((t0) => {
       if (t0 >= until) return;
-      const t = buildTurn(choosePatient(dayKey), t0, perHour.get(new Date(t0).getHours()) || 1, eff);
-      turns.push(t);
+      add(buildTurn(choosePatient(dayKey, t0), t0, perHour.get(new Date(t0).getHours()) || 1, eff));
     });
     dayFixed.forEach((f) => {
       const t0 = dayStart + f.at * MIN;
       lastVisitDay.set(f.patient.dni, dayKey);
-      turns.push(buildTurn(f.patient, t0, 2, eff, f));
+      add(buildTurn(f.patient, t0, 2, eff, f));
     });
 
     if (dayStart + 7 * 60 * MIN < Math.min(until, now)) {

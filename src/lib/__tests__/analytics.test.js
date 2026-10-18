@@ -5,7 +5,8 @@ import { evalTriage } from '../clinical.js';
 import { TH_DEFAULT, DAY, ACTIVE_STATES } from '../constants.js';
 import { diffEvents } from '../activity.js';
 import { applyChanges } from '../../data/merge.js';
-import { callTurn, startTriage, saveTriage } from '../../store/actions.js';
+import { callTurn, startTriage, saveTriage, assignCita } from '../../store/actions.js';
+import { sugerirCita } from '../agenda.js';
 
 const NOW = new Date(2026, 8, 30, 15, 40).getTime();
 const seed = buildSeed(NOW);
@@ -86,7 +87,7 @@ describe('indicadores de gestión', () => {
 
 describe('persistencia local', () => {
   it('actualizar un turno no pisa los de otros días con el mismo código', () => {
-    const t = seed.turns.find((x) => x.state === 'LLAMADO_CONSULTA');
+    const t = seed.turns.find((x) => x.state === 'ATENDIDO' && seed.turns.filter((y) => y.id === x.id).length > 1);
     const next = applyChanges(seed, { turns: [{ ...t, state: 'EN_CONSULTA' }] });
     expect(next.turns).toHaveLength(seed.turns.length);
     expect(next.turns.filter((x) => x.id === t.id).length).toBeGreaterThan(1);
@@ -95,18 +96,25 @@ describe('persistencia local', () => {
 });
 
 describe('centro de notificaciones', () => {
-  it('avisa al médico de un triaje crítico hecho por otra persona, no de lo propio', () => {
-    let db = { ...seed, turns: seed.turns.filter((t) => t.t0 >= NOW - DAY) };
+  it('avisa a Admisión de un triaje crítico y luego solo al médico de la cita', () => {
+    let db = { ...seed, turns: seed.turns.filter((t) => t.t0 >= NOW - DAY || ACTIVE_STATES.includes(t.state)) };
     const u = (x) => db.users.find((y) => y.u === x);
     const t = db.turns.find((x) => x.state === 'EN_ESPERA_TRIAJE');
-    const ctx = { user: u('e.triaje'), area: 'Consultorio 1', now: NOW, ip: '' };
-    db = applyChanges(db, callTurn(db, ctx, t.id).changes);
-    db = applyChanges(db, startTriage(db, ctx, t.id).changes);
-    const before = db;
+    const ctx = (who) => ({ user: u(who), area: 'Consultorio 1', now: NOW, ip: '' });
+    db = applyChanges(db, callTurn(db, ctx('e.triaje'), t.id).changes);
+    db = applyChanges(db, startTriage(db, ctx('e.triaje'), t.id).changes);
+    let before = db;
     const vit = { pa: '120/80', fc: 80, fr: 18, t: 36.8, spo2: 86, peso: 60, talla: 1.6, motivo: 'Disnea' };
-    db = applyChanges(db, saveTriage(db, ctx, t.id, vit, '').changes);
-    const med = diffEvents(before, db, u('m.consulta'));
-    expect(med.some((e) => e.tone === 'crit' && e.text.includes(t.id))).toBe(true);
+    db = applyChanges(db, saveTriage(db, ctx('e.triaje'), t.id, vit, '').changes);
+    expect(diffEvents(before, db, u('a.admision')).some((e) => e.tone === 'crit' && e.text.includes(t.id))).toBe(true);
     expect(diffEvents(before, db, u('e.triaje'))).toEqual([]);
+
+    before = db;
+    const { cita } = sugerirCita(db, 'MG', 'CRITICA', NOW);
+    db = applyChanges(db, assignCita(db, ctx('a.admision'), t.id, cita).changes);
+    const doc = u(cita.med);
+    const other = db.users.find((x) => x.role === 'med' && x.u !== doc.u);
+    expect(diffEvents(before, db, doc).some((e) => e.tone === 'crit' && e.text.includes(t.id))).toBe(true);
+    expect(diffEvents(before, db, other).some((e) => e.text.includes(t.id))).toBe(false);
   });
 });

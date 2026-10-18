@@ -94,7 +94,7 @@ export function WaitTime({ turn, now }) {
   );
 }
 
-/** Recorrido del paciente en miniatura: Admisión → Triaje → Consulta → Alta. */
+/** Recorrido del paciente en miniatura: Admisión → Caja → Triaje → Cita → Consulta → Alta. */
 export function MiniRoute({ state }) {
   const cur = ROUTE.findIndex((s) => s.states.includes(state));
   return (
@@ -104,7 +104,7 @@ export function MiniRoute({ state }) {
           key={s.k}
           title={s.n}
           className={i < cur ? 'done' : i === cur ? 'now' : ''}
-          style={{ '--c': `var(--st-${s.k === 'alta' ? 'jef' : s.k})` }}
+          style={{ '--c': `var(--st-${s.c})` }}
         />
       ))}
     </ol>

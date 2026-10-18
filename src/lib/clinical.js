@@ -1,4 +1,4 @@
-import { MEDS, WAIT_TARGET, MIN, ACTIVE_STATES, STAGES } from './constants.js';
+import { MEDS, WAIT_TARGET, MIN, ACTIVE_STATES, STAGES, STATE } from './constants.js';
 import { startOfDay } from './format.js';
 
 /** Error de regla de negocio: su mensaje se muestra tal cual al usuario. */
@@ -6,10 +6,17 @@ export class DomainError extends Error {}
 
 /* ---------- Máquina de estados del turno ---------- */
 
+/**
+ * Pago → triaje → cita → consulta. Después del triaje, la cita lleva al paciente a la espera de consulta
+ * (si es hoy) o lo deja CITADO hasta el día de su cita, cuando Admisión registra su llegada.
+ */
 export const TRANSITIONS = {
+  PENDIENTE_PAGO: ['EN_ESPERA_TRIAJE', 'CANCELADO'],
   EN_ESPERA_TRIAJE: ['LLAMADO_TRIAJE', 'CANCELADO'],
   LLAMADO_TRIAJE: ['LLAMADO_TRIAJE', 'EN_TRIAJE', 'CANCELADO'],
-  EN_TRIAJE: ['EN_ESPERA_CONSULTA', 'EN_ESPERA_TRIAJE'],
+  EN_TRIAJE: ['PENDIENTE_CITA', 'EN_ESPERA_TRIAJE'],
+  PENDIENTE_CITA: ['EN_ESPERA_CONSULTA', 'CITADO', 'CANCELADO'],
+  CITADO: ['CITADO', 'EN_ESPERA_CONSULTA', 'CANCELADO'],
   EN_ESPERA_CONSULTA: ['LLAMADO_CONSULTA', 'CANCELADO'],
   LLAMADO_CONSULTA: ['LLAMADO_CONSULTA', 'EN_CONSULTA', 'CANCELADO'],
   EN_CONSULTA: ['ATENDIDO', 'EN_ESPERA_CONSULTA'],
@@ -23,7 +30,7 @@ export function canTransition(from, to) {
 
 export function assertTransition(turn, to) {
   if (!canTransition(turn.state, to)) {
-    throw new DomainError(`El turno ${turn.id} ya no está disponible para esta acción (estado actual: ${turn.state}). Actualice la lista.`);
+    throw new DomainError(`El turno ${turn.id} ya no está disponible para esta acción (estado actual: ${STATE[turn.state]?.[0].toLowerCase() ?? turn.state}). Actualice la lista.`);
   }
 }
 
@@ -124,8 +131,11 @@ export function validateThresholds(T) {
 /** Clave única de un turno: el código se repite en otros días, la hora de llegada no. */
 export const turnKey = (t) => `${t.id}@${t.t0}`;
 
-/** Minutos entre dos marcas de tiempo de un turno (null si falta alguna). */
-export const minutesBetween = (t, a, b) => (t[a] != null && t[b] != null && t[b] >= t[a] ? (t[b] - t[a]) / MIN : null);
+/**
+ * Minutos entre dos marcas de tiempo de un turno (null si falta alguna). Si el médico llama antes de la
+ * hora de la cita, la espera de consulta es 0 (igual que sgc_interno.minutos en la base).
+ */
+export const minutesBetween = (t, a, b) => (t[a] != null && t[b] != null ? Math.max(0, t[b] - t[a]) / MIN : null);
 
 /** Versión vigente de los umbrales: la más reciente. */
 export const latestThresholds = (versions) => [...versions].sort((a, b) => b.since - a.since)[0];
@@ -141,22 +151,35 @@ export const isCurrent = (t, now = Date.now()) => t.t0 >= startOfDay(now) || ACT
 const RANK = { CRITICA: 0, PRIORITARIA: 1, NORMAL: 2 };
 export const byArrival = (a, b) => a.t0 - b.t0;
 export const byPriority = (a, b) => (RANK[a.prio] ?? 3) - (RANK[b.prio] ?? 3) || a.t0 - b.t0;
+/**
+ * Orden de la consulta: prioridad clínica y luego la hora en que empieza su espera (la de su cita o su
+ * llegada, la que sea posterior). Así quien tiene cita más temprano pasa antes, salvo un caso más grave.
+ */
+export const byConsulta = (a, b) => (RANK[a.prio] ?? 3) - (RANK[b.prio] ?? 3) || (a.tLlega ?? a.t0) - (b.tLlega ?? b.t0);
 
-/** Turnos agrupados por etapa de la ruta; la espera de consulta se ordena por prioridad. */
+const STAGE_SORT = { espCita: byPriority, espMed: byConsulta };
+/** Turnos agrupados por etapa de la ruta; la espera de cita y la de consulta se ordenan por prioridad. */
 export const byStage = (turns) =>
-  Object.fromEntries(STAGES.map((s) => [s.k, turns.filter((t) => s.states.includes(t.state)).sort(s.k === 'espMed' ? byPriority : byArrival)]));
+  Object.fromEntries(STAGES.map((s) => [s.k, turns.filter((t) => s.states.includes(t.state)).sort(STAGE_SORT[s.k] || byArrival)]));
+
+/** Espera que corresponde a cada estado: los llamados y la atención conservan la espera que la precede. */
+const WAIT_STAGE = {
+  PENDIENTE_PAGO: 'espPago', EN_ESPERA_TRIAJE: 'espTri', LLAMADO_TRIAJE: 'espTri', EN_TRIAJE: 'espTri',
+  PENDIENTE_CITA: 'espCita', EN_ESPERA_CONSULTA: 'espMed', LLAMADO_CONSULTA: 'espMed', EN_CONSULTA: 'espMed',
+};
 
 /**
  * Minutos de espera de la etapa actual y si supera el tiempo objetivo. La espera termina cuando el
  * paciente es llamado: quien ya está en triaje o en consulta no sigue contando como «en espera».
+ * La espera de consulta se mide desde la hora de la cita (si llegó antes, no cuenta como demora).
  */
 export function waitInfo(turn, now) {
-  const since = turn.tTriSave || turn.t0;
-  const calledAt = turn.tTriSave ? turn.tMedCall : turn.tTriCall;
-  const waiting = turn.state === 'EN_ESPERA_TRIAJE' || turn.state === 'EN_ESPERA_CONSULTA';
-  const until = !waiting && calledAt ? calledAt : now;
+  const s = STAGES.find((x) => x.k === WAIT_STAGE[turn.state]);
+  if (!s) return { min: 0, target: null, late: false };
+  const since = turn[s.from] ?? turn.t0;
+  const until = s.states.includes(turn.state) ? now : turn[s.to] ?? now;
   const min = Math.max(0, Math.floor((until - since) / MIN));
-  const target = turn.prio ? WAIT_TARGET[turn.prio] : WAIT_TARGET.SIN_TRIAJE;
+  const target = s.k === 'espMed' ? WAIT_TARGET[turn.prio] ?? WAIT_TARGET.NORMAL : WAIT_TARGET[s.k];
   return { min, target, late: min > target };
 }
 

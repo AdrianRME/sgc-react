@@ -4,8 +4,8 @@
 .hero-copy h1 { font: 700 clamp(2.2rem, 4.2vw, 3.6rem) / 1.02 var(--display); letter-spacing: -0.03em; max-width: 15ch; }
 .hero-copy p { margin-top: 16px; max-width: 50ch; font-size: var(--fs-lg); color: var(--ink-2); }
 
-/* La ruta: cuatro estaciones unidas por tramos del color de la estación a la que llegan */
-.route-art { --stop: 72px; list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); max-width: 760px; }
+/* La ruta: seis estaciones unidas por tramos del color de la estación a la que llegan */
+.route-art { --stop: 64px; list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); max-width: 900px; }
 .route-art li { position: relative; display: flex; flex-direction: column; align-items: flex-start; gap: 3px; padding-right: 8px; }
 .ra-stop { position: relative; z-index: 1; display: grid; place-items: center; width: var(--stop); height: var(--stop); margin-bottom: 10px; border-radius: 50%; border: 5px solid var(--c); background: var(--surface); }
 .ra-line { position: absolute; z-index: 0; top: calc(var(--stop) / 2 - 3px); left: calc(var(--stop) - 100%); width: calc(100% - var(--stop)); height: 6px; border-radius: 6px; background: var(--c); transform-origin: left center; }
@@ -37,8 +37,9 @@
 @media (max-width: 920px) {
   .login { grid-template-columns: minmax(0, 1fr); }
   .login-hero { gap: 28px; padding: 28px 16px 8px; }
-  .route-art { --stop: 54px; }
-  .route-art .i3d { width: 34px; height: 34px; }
+  .route-art { --stop: 44px; }
+  .route-art .i3d { width: 26px; height: 26px; }
+  .route-art b { font-size: var(--fs-sm); }
   .route-art span { display: none; }
   .login-facts { display: none; }
   .login-side { padding: 24px 16px 40px; border-left: 0; border-top: 1px solid var(--line); }

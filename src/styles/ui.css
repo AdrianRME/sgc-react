@@ -202,3 +202,16 @@
 .pw-meter i.on.l1 { background: var(--crit); }
 .pw-meter i.on.l2 { background: var(--warn); }
 .pw-meter i.on.l3, .pw-meter i.on.l4 { background: var(--good); }
+
+/* ---------- Horario semanal de los médicos ---------- */
+.tbl.week { min-width: 640px; }
+.tbl.week th.today, .tbl.week td.today { background: var(--role-soft); }
+.tbl.week tr.grp th { padding-top: 14px; font-size: var(--fs-sm); color: var(--ink); background: none; }
+.tbl.week tr.grp th small { font-weight: 500; color: var(--muted); margin-left: 6px; }
+.tbl.week td { vertical-align: top; font-size: var(--fs-xs); }
+.tbl.week td.off { color: var(--muted); }
+.slot-b { white-space: nowrap; display: flex; flex-direction: column; gap: 1px; font-weight: 650; font-size: var(--fs-sm); font-variant-numeric: tabular-nums; }
+.slot-b + .slot-b { margin-top: 6px; }
+.slot-b small { font-weight: 500; color: var(--muted); font-size: var(--fs-xs); }
+.slot-b .linkbtn { align-self: flex-start; font-size: var(--fs-xs); }
+small.block { display: block; color: var(--muted); }

@@ -7,7 +7,7 @@ import { fullName } from '../lib/format.js';
 import { spring } from '../lib/motion.js';
 import { useNow } from '../hooks/useNow.js';
 import { WorkspaceHeader } from '../components/WorkspaceHeader.jsx';
-import { Empty, PrioBadge, TurnCode, WaitTime } from '../components/ui.jsx';
+import { Empty, Msg, PrioBadge, TurnCode, WaitTime } from '../components/ui.jsx';
 import { Icon3D } from '../components/Icon3D.jsx';
 import './flujo.css';
 
@@ -49,6 +49,7 @@ export default function Flujo() {
   const g = byStage(db.turns);
   // Admisión ve el nombre para orientar al paciente; Jefatura trabaja solo con códigos
   const pat = (t) => (user.role === 'adm' ? patient(t.dni) : null);
+  const citados = db.turns.filter((t) => t.state === 'CITADO').length;
   return (
     <>
       <WorkspaceHeader
@@ -57,6 +58,7 @@ export default function Flujo() {
         lead="Dónde está cada paciente en este momento. Las tarjetas avanzan solas cuando otra estación llama, atiende o da de alta."
       />
       <Rooms turns={db.turns} users={db.users} now={now} />
+      {citados > 0 && <Msg tone="info">Además, {citados} {citados === 1 ? 'paciente tiene' : 'pacientes tienen'} cita para más tarde u otro día: no {citados === 1 ? 'está' : 'están'} en el centro hasta que Admisión registre su llegada.</Msg>}
       <LayoutGroup id="board">
         <div className="board">
           {STAGES.map((s) => (

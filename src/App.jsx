@@ -15,13 +15,15 @@ import { Login } from './views/Login.jsx';
 const Sala = lazy(() => import('./views/Sala.jsx'));
 const Flujo = lazy(() => import('./views/Flujo.jsx'));
 const VIEWS = {
-  adm: { registro: lazy(() => import('./views/Admision.jsx')), flujo: Flujo },
+  adm: { registro: lazy(() => import('./views/Admision.jsx')), citas: lazy(() => import('./views/Citas.jsx')), flujo: Flujo },
+  caj: { cobros: lazy(() => import('./views/Caja.jsx')) },
   enf: { lista: lazy(() => import('./views/Triaje.jsx')) },
   med: { atencion: lazy(() => import('./views/Consulta.jsx')), historias: lazy(() => import('./views/Historias.jsx')) },
   jef: {
     tablero: lazy(() => import('./views/jefatura/Tablero.jsx')),
     flujo: Flujo,
     usuarios: lazy(() => import('./views/jefatura/Usuarios.jsx')),
+    horarios: lazy(() => import('./views/jefatura/Horarios.jsx')),
     auditoria: lazy(() => import('./views/jefatura/Auditoria.jsx')),
     umbrales: lazy(() => import('./views/jefatura/Umbrales.jsx')),
   },

@@ -121,10 +121,11 @@
 /* ---------- La ruta en vivo (elemento distintivo) ---------- */
 .route {
   --tok-h: 26px;
-  position: relative; display: grid; grid-template-columns: auto minmax(90px, 1fr) auto minmax(90px, 1.2fr) auto minmax(40px, 0.5fr) auto;
+  position: relative; display: grid;
+  grid-template-columns: auto minmax(56px, 0.8fr) auto minmax(56px, 1fr) auto minmax(56px, 0.8fr) auto minmax(56px, 1.1fr) auto minmax(36px, 0.5fr) auto;
   align-items: start; gap: 0; padding: 16px 18px 14px; border: 1px solid var(--line); border-radius: var(--r-panel); background: var(--surface);
 }
-.station { display: flex; flex-direction: column; align-items: flex-start; gap: 3px; min-width: 104px; }
+.station { display: flex; flex-direction: column; align-items: flex-start; gap: 3px; min-width: 84px; max-width: 150px; }
 .station .st-dot { width: 22px; height: 22px; border-radius: 50%; border: 4px solid var(--c); background: var(--surface); }
 .station.here .st-dot { background: var(--c); box-shadow: 0 0 0 5px color-mix(in oklab, var(--c) 22%, transparent); }
 .station .st-n { font-size: var(--fs-xs); font-weight: 650; color: var(--ink-2); margin-top: 6px; }
@@ -149,6 +150,17 @@
 .route-legend .pdot { width: 8px; height: 8px; border-radius: 50%; }
 
 /* ---------- Pantallas pequeñas ---------- */
+/* Seis estaciones no caben en una línea en pantallas medianas: la ruta pasa a vertical antes */
+@media (max-width: 1280px) {
+  .route { grid-template-columns: minmax(0, 1fr); gap: 4px; }
+  .seg-line { min-height: 30px; padding: 4px 0 4px 34px; }
+  .seg-line::before { left: 9px; right: auto; top: 0; bottom: 0; width: 4px; height: auto; }
+  .seg-line .toks { justify-content: flex-start; }
+  .seg-line .lbl, .seg-line.empty-seg .lbl { text-align: left; margin-top: 4px; }
+  .station { flex-direction: row; flex-wrap: wrap; align-items: center; gap: 4px 10px; max-width: none; }
+  .station .st-n { margin-top: 0; }
+  .station .toks { width: 100%; max-width: none; margin: 0 0 0 32px; }
+}
 @media (max-width: 980px) {
   .app { grid-template-columns: minmax(0, 1fr); }
   .side { position: fixed; z-index: 70; inset: 0 auto 0 0; width: min(300px, 86vw); transform: translateX(-102%); transition: transform 0.25s var(--ease); box-shadow: var(--shadow-float); }

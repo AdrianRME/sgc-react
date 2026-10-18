@@ -5,7 +5,7 @@
  * (solo Jefatura); en modo local se derivan con toFacts(). Toda la agregación vive aquí, para que
  * ambos modos muestren exactamente las mismas cifras.
  */
-import { ABANDONO, AREAS, CIE, DAY, GRUPOS_EDAD, MIN, PRIO, STAGES, WAIT_TARGET } from './constants.js';
+import { ABANDONO, AREAS, CIE, DAY, ESPECIALIDADES, GRUPOS_EDAD, MIN, PRIO, STAGES, WAIT_TARGET } from './constants.js';
 import { ageAt, startOfDay } from './format.js';
 import { minutesBetween } from './clinical.js';
 
@@ -26,6 +26,7 @@ export function toFacts(turns, patients) {
       area: t.consult?.area ?? (AREAS.includes(t.dest) ? t.dest : null), med: t.consult?.medico?.u ?? t.med ?? null,
       sexo: p?.sexo ?? null, edad: p ? ageAt(p.nac, t.t0) : null, sis: p?.sis ?? null,
       dx: t.consult ? t.consult.dx.map((d) => d[0]) : [], dest: t.consult?.dest ?? null,
+      esp: t.cita?.esp ?? null, otroDia: t.cita ? startOfDay(t.cita.at) !== startOfDay(t.t0) : null,
       motivo: t.state === 'CANCELADO' ? t.cancel?.motivo ?? null : null,
     };
   });
@@ -100,7 +101,7 @@ export function series(facts, from, to, byHour = false) {
     return {
       ...b, ...prio, total: fs.length, atendidos: s.atendidos, cancelados: s.cancelados, abandono: s.abandono,
       tiempoTotal: s.tiempoTotal, enObjetivo: s.enObjetivo,
-      espTri: s.stages[0].mean, espMed: s.stages[2].mean,
+      ...Object.fromEntries(s.stages.filter((x) => x.wait).map((x) => [x.k, x.mean])),
     };
   });
 }
@@ -153,6 +154,17 @@ export function cumplimiento(facts) {
   return Object.keys(PRIO).map((prio) => {
     const vals = defined(facts.filter((f) => f.prio === prio).map(onTarget));
     return { prio, target: WAIT_TARGET[prio], n: vals.length, ok: vals.filter(Boolean).length, rate: vals.length ? vals.filter(Boolean).length / vals.length : null };
+  });
+}
+
+/**
+ * Citas por especialidad: cuántas se dieron, cuántas fueron para otro día (la especialidad no atendía o
+ * no tenía cupo ese día) y cuántas terminaron en atención.
+ */
+export function porEspecialidad(facts) {
+  return ESPECIALIDADES.map((e) => {
+    const fs = facts.filter((f) => f.esp === e.k);
+    return { k: e.k, n: e.n, citas: fs.length, otroDia: fs.filter((f) => f.otroDia).length, atendidos: fs.filter((f) => f.state === 'ATENDIDO').length };
   });
 }
 

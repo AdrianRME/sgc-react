@@ -1,7 +1,10 @@
 import { Printer } from 'lucide-react';
 import { useStore } from '../store/useStore.js';
-import { fmtDT, age, maskDni, fullName } from '../lib/format.js';
+import { fmtDT, fmtHora, fmtLongDay, fmtSoles, age, maskDni, fullName } from '../lib/format.js';
+import { CONCEPTO_PAGO, METODOS_PAGO, TARIFA_CONSULTA } from '../lib/constants.js';
+import { especialidad, sameDay } from '../lib/agenda.js';
 import { usePatientHistory } from '../hooks/usePatientHistory.js';
+import { useNow } from '../hooks/useNow.js';
 import { Modal } from './Modal.jsx';
 import { Msg, SisBadge } from './ui.jsx';
 import { Icon3D } from './Icon3D.jsx';
@@ -67,6 +70,16 @@ export function Recipe({ turn: t, onClose }) {
   );
 }
 
+/** Indicación del ticket según dónde está el paciente en la ruta. */
+function nextStep(t) {
+  if (t.state === 'PENDIENTE_PAGO') return <>Pase primero a <b>Caja</b> y pague {fmtSoles(TARIFA_CONSULTA)}. Después espere su llamado a <b>Triaje</b>.</>;
+  if (['EN_ESPERA_TRIAJE', 'LLAMADO_TRIAJE', 'EN_TRIAJE'].includes(t.state)) {
+    return <>{t.pago?.metodo === 'SIS' && 'Exonerado de pago por SIS. '}Diríjase a <b>Triaje</b> y permanezca atento a la pantalla de sala.</>;
+  }
+  if (t.state === 'PENDIENTE_CITA') return <>Acérquese a <b>Admisión</b> para sacar su cita con el especialista.</>;
+  return <>Permanezca atento a la pantalla de sala.</>;
+}
+
 export function Ticket({ turn: t, onClose }) {
   const { patient } = useStore();
   const p = patient(t.dni);
@@ -74,9 +87,70 @@ export function Ticket({ turn: t, onClose }) {
     <Modal label="Ticket de turno" onClose={onClose} size="sm" className="doc ticket">
       <DocHead title="Su turno" icon="ticket" />
       <div className="tk-n tcode">{t.id}</div>
-      <p className="tk-b">Diríjase a <b>Triaje</b> y permanezca atento a la pantalla de sala.</p>
+      <p className="tk-b">{nextStep(t)}</p>
       <dl className="doc-meta">
         <div><dt>Emitido</dt><dd>{fmtDT(t.t0)}</dd></div>
+        <div><dt>DNI</dt><dd>{p ? maskDni(p.dni) : '—'}</dd></div>
+      </dl>
+      <DocActions onClose={onClose} />
+    </Modal>
+  );
+}
+
+/** Boleta de la consulta (demostración, sin validez tributaria). */
+export function Comprobante({ turn: t, onClose }) {
+  const { patient, db } = useStore();
+  const p = patient(t.dni);
+  const g = t.pago;
+  const cajero = db.users.find((x) => x.u === g.by)?.n ?? g.by;
+  return (
+    <Modal label="Comprobante de pago" onClose={onClose} size="sm" className="doc">
+      <DocHead title="Boleta de venta" code={g.comp ?? 'SIS'} />
+      <dl className="doc-meta">
+        <div><dt>Paciente</dt><dd>{fullName(p)}</dd></div>
+        <div><dt>DNI</dt><dd>{p?.dni}</dd></div>
+        <div><dt>Fecha</dt><dd>{fmtDT(g.t)}</dd></div>
+        <div><dt>Turno</dt><dd>{t.id}</dd></div>
+      </dl>
+      <div className="tblw">
+        <table className="tbl">
+          <thead><tr><th>Concepto</th><th className="num">Importe</th></tr></thead>
+          <tbody>
+            <tr><td>{CONCEPTO_PAGO}</td><td className="num">{fmtSoles(g.monto)}</td></tr>
+            <tr><td><b>Total</b></td><td className="num"><b>{fmtSoles(g.monto)}</b></td></tr>
+          </tbody>
+        </table>
+      </div>
+      <dl className="doc-meta">
+        <div><dt>Medio de pago</dt><dd>{METODOS_PAGO[g.metodo]}</dd></div>
+        <div><dt>Atendido por</dt><dd>{cajero}</dd></div>
+      </dl>
+      <p className="wm">Documento de demostración sin validez tributaria.</p>
+      <DocActions onClose={onClose} />
+    </Modal>
+  );
+}
+
+/** Constancia de cita: qué especialista, dónde y cuándo. */
+export function ConstanciaCita({ turn: t, onClose }) {
+  const { patient, db } = useStore();
+  const p = patient(t.dni);
+  const c = t.cita;
+  const doc = db.users.find((x) => x.u === c.med);
+  const now = useNow(60_000);
+  const hoy = sameDay(c.at, now);
+  return (
+    <Modal label="Constancia de cita" onClose={onClose} size="sm" className="doc ticket">
+      <DocHead title="Constancia de cita" icon="calendar" />
+      <div className="tk-n tcode">{fmtHora(c.at)}</div>
+      <p className="tk-b"><b>{hoy ? 'Hoy' : fmtLongDay(c.at)}</b>, {especialidad(c.esp)?.n}, {doc?.n ?? c.med}, {c.area}.</p>
+      <p className="tk-b">{hoy
+        ? 'Espere en la sala: su código aparecerá en la pantalla cuando el médico lo llame.'
+        : 'Ese día preséntese en Admisión con su DNI 15 minutos antes de su hora. No necesita volver a pagar ni pasar por triaje.'}</p>
+      {c.sobre && <Msg tone="crit">Sobrecupo por prioridad crítica: será atendido lo antes posible.</Msg>}
+      <dl className="doc-meta">
+        <div><dt>Turno</dt><dd>{t.id}</dd></div>
+        <div><dt>Paciente</dt><dd>{p ? `${p.nom} ${p.ape.split(' ')[0]}` : '—'}</dd></div>
         <div><dt>DNI</dt><dd>{p ? maskDni(p.dni) : '—'}</dd></div>
       </dl>
       <DocActions onClose={onClose} />

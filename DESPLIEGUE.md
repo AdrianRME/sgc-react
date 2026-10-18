@@ -2,8 +2,23 @@
 
 Guía para publicar el sistema con la base de datos y la autenticación en Supabase y la aplicación en Vercel.
 
-**Cómo se probó.** `npm test` pasa las 33 pruebas, `npm run lint` no da advertencias y `npm run build` compila sin
-errores. `supabase/schema.sql` se ejecutó en PostgreSQL 16 con el esquema real de Supabase Auth (migraciones del
+**Cómo se probó.** `npm test` pasa las 49 pruebas, `npm run lint` no da advertencias y `npm run build` compila sin
+errores.
+
+**Pago, citas y horarios (octubre 2026).** `supabase/schema.sql` se ejecutó completo en PostgreSQL 16 (PGlite), con
+`auth`, los roles y la publicación de tiempo real de Supabase simulados. Una batería de 31 comprobaciones generó los
+cambios con las mismas reglas de la app y verificó:
+
+- que la demostración importada (unos 620 turnos con pago y cita) vuelve igual por `sgc_cargar`;
+- que `sgc_indicadores` da las mismas cifras que el modo local;
+- el cobro en Caja y la exoneración por SIS;
+- la cita según el horario y el sobrecupo de un crítico;
+- la llegada del citado y la consulta con su médico;
+- los cruces de horario;
+- los rechazos en el servidor: pago no válido, hora fuera de cupo, doble reserva, crítico citado otro día, médico
+  que llama al paciente de otro y rol sin permiso.
+
+Lo que sigue describe la verificación anterior a este cambio. `supabase/schema.sql` se ejecutó en PostgreSQL 16 con el esquema real de Supabase Auth (migraciones del
 repositorio `supabase/auth`, sept. 2026) y los roles de Supabase simulados, con tres baterías de prueba:
 
 - **32 pruebas de seguridad y flujo.** Cubren:
@@ -31,15 +46,23 @@ Cada `git push` a `main` vuelve a publicar el sitio en Vercel automáticamente.
 
 El script crea:
 
-- Las **13 tablas del modelo del informe**, con sus restricciones y los catálogos de áreas y CIE-10.
+- Las **17 tablas**: las 13 del modelo del informe más `especialidad`, `horario_medico`, `pago` y `cita`, con sus
+  restricciones y los catálogos de áreas, especialidades y CIE-10.
+- El **horario semanal de demostración**:
+  - Medicina General: Dra. Ríos de lunes a sábado de 07:00 a 13:00, y Dr. Paz de lunes a viernes de 13:00 a 19:00.
+  - Pediatría: lunes, miércoles y viernes.
+  - Cardiología: solo martes y jueves.
 - Las **cuentas de demostración en Supabase Auth**, con contraseña `SgcDemo2026`:
 
   | Usuario | Rol |
   |---|---|
-  | `a.admision` | Admisión |
+  | `a.admision` | Admisión (registro, citas y llegada de citados) |
+  | `c.caja` | Caja |
   | `e.triaje` | Enfermería |
-  | `m.consulta` | Médico |
-  | `m.consulta2` | Médico |
+  | `m.consulta` | Médico · Medicina General |
+  | `m.consulta2` | Médico · Medicina General |
+  | `m.pediatria` | Médico · Pediatría |
+  | `m.cardio` | Médico · Cardiología |
   | `j.jefatura` | Jefatura |
   | `e.turno2` | Enfermería (inactiva) |
 
@@ -85,9 +108,16 @@ Si cambia las variables, use **Deployments → ⋯ → Redeploy**.
 
 ## 7. Verificación en el sitio publicado
 
-- [ ] `a.admision`: registra un paciente nuevo y genera su turno.
-- [ ] `e.triaje`: llama al turno, inicia el triaje, registra los signos y guarda. Aparece la prioridad.
-- [ ] `m.consulta`: llama, inicia la atención, registra el CIE-10 y la receta, y finaliza.
+- [ ] `a.admision`: registra un paciente nuevo sin seguro (por ejemplo, DNI `70000027`). El turno queda pendiente de pago.
+- [ ] `c.caja`: cobra el turno en efectivo y emite la boleta. El turno pasa a la lista de triaje.
+- [ ] `e.triaje`: llama al turno, inicia el triaje, registra los signos y guarda. Aparece la prioridad y el paciente
+      pasa a Admisión por su cita.
+- [ ] `a.admision`, **Citas**: con el motivo «Control de presión arterial» el sistema sugiere Cardiología. Si hoy no
+      es martes ni jueves, propone el primer cupo de otro día y el turno queda citado.
+- [ ] `a.admision`, **Citas de hoy**: registra la llegada de un citado de hoy.
+- [ ] El médico de la cita (`m.consulta` o `m.cardio`) solo ve a sus pacientes: llama, atiende, registra el CIE-10 y
+      la receta, y finaliza.
+- [ ] `j.jefatura`, **Horarios médicos**: agrega un bloque y comprueba que el sistema rechaza un cruce de consultorio.
 - [ ] En otro equipo o en el celular, `…/#/sala` muestra los llamados al instante. No muestra nombres ni DNI.
 - [ ] Con la sesión de `a.admision`, escribir `…/#/jefatura` en la barra devuelve al espacio de Admisión.
 - [ ] `j.jefatura`: crea un usuario. La contraseña temporal se muestra una vez y el usuario debe cambiarla al ingresar.
@@ -112,6 +142,7 @@ Si cambia las variables, use **Deployments → ⋯ → Redeploy**.
 | Carga de demostración | Solo Jefatura; las partes siguientes exigen el token de la carga recién abierta (10 min), así no sirve para insertar historia en datos reales |
 | Escritura | Solo `sgc_guardar()`: valida rol, máquina de estados y datos en una transacción |
 | Integridad | La base recalcula la prioridad de triaje; rechaza códigos duplicados, consultorios ocupados y turnos activos duplicados |
+| Pago y citas | La tarifa la fija la base; sin pago (o SIS) no hay triaje. La cita se valida contra el horario del médico, el cupo libre (índice único `uq_cita_cupo`) y la prioridad: un crítico solo con sobrecupo hoy. Cada médico solo llama a los pacientes que tienen cita con él |
 | Auditoría | Autor, fecha e IP los fija el servidor; no se pueden falsificar desde el navegador |
 | Datos públicos | La pantalla de sala usa `sgc_sala()`: solo código, estado, destino y hora del llamado, ya ordenados (sin prioridad) |
 | Secretos | La *publishable key* es pública por diseño; `.env` no se sube; `password_hash` no es legible desde la app |
@@ -124,7 +155,10 @@ Si cambia las variables, use **Deployments → ⋯ → Redeploy**.
 2. **Validación SIS simulada.** No hay integración con el servicio real del SIS.
 3. **Plan gratuito.** Supabase pausa el proyecto tras 7 días sin uso. Ábralo el día anterior a cada revisión.
 4. **Diferencias con el modelo físico del informe:**
-   - `turno` agrega `ts_ultimo_llamado`, `veces_llamado` e `id_usuario_en_atencion`.
+   - Se agregan `especialidad`, `horario_medico`, `pago` y `cita`, y `usuario.id_especialidad` (el diagrama para
+     ERwin está en `erwin/sgc_modelo_erwin.sql`).
+   - `turno` agrega `ts_ultimo_llamado`, `veces_llamado` e `id_usuario_en_atencion`, y los estados `PENDIENTE_PAGO`,
+     `PENDIENTE_CITA` y `CITADO`.
    - El código de turno se reinicia cada día (`TR-001`…), como indica la restricción única `(fecha_turno, codigo_turno)`.
    - `auditoria.operacion` admite `LOGOUT`.
    - `detalle_receta.cantidad_solicitada` es opcional.

@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { AnimatePresence, LayoutGroup, m } from 'motion/react';
 import { Bell, BellOff, Maximize, Mic, MicOff, WifiOff } from 'lucide-react';
 import { useStore } from '../store/useStore.js';
-import { byArrival, byPriority } from '../lib/clinical.js';
+import { byArrival, byConsulta } from '../lib/clinical.js';
 import { TRIAGE_STATION } from '../lib/constants.js';
 import { fmtLongDay, fmtT } from '../lib/format.js';
 import { beep, announce } from '../lib/sound.js';
@@ -65,7 +65,7 @@ export default function Sala({ standalone = false }) {
     .filter((t) => ['LLAMADO_TRIAJE', 'LLAMADO_CONSULTA'].includes(t.state))
     .sort((a, b) => (b.calledAt || 0) - (a.calledAt || 0));
   const cur = calls[0];
-  const nextMed = sortBy(turns.filter((t) => t.state === 'EN_ESPERA_CONSULTA'), byPriority);
+  const nextMed = sortBy(turns.filter((t) => t.state === 'EN_ESPERA_CONSULTA'), byConsulta);
   const nextTri = sortBy(turns.filter((t) => t.state === 'EN_ESPERA_TRIAJE'), byArrival);
 
   const key = cur ? `${cur.id}@${cur.calledAt}` : '';

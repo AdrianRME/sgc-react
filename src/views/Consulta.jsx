@@ -3,14 +3,15 @@ import { AnimatePresence, m } from 'motion/react';
 import { FileText, FolderOpen, Megaphone, PhoneCall, Play, Plus, Repeat, Send, Trash2, Undo2, UserX } from 'lucide-react';
 import { useStore } from '../store/useStore.js';
 import { callTurn, callNext, startConsult, finishConsult, returnToQueue, cancelTurn, changeArea } from '../store/actions.js';
-import { allergyConflicts, byPriority, evalTriage } from '../lib/clinical.js';
+import { allergyConflicts, byConsulta, evalTriage, turnKey } from '../lib/clinical.js';
+import { citasDelDia, especialidad } from '../lib/agenda.js';
 import { AREAS, CANCEL, DESTINOS, MEDS, QUEUE } from '../lib/constants.js';
-import { age, fmtT, fullName, startOfToday } from '../lib/format.js';
+import { age, fmtCitaDia, fmtT, fmtHora, fullName, startOfDay, startOfToday } from '../lib/format.js';
 import { listItem } from '../lib/motion.js';
 import { useNow } from '../hooks/useNow.js';
 import { usePatientHistory } from '../hooks/usePatientHistory.js';
 import { WorkspaceHeader } from '../components/WorkspaceHeader.jsx';
-import { Badge, Empty, Field, Msg, Panel, PrioBadge, SisBadge, TurnCode, WaitTime } from '../components/ui.jsx';
+import { Badge, Empty, Field, Msg, Panel, PrioBadge, Segmented, SisBadge, StateBadge, TurnCode, WaitTime } from '../components/ui.jsx';
 import { noShowDialog, useConfirm } from '../hooks/useConfirm.jsx';
 import { useDocuments } from '../hooks/useDocuments.jsx';
 import { CiePicker } from '../components/CiePicker.jsx';
@@ -58,6 +59,12 @@ function PatientSummary({ turn, patient, docs }) {
       </div>
       {patient.alg ? <Msg tone="crit"><b>Alergia:</b> {patient.alg}</Msg> : <p className="note">Sin alergias conocidas.</p>}
       {patient.ant && <p className="note"><b>Antecedentes:</b> {patient.ant}</p>}
+      {turn.cita && (
+        <p className="note">
+          Cita de {especialidad(turn.cita.esp)?.n} a las <b>{fmtHora(turn.cita.at)}</b>{turn.cita.sobre ? ' (sobrecupo por prioridad crítica)' : ''}
+          {startOfDay(turn.t0) !== startOfDay(turn.cita.at) && `; triaje del ${fmtCitaDia(turn.tTriSave ?? turn.t0)}`}.
+        </p>
+      )}
       <h3 className="h3">Triaje: {turn.tri.motivo}</h3>
       <Vitals tri={turn.tri} th={th} />
       <h3 className="h3">Atenciones anteriores ({prev.length})</h3>
@@ -150,13 +157,18 @@ function ConsultForm({ turn, patient, onDone }) {
 }
 
 export default function Consulta() {
-  const { db, run, area, updatePrefs, patient } = useStore();
+  const { db, run, area, updatePrefs, patient, user } = useStore();
   const now = useNow();
   const docs = useDocuments();
   const [ask, dialog] = useConfirm();
   const [allRec, setAllRec] = useState(false);
+  const [ver, setVer] = useState('espera');
   const pat = (t) => patient(t.dni);
-  const queue = db.turns.filter((t) => [...QUEUE.med, 'EN_CONSULTA'].includes(t.state) && t.tri).sort(byPriority);
+  // El médico ve solo a los pacientes que tienen cita con él y ya llegaron, por prioridad y hora de la cita
+  const mine = (t) => !t.cita || t.cita.med === user.u;
+  const queue = db.turns.filter((t) => [...QUEUE.med, 'EN_CONSULTA'].includes(t.state) && t.tri && mine(t)).sort(byConsulta);
+  const agenda = citasDelDia(db.turns, now, user.u);
+  const proximas = db.turns.filter((t) => t.state === 'CITADO' && t.cita.med === user.u && t.cita.at >= startOfDay(now) + 86_400_000).length;
   const current = db.turns.find((t) => t.state === 'EN_CONSULTA' && t.dest === area);
   const today = db.turns.filter((t) => t.consult && t.consult.t >= startOfToday()).sort((a, b) => b.consult.t - a.consult.t);
 
@@ -194,22 +206,39 @@ export default function Consulta() {
 
       <div className="grid-2 wide-r">
         <Panel
-          title="Lista de espera"
-          count={queue.filter((t) => t.state !== 'EN_CONSULTA').length}
+          title={ver === 'espera' ? 'Lista de espera' : 'Mi agenda de hoy'}
+          count={ver === 'espera' ? queue.filter((t) => t.state !== 'EN_CONSULTA').length : agenda.length}
           icon="clipboard"
-          sub="Ordenada por prioridad clínica y hora de llegada"
+          sub={ver === 'espera' ? 'Sus pacientes con cita que ya llegaron, por prioridad clínica y hora de la cita'
+            : `Todas sus citas de hoy${proximas ? `; tiene ${proximas} más en los próximos días` : ''}`}
           actions={
             <>
+              <Segmented label="Ver" value={ver} onChange={setVer} options={[['espera', 'En espera'], ['agenda', 'Agenda', agenda.length]]} />
               <select aria-label="Consultorio" className="input sm-select" value={area} onChange={(e) => setArea(e.target.value)}>
                 {AREAS.map((a) => <option key={a}>{a}</option>)}
               </select>
               {!current && queue.some((t) => t.state === 'EN_ESPERA_CONSULTA') && (
-                <button className="btn sm" onClick={() => run(callNext, 'med', byPriority)}><Megaphone /> Llamar siguiente</button>
+                <button className="btn sm" onClick={() => run(callNext, 'med', byConsulta)}><Megaphone /> Llamar siguiente</button>
               )}
             </>
           }
         >
-          {queue.length ? (
+          {ver === 'agenda' ? (
+            agenda.length ? (
+              <ul className="queue">
+                {agenda.map((t) => (
+                  <li key={turnKey(t)} className={`qrow ${t.prio === 'CRITICA' ? 'crit' : ''}`}>
+                    <span className="hour">{fmtHora(t.cita.at)}</span>
+                    <div className="qmain">
+                      <span className="who"><TurnCode id={t.id} /> {fullName(pat(t))}</span>
+                      <span className="meta"><span>{t.tri?.motivo}</span>{t.cita.sobre && <span>sobrecupo</span>}</span>
+                    </div>
+                    <div className="qside">{t.state === 'CITADO' ? <Badge tone="info">Por llegar</Badge> : <StateBadge state={t.state} />}</div>
+                  </li>
+                ))}
+              </ul>
+            ) : <Empty icon="calendar" title="No tiene citas hoy" />
+          ) : queue.length ? (
             <ul className="queue">
               <AnimatePresence initial={false}>
                 {queue.map((t) => (
@@ -217,7 +246,11 @@ export default function Consulta() {
                     <TurnCode id={t.id} />
                     <div className="qmain">
                       <span className="who">{fullName(pat(t))}</span>
-                      <span className="meta"><span>{t.tri.motivo}</span><WaitTime turn={t} now={now} /></span>
+                      <span className="meta">
+                        {t.cita && <span>cita {fmtHora(t.cita.at)}{t.cita.sobre ? ' (sobrecupo)' : ''}</span>}
+                        <span>{t.tri.motivo}</span>
+                        <WaitTime turn={t} now={now} />
+                      </span>
                     </div>
                     <div className="qside"><PrioBadge prio={t.prio} /></div>
                     <div className="acts">{actions(t)}</div>

@@ -5,7 +5,10 @@ import {
 import { TH_DEFAULT } from '../constants.js';
 import { nextTurnId, nextRecipe, nextHC } from '../ids.js';
 import { buildSeed } from '../seed.js';
-import { createTurn, callTurn, startTriage, saveTriage, startConsult, finishConsult, toggleUser } from '../../store/actions.js';
+import {
+  createTurn, registerPayment, callTurn, startTriage, saveTriage, returnToQueue, assignCita, checkIn, startConsult, finishConsult, toggleUser,
+} from '../../store/actions.js';
+import { especialidadSugerida, isoDow, sugerirCita } from '../agenda.js';
 import { applyChanges } from '../../data/merge.js';
 
 const normal = { pa: '120/80', fc: 75, fr: 16, t: 36.6, spo2: 98, peso: 70, talla: 1.7, motivo: 'Control' };
@@ -81,35 +84,103 @@ describe('colas y correlativos', () => {
   it('no permite saltar etapas', () => {
     expect(canTransition('EN_ESPERA_TRIAJE', 'EN_CONSULTA')).toBe(false);
     expect(canTransition('ATENDIDO', 'CANCELADO')).toBe(false);
+    expect(canTransition('PENDIENTE_PAGO', 'LLAMADO_TRIAJE')).toBe(false); // sin pagar no hay triaje
+    expect(canTransition('EN_TRIAJE', 'EN_ESPERA_CONSULTA')).toBe(false); // sin cita no hay consulta
+    expect(canTransition('CITADO', 'LLAMADO_CONSULTA')).toBe(false); // el citado primero registra su llegada
   });
 });
 
 describe('flujo completo del paciente', () => {
-  it('admisión → triaje → consulta → receta', () => {
-    let db = buildSeed();
+  // Lunes 12 de octubre de 2026, 09:10: Medicina General y Pediatría atienden; Cardiología no (martes y jueves)
+  const NOW = new Date(2026, 9, 12, 9, 10).getTime();
+  it('admisión → caja → triaje → cita → consulta → receta', () => {
+    let db = buildSeed(NOW);
     const u = (x) => db.users.find((y) => y.u === x);
-    const ctx = (user, area = 'Consultorio 2') => ({ user: u(user), area, now: Date.now(), ip: '-' });
+    const ctx = (user, area = 'Consultorio 1') => ({ user: u(user), area, now: NOW, ip: '-' });
     const step = (fn, c, ...a) => { const r = fn(db, c, ...a); db = applyChanges(db, r.changes); return r; };
+    const mine = (t) => db.turns.find((x) => x.id === t.id && x.t0 === t.t0); // el código se repite en otros días
 
-    const t = step(createTurn, ctx('a.admision'), { dni: '70000099', form: { nom: 'Ana', ape: 'Prueba', nac: '1990-01-01', sexo: 'F', tel: '' }, sis: 'ACTIVO' }).result;
-    expect(() => createTurn(db, ctx('a.admision'), { dni: '70000099', form: {}, sis: 'ACTIVO' })).toThrow(/ya tiene el turno/);
+    // Sin seguro: el turno espera en Caja y no puede pasar a triaje sin pagar
+    const t = step(createTurn, ctx('a.admision'), { dni: '70000099', form: { nom: 'Ana', ape: 'Prueba', nac: '1990-01-01', sexo: 'F', tel: '' }, sis: 'NO_ASEGURADO' }).result;
+    expect(t.state).toBe('PENDIENTE_PAGO');
+    expect(() => createTurn(db, ctx('a.admision'), { dni: '70000099', form: {}, sis: 'NO_ASEGURADO' })).toThrow(/ya tiene el turno/);
+    expect(() => callTurn(db, ctx('e.triaje'), t.id)).toThrow(/no está disponible/);
+    expect(() => registerPayment(db, ctx('c.caja'), t.id, { metodo: 'EFECTIVO', recibido: 10 })).toThrow(/no cubre/);
+    step(registerPayment, ctx('c.caja'), t.id, { metodo: 'EFECTIVO', recibido: 50 });
+    expect(mine(t).state).toBe('EN_ESPERA_TRIAJE');
+    expect(mine(t).pago).toMatchObject({ metodo: 'EFECTIVO', monto: 20 });
+    expect(mine(t).pago.comp).toMatch(/^B001-\d{6}$/);
 
+    // Triaje crítico: pasa a Admisión por su cita
+    for (const x of db.turns.filter((y) => y.state === 'EN_TRIAJE')) step(returnToQueue, ctx('e.triaje'), x.id);
     step(callTurn, ctx('e.triaje'), t.id);
     step(startTriage, ctx('e.triaje'), t.id);
     step(saveTriage, ctx('e.triaje'), t.id, { ...normal, spo2: 85 }, 'Penicilina');
-    const mine = () => db.turns.find((x) => x.id === t.id && x.t0 === t.t0); // el código se repite en otros días
-    expect(mine().prio).toBe('CRITICA');
+    expect(mine(t)).toMatchObject({ prio: 'CRITICA', state: 'PENDIENTE_CITA' });
 
-    step(callTurn, ctx('m.consulta2'), t.id);
-    step(startConsult, ctx('m.consulta2'), t.id);
+    // Crítico: sobrecupo hoy con el médico de turno (Dra. Ríos, lunes de 07:00 a 13:00)
+    const sug = sugerirCita(db, 'MG', 'CRITICA', NOW);
+    expect(sug.cita).toMatchObject({ med: 'm.consulta', sobre: true, at: NOW });
+    step(assignCita, ctx('a.admision'), t.id, sug.cita);
+    expect(mine(t)).toMatchObject({ state: 'EN_ESPERA_CONSULTA', tLlega: NOW });
+
+    // Solo su médico lo llama
+    expect(() => callTurn(db, ctx('m.consulta2'), t.id)).toThrow(/solo su médico/);
+    for (const x of db.turns.filter((y) => y.state === 'EN_CONSULTA' && y.dest === 'Consultorio 1')) step(returnToQueue, ctx('m.consulta'), x.id);
+    step(callTurn, ctx('m.consulta'), t.id);
+    step(startConsult, ctx('m.consulta'), t.id);
     const form = { notas: 'Ok', dx: [['J00', 'Resfriado', 'D']], meds: [{ n: 'Amoxicilina 500 mg', dosis: '1 cáps', frec: 'c/8 h', dias: '7', cant: '21' }], dest: 'Alta', destx: '' };
-    expect(() => finishConsult(db, ctx('m.consulta2'), t.id, form)).toThrow(/Alergia/);
-    step(finishConsult, ctx('m.consulta2'), t.id, { ...form, allergyOverride: true });
+    expect(() => finishConsult(db, ctx('m.consulta'), t.id, form)).toThrow(/Alergia/);
+    step(finishConsult, ctx('m.consulta'), t.id, { ...form, allergyOverride: true });
 
-    const done = mine();
+    const done = mine(t);
     expect(done.state).toBe('ATENDIDO');
-    expect(done.consult.medico.n).toBe('Dr. Luis Paz (demo)');
+    expect(done.consult.medico.n).toBe('Dra. Elena Ríos (demo)');
     expect(db.audit.some((a) => a.a === 'ALERGIA_CONFIRMADA')).toBe(true);
+  });
+
+  it('con SIS no se cobra: pasa directo a triaje', () => {
+    const db = buildSeed(NOW);
+    const ctx = { user: db.users.find((x) => x.u === 'a.admision'), now: NOW, ip: '-' };
+    const t = createTurn(db, ctx, { dni: '70000098', form: { nom: 'Luis', ape: 'Sis', nac: '1980-01-01', sexo: 'M', tel: '' }, sis: 'ACTIVO' }).result;
+    expect(t).toMatchObject({ state: 'EN_ESPERA_TRIAJE', pago: { metodo: 'SIS', monto: 0, comp: null } });
+  });
+
+  it('si el especialista no atiende hoy, la cita es otro día y la llegada se registra ese día', () => {
+    let db = buildSeed(NOW);
+    const u = (x) => db.users.find((y) => y.u === x);
+    const step = (fn, user, now, ...a) => { const r = fn(db, { user: u(user), area: 'Consultorio 2', now, ip: '-' }, ...a); db = applyChanges(db, r.changes); return r; };
+    const t = step(createTurn, 'a.admision', NOW, { dni: '70000097', form: { nom: 'Juan', ape: 'Cardio', nac: '1960-01-01', sexo: 'M', tel: '' }, sis: 'ACTIVO' }).result;
+    for (const x of db.turns.filter((y) => y.state === 'EN_TRIAJE')) step(returnToQueue, 'e.triaje', NOW, x.id);
+    step(callTurn, 'e.triaje', NOW, t.id);
+    step(startTriage, 'e.triaje', NOW, t.id);
+    step(saveTriage, 'e.triaje', NOW, t.id, { ...normal, motivo: 'Control de presión arterial' }, '');
+    const cur = db.turns.find((x) => x.id === t.id && x.t0 === t.t0);
+    const patient = db.patients.find((p) => p.dni === '70000097');
+    expect(especialidadSugerida(patient, cur.tri, NOW)).toBe('CAR');
+
+    const sug = sugerirCita(db, 'CAR', cur.prio, NOW);
+    expect(sug.motivo).toBe('otro-dia');
+    expect([2, 4]).toContain(isoDow(sug.cita.at)); // martes o jueves
+    expect(() => assignCita(db, { user: u('a.admision'), now: NOW }, t.id, { ...sug.cita, at: NOW + 60 * 60_000 })).toThrow(/no atiende los lunes/);
+    step(assignCita, 'a.admision', NOW, t.id, sug.cita);
+    const citado = () => db.turns.find((x) => x.id === t.id && x.t0 === t.t0);
+    expect(citado().state).toBe('CITADO');
+
+    // Hoy no se puede registrar su llegada; el día de la cita sí
+    expect(() => checkIn(db, { user: u('a.admision'), now: NOW }, t.id)).toThrow(/mismo día de la cita/);
+    const arrive = sug.cita.at - 10 * 60_000;
+    step(checkIn, 'a.admision', arrive, t.id);
+    expect(citado()).toMatchObject({ state: 'EN_ESPERA_CONSULTA', llego: arrive, tLlega: sug.cita.at });
+    expect(() => callTurn(db, { user: u('m.consulta'), area: 'Consultorio 1', now: arrive }, t.id)).toThrow(/solo su médico/);
+  });
+
+  it('prioritario: si la especialidad no atiende hoy, se propone Medicina General hoy', () => {
+    const db = buildSeed(NOW);
+    const s = sugerirCita(db, 'CAR', 'PRIORITARIA', NOW);
+    expect(s.motivo).toBe('mg-hoy');
+    expect(s.cita.esp).toBe('MG');
+    expect(new Date(s.cita.at).toDateString()).toBe(new Date(NOW).toDateString());
   });
 
   it('no permite que un usuario se desactive a sí mismo', () => {

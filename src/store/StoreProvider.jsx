@@ -5,6 +5,10 @@ import { applyChanges } from '../data/merge.js';
 import { DomainError } from '../lib/clinical.js';
 import { AREAS, IDLE_MS, IDLE_WARN_MS } from '../lib/constants.js';
 import { currentThresholds, loginAudit, logoutAudit } from './actions.js';
+import { consultorioHoy } from '../lib/agenda.js';
+
+/** Consultorio del médico: el que eligió o, si no eligió, el de su horario de hoy. */
+const areaOf = (prefs, db, u, now = Date.now()) => prefs.area || consultorioHoy(db?.horarios || [], u, now) || AREAS[0];
 
 const PREFS_KEY = 'sgc-prefs';
 
@@ -88,7 +92,7 @@ export function StoreProvider({ children }) {
   const user = db && auth?.u ? db.users.find((x) => x.u === auth.u && x.on) || null : null;
   const patients = useMemo(() => new Map((db?.patients || []).map((p) => [p.dni, p])), [db?.patients]);
   const patient = useCallback((dni) => patients.get(dni), [patients]);
-  const area = prefs.area || AREAS[0];
+  const area = areaOf(prefs, db, auth?.u);
 
   /**
    * Ejecuta una acción de dominio: aplica los cambios en pantalla de inmediato
@@ -98,7 +102,8 @@ export function StoreProvider({ children }) {
     async (action, ...args) => {
       const cur = dbRef.current;
       const u = cur?.users.find((x) => x.u === cur?.me?.username) || null;
-      const ctx = { user: u, area: prefsRef.current.area || AREAS[0], now: Date.now(), ip: '' };
+      const now = Date.now();
+      const ctx = { user: u, area: areaOf(prefsRef.current, cur, u?.u, now), now, ip: '' };
       let res;
       try {
         res = action(cur, ctx, ...args);

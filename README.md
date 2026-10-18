@@ -1,7 +1,7 @@
 # SGC · Sistema de Gestión Clínica (PMV)
 
 Sistema web para el flujo de atención de un centro de salud de primer nivel:
-**Admisión → Triaje → Consulta médica → Receta y alta**. Incluye la pantalla de la sala de espera, un tablero
+**Admisión → Caja → Triaje → Cita con el especialista → Consulta médica → Receta y alta**. Incluye la pantalla de la sala de espera, un tablero
 gerencial para Jefatura y la historia clínica de cada paciente.
 
 Hecho con **React 19 + Vite**, publicado en **Vercel**, con **Supabase** (PostgreSQL, Auth y Realtime) como servidor.
@@ -10,10 +10,11 @@ Hecho con **React 19 + Vite**, publicado en **Vercel**, con **Supabase** (Postgr
 
 | Espacio | Secciones |
 |---|---|
-| Admisión (`#/admision`) | Registro por DNI o apellido, validación SIS, turno y ticket; flujo en vivo con nombres |
+| Admisión (`#/admision`) | Registro por DNI o apellido, validación SIS, turno y ticket; **citas** después del triaje y llegada de los citados; flujo en vivo con nombres |
+| Caja (`#/caja`) | Cobro de la consulta al no asegurado (efectivo con vuelto, tarjeta o billetera), boleta y caja del día. Con SIS no se cobra |
 | Enfermería (`#/triaje`) | Cola de triaje; signos vitales con estado por signo, prioridad en vivo, IMC y tendencia de visitas anteriores |
-| Médico (`#/consulta`) | Cola por prioridad; ficha del paciente, diagnóstico CIE-10, receta con control de alergias y destino; historias clínicas |
-| Jefatura (`#/jefatura`) | Tablero gerencial, flujo en vivo (solo códigos), usuarios, auditoría y umbrales clínicos con escala visual |
+| Médico (`#/consulta`) | Solo sus pacientes con cita que ya llegaron, por prioridad y hora de la cita; agenda del día; ficha, CIE-10, receta con control de alergias y destino; historias clínicas |
+| Jefatura (`#/jefatura`) | Tablero gerencial, flujo en vivo (solo códigos), usuarios, **horarios médicos**, auditoría y umbrales clínicos |
 | Sala (`#/sala`, pública) | Llamado actual con tono y voz, próximos turnos; nunca muestra nombres ni DNI |
 
 Comunes a todos los espacios:
@@ -41,6 +42,38 @@ Comunes a todos los espacios:
   - productividad por consultorio.
 - **Resumen en tabla** con exportación a CSV.
 
+## Pago y citas
+
+1. **Admisión** registra al paciente. Si tiene SIS (o el SIS está en validación por contingencia), no paga y pasa a
+   triaje. Si no tiene seguro, el turno queda **pendiente de pago**.
+2. **Caja** cobra la consulta (S/ 20.00) y emite la boleta `B001-…`. Recién entonces el paciente entra a la lista de
+   triaje: la base no deja llamar a triaje a quien no pagó.
+3. **Triaje** registra los signos y calcula la prioridad. El paciente vuelve a Admisión por su cita.
+4. **Citas**:
+   - El sistema propone la especialidad: Pediatría para menores de 12 años, Cardiología si el motivo es
+     cardiovascular y, si no, Medicina General.
+   - También propone la cita, con los **horarios de los médicos** que define Jefatura. Cada bloque se divide en cupos
+     de la duración de la especialidad (20 o 30 min).
+   - **Normal:** el primer cupo libre de la especialidad, el día que sea. Si Cardiología solo atiende martes y jueves,
+     a quien pasa por triaje un lunes le toca el martes.
+   - **Prioritaria:** un cupo de hoy en la especialidad. Si hoy no atiende, Medicina General hoy.
+   - **Crítica:** **sobrecupo hoy** con el médico que está atendiendo. Nunca otro día.
+5. Si la cita es **hoy**, el paciente pasa a la espera de consulta. Si es **otro día**, el turno queda **citado**. Ese
+   día, Admisión registra su llegada y el paciente pasa directo a la espera de su médico, sin pagar ni pasar de nuevo
+   por triaje.
+6. **Cómo se sabe quién entra con cita:**
+   - Cada médico ve solo a los pacientes que tienen cita con él y ya llegaron.
+   - La lista se ordena por prioridad clínica y luego por la hora de la cita.
+   - Su espera cuenta desde la hora de la cita.
+   - Nadie más puede llamar a sus pacientes, ni en la app ni en la base.
+
+La lógica está en `src/lib/agenda.js`. La base la vuelve a validar en `sgc_interno.guardar_cita()`: horario, cupo
+libre (índice único), prioridad y fechas.
+
+**Diagrama en ERwin.** `erwin/sgc_modelo_erwin.sql` es el mismo modelo de 17 tablas en SQL Server 2005, para hacer
+ingeniería inversa en CA ERwin r7. El archivo trae los pasos en su encabezado. La base real sigue siendo la de
+Supabase.
+
 ## Arquitectura
 
 ```
@@ -52,7 +85,7 @@ Supabase
    ├─ API (PostgREST) . solo funciones: sgc_cargar · sgc_guardar · sgc_historia · sgc_indicadores
    │                    sgc_clave_cambiada · sgc_restablecer_demo(+_lote) · sgc_sala
    ├─ Realtime ........ cambios de turno/paciente/usuario/umbral/auditoría, filtrados por RLS
-   └─ PostgreSQL ...... 13 tablas del modelo del informe + RLS por rol + reglas en funciones
+   └─ PostgreSQL ...... 17 tablas (13 del informe + especialidad, horario, pago y cita) + RLS por rol + reglas en funciones
 ```
 
 - **Carga liviana.**
@@ -78,7 +111,7 @@ Seguridad, despliegue y verificación: [`DESPLIEGUE.md`](DESPLIEGUE.md).
 ```bash
 npm install
 npm run dev        # http://localhost:5173
-npm test           # 33 pruebas: lógica clínica, flujo, indicadores, avisos y seguridad
+npm test           # 49 pruebas: lógica clínica, pago, agenda de citas, flujo, indicadores, avisos y seguridad
 npm run lint       # oxlint, sin advertencias
 npm run build      # versión de producción en /dist
 ```
@@ -92,10 +125,11 @@ y todas las cuentas usan la contraseña `SgcDemo2026`. El sistema publicado usa 
 src/
   lib/                lógica pura, sin React (probada)
     clinical.js         prioridad de triaje, IMC, máquina de estados, alergias, colas, validaciones
+    agenda.js           horarios, cupos libres, cita sugerida por prioridad y validación de citas y horarios
     analytics.js        indicadores del tablero (hechos anónimos → cifras, series, mapa de calor, CSV)
     activity.js         avisos para cada rol a partir de los cambios de datos
     constants.js        roles y secciones, ruta y etapas, estados, CIE-10, medicamentos, umbrales
-    ids.js · format.js  correlativos por día (TR-), por año (REC-) y HC; formatos es-PE
+    ids.js · format.js  correlativos por día (TR-), por año (REC-), boletas (B001-) y HC; formatos es-PE
     seed.js · seedHistory.js  demostración: 5 semanas de atenciones generadas con semilla fija
     motion.js           animaciones compartidas
   store/              StoreProvider (sesión, carga, inactividad, avisos) · actions.js (reglas de negocio)
@@ -103,10 +137,11 @@ src/
   hooks/              consulta asíncrona, historia del paciente, tema, atajos, avisos, confirmación, documentos
   components/         marco (Shell), ruta en vivo, paleta de comandos, avisos, documentos, ui
     charts/           gráficos SVG propios: columnas, líneas, mapa de calor, barras, medidor, tendencia
-  views/              Login, Admision, Triaje, Consulta, Historias, Flujo, Sala, jefatura/*
+  views/              Login, Admision, Citas, Caja, Triaje, Consulta, Historias, Flujo, Sala, jefatura/*
   styles/             tokens (claro y oscuro), base, componentes y marco
   assets/icons3d/     íconos 3D Fluent Emoji (Microsoft, licencia MIT)
-supabase/schema.sql   13 tablas, cuentas, RLS por rol, funciones sgc_* y tiempo real
+supabase/schema.sql   17 tablas, cuentas y horarios demo, RLS por rol, funciones sgc_* y tiempo real
+erwin/                el mismo modelo en SQL Server 2005 para el diagrama en CA ERwin r7
 vercel.json           cabeceras de seguridad (CSP, HSTS, X-Frame-Options…)
 ```
 

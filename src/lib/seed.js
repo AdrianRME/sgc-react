@@ -1,6 +1,10 @@
-import { CIE, DAY, MIN, TH_DEFAULT, FAKE_IPS, HISTORY_DAYS } from './constants.js';
-import { startOfDay } from './format.js';
-import { generateHistory, DOCTORS, med } from './seedHistory.js';
+import { CIE, DAY, MIN, TH_DEFAULT, FAKE_IPS, HISTORY_DAYS, TARIFA_CONSULTA, ACTIVE_STATES, SERIE_BOLETA } from './constants.js';
+import { evalTriage } from './clinical.js';
+import { cuposLibres } from './agenda.js';
+import { fmtHora, startOfDay } from './format.js';
+import { generateHistory, med, medico, DEMO_USERS, DEMO_HORARIOS } from './seedHistory.js';
+
+export { DEMO_USERS, DEMO_HORARIOS };
 
 /**
  * Datos de demostración: seis pacientes con nombre (los que se usan al presentar), varias semanas
@@ -15,15 +19,6 @@ const NAMED = [
   { dni: '70000006', nom: 'Julio', ape: 'Cárdenas Rojas', nac: '1983-01-15', sexo: 'M', tel: '999 000 106', sis: 'ACTIVO', hc: 'HC-000106', ant: '', alg: '' },
 ];
 
-export const DEMO_USERS = [
-  { u: 'a.admision', n: 'Carla Vidal (demo)', role: 'adm', col: '', on: true },
-  { u: 'e.triaje', n: 'Pedro Luna (demo)', role: 'enf', col: 'CEP-00000', on: true },
-  { u: 'm.consulta', n: 'Dra. Elena Ríos (demo)', role: 'med', col: 'CMP-00000', on: true },
-  { u: 'm.consulta2', n: 'Dr. Luis Paz (demo)', role: 'med', col: 'CMP-00001', on: true },
-  { u: 'j.jefatura', n: 'Marco Soto (demo)', role: 'jef', col: '', on: true },
-  { u: 'e.turno2', n: 'Iris Campos (demo)', role: 'enf', col: 'CEP-00001', on: false },
-];
-
 const byCode = (code) => CIE.find((c) => c[0] === code);
 const vit = (motivo, extra = {}) => ({ pa: '118/76', fc: 76, fr: 16, t: 36.7, spo2: 97, peso: 69.8, talla: 1.65, motivo, ...extra });
 
@@ -35,47 +30,115 @@ const FIXED = [
   { p: 2, daysAgo: 27, at: 10 * 60 + 15, dx: 'E11.9', meds: [med('Metformina 850 mg', '1 tableta', 'cada 12 h', 30)], motivo: 'Control de glucosa' },
 ];
 
-/** Escenario de hoy: minutos antes de `now` para [llegada, llamado a triaje, fin de triaje, llamado a consulta, alta]. */
-function liveTurns(now, extra) {
+/** Pago de la consulta: con SIS se exonera al registrar el turno; sin seguro se paga en Caja. */
+const pagoDe = (p, t) => (p.sis === 'NO_ASEGURADO'
+  ? { tPago: t + 3 * MIN, pago: { metodo: 'EFECTIVO', monto: TARIFA_CONSULTA, comp: null, by: 'c.caja', t: t + 3 * MIN } }
+  : { tPago: t, pago: { metodo: 'SIS', monto: 0, comp: null, by: 'a.admision', t } });
+
+/** Cita de Medicina General con la Dra. Ríos (la cuenta que se usa al presentar la consulta). */
+const citaMG = (tCita, at, u = 'm.consulta', sobre = false) => ({
+  tCita, cita: { esp: 'MG', med: u, area: 'Consultorio 1', at, sobre, by: 'a.admision', t: tCita },
+});
+
+/** Turno con prioridad calculada igual que en triaje. */
+const triaged = (t) => ({ ...t, prio: evalTriage(t.tri, TH_DEFAULT).prio });
+
+/** Último día de atención antes de hoy (el domingo el centro no atiende). */
+const prevWorkday = (now) => {
+  const d = startOfDay(startOfDay(now) - DAY / 2);
+  return new Date(d).getDay() === 0 ? startOfDay(d - DAY / 2) : d;
+};
+
+/**
+ * Escenario de hoy, relativo a `now`: un paciente en cada punto de la ruta para presentar el sistema.
+ * Hay pacientes atendidos, en consulta, en espera (uno crítico con sobrecupo), en triaje, en Caja,
+ * esperando su cita, citados para hoy y citados para otro día (Cardiología solo atiende martes y jueves).
+ */
+function liveTurns(now, extra, agenda) {
   const at = (m) => (m == null ? undefined : now - m * MIN);
-  const done = (dni, [a, b, c, d, e], dx, meds, area = 'Consultorio 1') => ({
-    dni, adm: 'a.admision', state: 'ATENDIDO', prio: 'NORMAL', t0: at(a), tTriCall: at(b), tTriSave: at(c), tMedCall: at(d), tEnd: at(e),
-    dest: area, enf: 'e.triaje', med: DOCTORS[area].u, tri: vit('Malestar general', { pa: '120/80', peso: 72, talla: 1.7 }),
-    consult: { notas: 'Evolución favorable.', dx: [[...byCode(dx), 'D']], meds, dest: 'Alta', destx: '', t: at(e), area, medico: DOCTORS[area] },
+  const named = (dni) => NAMED.find((p) => p.dni === dni);
+  const done = (p, [a, b, c, d, e], dx, meds, u = 'm.consulta') => {
+    const cita = citaMG(at(c) + 2 * MIN, at(c) + 5 * MIN, u);
+    return {
+      dni: p.dni, adm: 'a.admision', state: 'ATENDIDO', t0: at(a), ...pagoDe(p, at(a)), tTriCall: at(b), tTriSave: at(c),
+      ...cita, llego: cita.tCita, tLlega: cita.cita.at, tMedCall: at(d), tEnd: at(e), dest: 'Consultorio 1', enf: 'e.triaje', med: u,
+      ...triaged({ tri: vit('Malestar general', { pa: '120/80', peso: 72, talla: 1.7 }) }),
+      consult: { notas: 'Evolución favorable.', dx: [[...byCode(dx), 'D']], meds, dest: 'Alta', destx: '', t: at(e), area: 'Consultorio 1', medico: medico(u) },
+    };
+  };
+  const present = (p, [a, b, c], tri, cita) => ({
+    dni: p.dni, adm: 'a.admision', t0: at(a), ...pagoDe(p, at(a)), tTriCall: at(b), tTriSave: at(c), enf: 'e.triaje',
+    ...triaged({ tri }), ...cita, llego: cita.tCita, tLlega: Math.max(cita.tCita, cita.cita.at),
   });
+
+  // Pacientes que se triaron el día anterior y tienen cita pendiente
+  const prev = prevWorkday(now);
+  const ayer = (p, h, tri, cita) => {
+    const t0 = prev + h * 60 * MIN;
+    return { dni: p.dni, adm: 'a.admision', state: 'CITADO', t0, ...pagoDe(p, t0), tTriCall: t0 + 9 * MIN, tTriSave: t0 + 15 * MIN, enf: 'e.triaje', ...triaged({ tri }), ...cita };
+  };
+  // Cardiología: el primer cupo libre desde ahora (si hoy no es martes ni jueves, cae otro día)
+  const car = cuposLibres(agenda, 'CAR', now, { limit: 1 })[0];
+  // Medicina General: un cupo libre de hoy, en lo que queda del día; si no hay, una hora cercana
+  const mgHoy = cuposLibres(agenda, 'MG', now + 30 * MIN, { dias: 0, limit: 1 })[0];
+  let later = Math.ceil((now + 40 * MIN) / (5 * MIN)) * 5 * MIN;
+  if (new Date(later).getMinutes() % 20 === 0) later += 5 * MIN; // fuera del inicio de un cupo de 20 min
+  const t0Ayer = (h) => prev + h * 60 * MIN;
+
   return [
-    done('70000006', [150, 140, 132, 120, 105], 'J06.9', [med('Paracetamol 500 mg', '1 tableta', 'cada 8 h', 3)]),
-    done('70000005', [130, 118, 110, 95, 80], 'K29.7', [med('Omeprazol 20 mg', '1 cápsula', 'cada 24 h', 14)], 'Consultorio 2'),
-    done('70000004', [100, 90, 84, 70, 58], 'M54.5', [med('Naproxeno 550 mg', '1 tableta', 'cada 12 h', 5)]),
+    done(named('70000006'), [150, 140, 132, 120, 105], 'J06.9', [med('Paracetamol 500 mg', '1 tableta', 'cada 8 h', 3)]),
+    done(named('70000005'), [130, 118, 110, 95, 80], 'K29.7', [med('Omeprazol 20 mg', '1 cápsula', 'cada 24 h', 14)], 'm.consulta2'),
+    done(extra[5], [100, 90, 84, 70, 58], 'M54.5', [med('Naproxeno 550 mg', '1 tableta', 'cada 12 h', 5)]),
     {
-      dni: '70000001', adm: 'a.admision', state: 'EN_ESPERA_CONSULTA', prio: 'NORMAL', enf: 'e.triaje',
-      t0: at(40), tTriCall: at(36), tTriSave: at(33),
-      tri: vit('Dolor de garganta y tos de 3 días', { pa: '120/80', fc: 72, t: 36.6, peso: 70.2 }),
+      ...present(named('70000001'), [40, 36, 33], vit('Dolor de garganta y tos de 3 días', { pa: '120/80', fc: 72, t: 36.6, peso: 70.2 }), citaMG(at(31), at(8))),
+      state: 'EN_ESPERA_CONSULTA',
     },
     {
-      dni: '70000002', adm: 'a.admision', state: 'LLAMADO_CONSULTA', prio: 'PRIORITARIA', enf: 'e.triaje',
-      t0: at(30), tTriCall: at(27), tTriSave: at(22), tMedCall: at(2), calledAt: at(2), calls: 1, dest: 'Consultorio 1',
-      tri: { pa: '150/95', fc: 104, fr: 22, t: 38.6, spo2: 93, peso: 82, talla: 1.72, motivo: 'Fiebre y dificultad leve para respirar' },
+      ...present(named('70000002'), [30, 27, 22], { pa: '150/95', fc: 104, fr: 22, t: 38.6, spo2: 93, peso: 82, talla: 1.72, motivo: 'Fiebre y dificultad leve para respirar' }, citaMG(at(20), at(6))),
+      state: 'LLAMADO_CONSULTA', tMedCall: at(2), calledAt: at(2), calls: 1, dest: 'Consultorio 1',
     },
     {
-      dni: extra[0].dni, adm: 'a.admision', state: 'EN_ESPERA_CONSULTA', prio: 'CRITICA', enf: 'e.triaje',
-      t0: at(18), tTriCall: at(15), tTriSave: at(8),
-      tri: { pa: '104/66', fc: 118, fr: 29, t: 39.3, spo2: 89, peso: 64, talla: 1.6, motivo: 'Dificultad respiratoria y fiebre alta' },
+      ...present(extra[0], [18, 15, 8], { pa: '104/66', fc: 118, fr: 29, t: 39.3, spo2: 89, peso: 64, talla: 1.6, motivo: 'Dificultad respiratoria y fiebre alta' }, citaMG(at(7), at(7), 'm.consulta', true)),
+      state: 'EN_ESPERA_CONSULTA',
     },
-    { dni: '70000003', adm: 'a.admision', state: 'EN_ESPERA_TRIAJE', prio: null, t0: at(12) },
-    { dni: extra[1].dni, adm: 'a.admision', state: 'EN_ESPERA_TRIAJE', prio: null, t0: at(5) },
+    {
+      dni: extra[2].dni, adm: 'a.admision', state: 'PENDIENTE_CITA', t0: at(45), ...pagoDe(extra[2], at(45)), tTriCall: at(30), tTriSave: at(6), enf: 'e.triaje',
+      ...triaged({ tri: vit('Control de presión arterial y palpitaciones', { pa: '138/88', fc: 84 }) }),
+    },
+    { dni: '70000003', adm: 'a.admision', state: 'EN_ESPERA_TRIAJE', prio: null, t0: at(12), ...pagoDe(named('70000003'), at(12)) },
+    { dni: extra[1].dni, adm: 'a.admision', state: 'EN_ESPERA_TRIAJE', prio: null, t0: at(9), ...pagoDe(extra[1], at(9)) },
+    { dni: '70000004', adm: 'a.admision', state: 'PENDIENTE_PAGO', prio: null, t0: at(3) },
+    ...(car ? [ayer(extra[3], 10.25, vit('Control de presión arterial', { pa: '146/92', fc: 82 }),
+      { tCita: t0Ayer(10.6), cita: { esp: 'CAR', med: car.med, area: car.area, at: car.at, sobre: false, by: 'a.admision', t: t0Ayer(10.6) } })] : []),
+    ayer(extra[4], 11, vit('Dolor de cabeza intenso', { pa: '124/80' }),
+      mgHoy ? { tCita: t0Ayer(11.4), cita: { esp: 'MG', med: mgHoy.med, area: mgHoy.area, at: mgHoy.at, sobre: false, by: 'a.admision', t: t0Ayer(11.4) } }
+        : citaMG(t0Ayer(11.4), later)),
   ];
 }
 
-/** Numera los turnos por día (TR-001…) y las recetas por año, en orden cronológico. */
+/** Numera los turnos por día (TR-001…), las boletas en su serie y las recetas por año, en orden cronológico. */
 function numberTurns(turns) {
   const perDay = new Map();
   const perYear = new Map();
   turns.sort((a, b) => a.t0 - b.t0);
+  // Como en nextTurnId: el código de cada día sigue después de los turnos de días anteriores que siguen
+  // abiertos (un citado conserva su código hasta su cita), para que nunca se repita entre turnos abiertos.
+  let openMax = 0;
+  let curDay = null;
+  const open = [];
   turns.forEach((t) => {
     const day = startOfDay(t.t0);
-    perDay.set(day, (perDay.get(day) || 0) + 1);
+    if (day !== curDay) {
+      openMax = Math.max(openMax, ...open.map((x) => +x.id.slice(3)));
+      curDay = day;
+    }
+    perDay.set(day, Math.max(perDay.get(day) || 0, openMax) + 1);
     t.id = `TR-${String(perDay.get(day)).padStart(3, '0')}`;
+    if (ACTIVE_STATES.includes(t.state)) open.push(t);
+  });
+  let boleta = 4000;
+  turns.filter((t) => t.pago && t.pago.metodo !== 'SIS').sort((a, b) => a.pago.t - b.pago.t).forEach((t) => {
+    t.pago.comp = `${SERIE_BOLETA}-${String(++boleta).padStart(6, '0')}`;
   });
   turns.filter((t) => t.consult).sort((a, b) => a.consult.t - b.consult.t).forEach((t) => {
     const y = new Date(t.consult.t).getFullYear();
@@ -92,11 +155,17 @@ function numberTurns(turns) {
 function turnAudit(turns, patients, from) {
   const hc = new Map(patients.map((p) => [p.dni, p.hc]));
   return turns.filter((t) => t.t0 >= from).flatMap((t) => {
-    const doc = DOCTORS[t.dest]?.u;
     const ev = [{ t: t.t0, u: t.adm, a: 'TURNO_CREADO', d: `${t.id} registrado` }];
+    if (t.pago) {
+      ev.push({ t: t.pago.t, u: t.pago.by, a: 'PAGO_REGISTRADO', d: t.pago.metodo === 'SIS' ? `${t.id} exonerado por SIS` : `${t.id} · ${t.pago.comp} · S/ ${t.pago.monto.toFixed(2)}` });
+    }
     if (t.tTriCall) ev.push({ t: t.tTriCall, u: 'e.triaje', a: 'LLAMADO', d: `${t.id} → Módulo de Triaje 1` });
     if (t.tTriSave && t.prio) ev.push({ t: t.tTriSave, u: 'e.triaje', a: 'TRIAJE_GUARDADO', d: `${t.id} prioridad ${t.prio}` });
-    if (t.tMedCall && doc) ev.push({ t: t.tMedCall, u: doc, a: 'LLAMADO', d: `${t.id} → ${t.dest}` });
+    if (t.cita) ev.push({ t: t.tCita, u: t.cita.by, a: 'CITA_ASIGNADA', d: `${t.id} → ${t.cita.esp} con ${t.cita.med} a las ${fmtHora(t.cita.at)}${t.cita.sobre ? ' (sobrecupo)' : ''}` });
+    if (t.cita && t.llego && startOfDay(t.cita.at) !== startOfDay(t.tCita)) {
+      ev.push({ t: t.llego, u: 'a.admision', a: 'LLEGADA_CITA', d: `${t.id} llegó a su cita de las ${fmtHora(t.cita.at)}` });
+    }
+    if (t.tMedCall && t.cita) ev.push({ t: t.tMedCall, u: t.cita.med, a: 'LLAMADO', d: `${t.id} → ${t.dest}` });
     if (t.consult) {
       ev.push({ t: t.tMedCall + MIN, u: t.consult.medico.u, a: 'HC_CONSULTADA', d: `${hc.get(t.dni)} abierta en consulta` });
       ev.push({ t: t.tEnd, u: t.consult.medico.u, a: 'ATENCION_FINALIZADA', d: `${t.id} · ${t.consult.rec} · ${t.consult.dest}` });
@@ -113,10 +182,12 @@ export function buildSeed(now = Date.now()) {
   }));
   const hist = generateHistory({ now, days: HISTORY_DAYS, todayUntil: now - 160 * MIN, fixed });
   const namedDni = new Set(NAMED.map((p) => p.dni));
-  const busyToday = new Set(hist.turns.filter((t) => t.t0 >= startOfDay(now)).map((t) => t.dni));
-  const extra = hist.patients.filter((p) => !namedDni.has(p.dni) && !busyToday.has(p.dni)).slice(0, 2);
+  // Los pacientes del escenario no pueden tener otro turno hoy ni uno abierto (una cita pendiente)
+  const busy = new Set(hist.turns.filter((t) => t.t0 >= prevWorkday(now) || ACTIVE_STATES.includes(t.state)).map((t) => t.dni));
+  const extra = hist.patients.filter((p) => !namedDni.has(p.dni) && !busy.has(p.dni) && p.nac < `${new Date(now).getFullYear() - 14}`).slice(0, 6);
 
-  const turns = numberTurns([...hist.turns, ...liveTurns(now, extra)]);
+  const agenda = { users: DEMO_USERS, horarios: DEMO_HORARIOS, turns: hist.turns };
+  const turns = numberTurns([...hist.turns, ...liveTurns(now, extra, agenda)]);
   const patients = [...NAMED, ...hist.patients];
 
   const audit = [
@@ -131,5 +202,9 @@ export function buildSeed(now = Date.now()) {
     { id: 'seed-th-2', vals: { ...TH_DEFAULT }, by: 'Dra. Elena Ríos (demo)', since: now - (HISTORY_DAYS + 5) * DAY },
   ];
 
-  return { patients, turns, users: DEMO_USERS.map((u) => ({ ...u })), audit, thresholds };
+  return {
+    patients, turns, audit, thresholds,
+    users: DEMO_USERS.map((u) => ({ ...u })),
+    horarios: DEMO_HORARIOS.map((h) => ({ ...h })),
+  };
 }
