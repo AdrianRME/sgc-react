@@ -1,0 +1,29 @@
+
+     data_received..................: 606 MB 1.9 MB/s
+     data_sent......................: 3.0 MB 9.3 kB/s
+   ✓ errores_inesperados............: 0      0/s
+     http_req_blocked...............: avg=2.9µs    med=0s      p(90)=0s      p(95)=0s       max=2.53ms   count=5735
+     http_req_connecting............: avg=1.82µs   med=0s      p(90)=0s      p(95)=0s       max=1.11ms   count=5735
+     http_req_duration..............: avg=18.89ms  med=18.78ms p(90)=28.81ms p(95)=32.96ms  max=144.39ms count=5735
+       { expected_response:true }...: avg=19.19ms  med=18.93ms p(90)=28.92ms p(95)=33.06ms  max=144.39ms count=5633
+     http_req_failed................: 1.77%  102 out of 5735
+     http_req_receiving.............: avg=331.37µs med=208.4µs p(90)=905.7µs p(95)=999.13µs max=2.57ms   count=5735
+     http_req_sending...............: avg=2.87µs   med=0s      p(90)=0s      p(95)=0s       max=3ms      count=5735
+     http_req_tls_handshaking.......: avg=0s       med=0s      p(90)=0s      p(95)=0s       max=0s       count=5735
+     http_req_waiting...............: avg=18.55ms  med=18.48ms p(90)=28.55ms p(95)=32.54ms  max=143.82ms count=5735
+     http_reqs......................: 5735   17.804483/s
+     iteration_duration.............: avg=1.15s    med=1.02s   p(90)=1.03s   p(95)=3s       max=3.01s    count=5570
+     iterations.....................: 5570   17.292235/s
+     rechazos_de_regla..............: 102    0.316662/s
+     rpc_ms.........................: avg=18.89ms  med=18.78ms p(90)=28.81ms p(95)=32.96ms  max=144.39ms count=5735
+     ✓ { fn:sgc_cargar }............: avg=20.6ms   med=19.4ms  p(90)=29.42ms p(95)=33.3ms   max=144.39ms count=5207
+     ✓ { fn:sgc_guardar }...........: avg=2.14ms   med=2ms     p(90)=3.02ms  p(95)=3.48ms   max=6.5ms    count=165 
+     ✓ { fn:sgc_sala }..............: avg=1.93ms   med=1.76ms  p(90)=3ms     p(95)=3.28ms   max=5.05ms   count=363 
+     ✓ { vus:10 }...................: avg=28.47ms  med=26.94ms p(90)=36.2ms  p(95)=49.53ms  max=144.39ms count=634 
+     ✓ { vus:15 }...................: avg=18.3ms   med=17.67ms p(90)=29.06ms p(95)=32.91ms  max=36.52ms  count=895 
+     ✓ { vus:20 }...................: avg=17.11ms  med=17.93ms p(90)=25.42ms p(95)=28.18ms  max=35.38ms  count=1145
+     ✓ { vus:25 }...................: avg=17.16ms  med=18.23ms p(90)=25.41ms p(95)=28.55ms  max=37.54ms  count=1419
+     ✓ { vus:30 }...................: avg=18.25ms  med=19.25ms p(90)=27.36ms p(95)=31.04ms  max=41.53ms  count=1642
+     vus............................: 1      min=1           max=30
+     vus_max........................: 30     min=30          max=30
+

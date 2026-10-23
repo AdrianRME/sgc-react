@@ -155,6 +155,9 @@ export function callTurn(db, ctx, id) {
   if (!tri && t.state === 'LLAMADO_CONSULTA' && t.dest !== ctx.area) {
     throw new DomainError(`${id} ya fue llamado a ${t.dest}.`);
   }
+  // CR-06: no se llama a otro paciente mientras el consultorio tiene una atención abierta
+  const open = !tri && db.turns.find((x) => x.state === 'EN_CONSULTA' && x.dest === ctx.area && x.id !== id);
+  if (open) throw new DomainError(`Termine o devuelva la atención de ${open.id} antes de llamar a otro paciente.`);
   const dest = tri ? TRIAGE_STATION : ctx.area;
   const repeat = t.state === to;
   const turn = {

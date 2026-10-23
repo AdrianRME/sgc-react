@@ -1,0 +1,20 @@
+
+     carreras_ganadas...............: 60     0.395052/s
+     carreras_rechazadas............: 60     0.395052/s
+     data_received..................: 43 kB  285 B/s
+     data_sent......................: 166 kB 1.1 kB/s
+     http_req_blocked...............: avg=13.56µs  min=0s      med=0s      max=1ms     p(90)=0s       p(95)=0s      
+     http_req_connecting............: avg=9.39µs   min=0s      med=0s      max=515.5µs p(90)=0s       p(95)=0s      
+     http_req_duration..............: avg=4.52ms   min=997µs   med=2.38ms  max=35.3ms  p(90)=7.05ms   p(95)=17.09ms 
+       { expected_response:true }...: avg=4.62ms   min=997µs   med=2.33ms  max=35.3ms  p(90)=6.9ms    p(95)=29.76ms 
+     http_req_failed................: 25.00% 60 out of 240
+     http_req_receiving.............: avg=244.32µs min=0s      med=91.15µs max=1.02ms  p(90)=757.18µs p(95)=892.04µs
+     http_req_sending...............: avg=2.11µs   min=0s      med=0s      max=507.2µs p(90)=0s       p(95)=0s      
+     http_req_tls_handshaking.......: avg=0s       min=0s      med=0s      max=0s      p(90)=0s       p(95)=0s      
+     http_req_waiting...............: avg=4.27ms   min=648.5µs med=2.04ms  max=34.63ms p(90)=6.69ms   p(95)=16.94ms 
+     http_reqs......................: 240    1.580208/s
+     iteration_duration.............: avg=41.47s   min=31.5s   med=31.51s  max=1m1s    p(90)=1m1s     p(95)=1m1s    
+     iterations.....................: 6      0.039505/s
+     vus............................: 2      min=0         max=2
+     vus_max........................: 6      min=6         max=6
+

@@ -656,6 +656,12 @@ language sql stable security definer set search_path = '' as $$
   select h.antecedentes_patologicos from public.historia_clinica h
   where h.id_historia = p_historia and sgc_interno.rol_actual() in ('ENFERMERIA','MEDICO') $$;
 
+-- Motivo del triaje para Admisión: lo necesita para elegir la especialidad de la cita (no ve los signos vitales)
+create function sgc_interno.motivo_triaje(p_turno uuid) returns text
+language sql stable security definer set search_path = '' as $$
+  select sv.motivo_triaje from public.signos_vitales sv
+  where sv.id_turno = p_turno and sgc_interno.rol_actual() = 'ADMISION' $$;
+
 create function sgc_interno.id_usuario(p_username text) returns uuid
 language sql stable security definer set search_path = '' as $$
   select id_usuario from public.usuario where username = p_username $$;
@@ -1168,7 +1174,8 @@ select coalesce((
                 'pa', sv.presion_sistolica || '/' || sv.presion_diastolica,
                 'fc', sv.pulso, 'fr', sv.frecuencia_resp, 't', sv.temperatura,
                 'spo2', sv.saturacion_spo2, 'peso', sv.peso_kg, 'talla', sv.talla_m,
-                'motivo', sv.motivo_triaje) end,
+                'motivo', sv.motivo_triaje)
+             else (select jsonb_build_object('motivo', m) from sgc_interno.motivo_triaje(t.id_turno) m where m is not null) end,
       'consult', case when am.id_atencion is not null then jsonb_build_object(
                 'notas', am.examen_clinico,
                 'dx', coalesce((select jsonb_agg(jsonb_build_array(d.codigo_cie10, c.descripcion,
@@ -1435,6 +1442,13 @@ begin
       if v_desde = v_hacia and v_hacia = 'LLAMADO_CONSULTA' and v_area <> t.id_area_destino then
         raise exception '% ya fue llamado a %.', r->>'id', t.area_nombre using errcode = 'P0001';
       end if;
+      -- CR-06: no se llama a otro paciente mientras el consultorio tiene una atención abierta
+      if v_hacia = 'LLAMADO_CONSULTA' and exists (select 1 from public.turno o
+                                                  where o.estado = 'EN_CONSULTA' and o.id_area_destino = v_area
+                                                    and o.id_turno <> t.id_turno) then
+        raise exception 'Termine o devuelva la atención abierta en % antes de llamar a otro paciente.', r->>'dest'
+          using errcode = 'P0001';
+      end if;
       update public.turno set estado = 'LLAMANDO', id_area_destino = v_area,
              ts_ultimo_llamado = now(), veces_llamado = veces_llamado + 1,
              ts_inicio_triaje    = case when v_hacia = 'LLAMADO_TRIAJE' then coalesce(ts_inicio_triaje, now()) else ts_inicio_triaje end,
@@ -1565,7 +1579,7 @@ begin
   truncate public.auditoria, public.detalle_receta, public.receta_medica, public.atencion_diagnostico,
            public.atencion_medica, public.signos_vitales, public.cita, public.pago, public.turno,
            public.historia_clinica, public.paciente, public.umbral_clinico;
-  delete from sgc_interno.carga_demo;
+  delete from sgc_interno.carga_demo where true;  -- Supabase (pg_safeupdate) exige WHERE en los DELETE que llegan por la API
   perform sgc_interno.importar(datos);
   perform sgc_interno.guardar_auditoria(v_yo, 'DEMO', 'Datos de demostración restablecidos', sgc_interno.ip_cliente(), now());
   insert into sgc_interno.carga_demo (id_usuario, expira) values (v_yo, now() + interval '10 minutes')
@@ -1762,7 +1776,7 @@ grant select (id_usuario, username, rol, nombre_completo, colegiatura, id_especi
 grant usage on schema sgc_interno to authenticated;
 grant execute on function sgc_interno.ms(timestamptz), sgc_interno.estado_app(text, timestamptz),
                           sgc_interno.mapa_umbral(), sgc_interno.usuario_actual(), sgc_interno.rol_actual(),
-                          sgc_interno.antecedentes(uuid), sgc_interno.turnos_json(date, text),
+                          sgc_interno.antecedentes(uuid), sgc_interno.motivo_triaje(uuid), sgc_interno.turnos_json(date, text),
                           sgc_interno.auditar_historia(text)
   to authenticated;
 

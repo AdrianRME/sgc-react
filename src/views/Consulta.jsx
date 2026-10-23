@@ -178,7 +178,7 @@ export default function Consulta() {
   };
   const noShow = (t) => ask(noShowDialog(t, 'El turno se cerrará sin atención médica.', () => run(cancelTurn, t.id, CANCEL.noShow)));
   const actions = (t) => {
-    if (t.state === 'EN_ESPERA_CONSULTA') return <button className="btn sec sm" onClick={() => run(callTurn, t.id)}><PhoneCall /> Llamar</button>;
+    if (t.state === 'EN_ESPERA_CONSULTA') return <button className="btn sec sm" onClick={() => run(callTurn, t.id)} disabled={!!current}><PhoneCall /> Llamar</button>;
     if (t.state === 'EN_CONSULTA') return <Badge tone="warn">En {t.dest}</Badge>;
     if (t.dest !== area) return <Badge tone="info">Llamado a {t.dest}</Badge>;
     return (

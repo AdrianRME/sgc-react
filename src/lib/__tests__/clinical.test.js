@@ -6,7 +6,7 @@ import { TH_DEFAULT } from '../constants.js';
 import { nextTurnId, nextRecipe, nextHC } from '../ids.js';
 import { buildSeed } from '../seed.js';
 import {
-  createTurn, registerPayment, callTurn, startTriage, saveTriage, returnToQueue, assignCita, checkIn, startConsult, finishConsult, toggleUser,
+  createTurn, registerPayment, callTurn, callNext, startTriage, saveTriage, returnToQueue, assignCita, checkIn, startConsult, finishConsult, toggleUser,
 } from '../../store/actions.js';
 import { especialidadSugerida, isoDow, sugerirCita } from '../agenda.js';
 import { applyChanges } from '../../data/merge.js';
@@ -129,6 +129,8 @@ describe('flujo completo del paciente', () => {
     for (const x of db.turns.filter((y) => y.state === 'EN_CONSULTA' && y.dest === 'Consultorio 1')) step(returnToQueue, ctx('m.consulta'), x.id);
     step(callTurn, ctx('m.consulta'), t.id);
     step(startConsult, ctx('m.consulta'), t.id);
+    // CR-06: con la atención abierta no se llama a otro paciente
+    expect(() => callNext(db, ctx('m.consulta'), 'med', () => 0)).toThrow(/Termine o devuelva la atención de/);
     const form = { notas: 'Ok', dx: [['J00', 'Resfriado', 'D']], meds: [{ n: 'Amoxicilina 500 mg', dosis: '1 cáps', frec: 'c/8 h', dias: '7', cant: '21' }], dest: 'Alta', destx: '' };
     expect(() => finishConsult(db, ctx('m.consulta'), t.id, form)).toThrow(/Alergia/);
     step(finishConsult, ctx('m.consulta'), t.id, { ...form, allergyOverride: true });

@@ -1,0 +1,234 @@
+{
+ "k6": {
+  "escrituras_ok": {
+   "count": 497,
+   "rate": 1.7093634413433088
+  },
+  "http_req_failed": {
+   "passes": 3,
+   "fails": 2287,
+   "value": 0.0013100436681222707
+  },
+  "iteration_duration": {
+   "min": 282359.578,
+   "med": 283862.3251,
+   "p(90)": 288074.93192999996,
+   "p(95)": 289413.21631499997,
+   "max": 290751.5007,
+   "count": 10,
+   "avg": 284756.82455
+  },
+  "rpc_ms{fn:sgc_guardar}": {
+   "p(95)": 6.50967,
+   "max": 25.0581,
+   "count": 500,
+   "avg": 2.9139694,
+   "min": 1,
+   "med": 2.4754,
+   "p(90)": 4.19683,
+   "thresholds": {
+    "p(95)<1500": false
+   }
+  },
+  "rechazos_de_regla": {
+   "count": 3,
+   "rate": 0.010318089183158805
+  },
+  "http_reqs": {
+   "count": 2290,
+   "rate": 7.876141409811221
+  },
+  "errores_inesperados": {
+   "count": 0,
+   "rate": 0,
+   "thresholds": {
+    "count==0": false
+   }
+  },
+  "rpc_ms": {
+   "med": 5.2777,
+   "p(90)": 10.7458,
+   "p(95)": 12.0816,
+   "max": 44.8421,
+   "count": 1881,
+   "avg": 5.9265628920786835,
+   "min": 0
+  },
+  "turnos_atendidos": {
+   "count": 60,
+   "rate": 0.20636178366317612
+  },
+  "rpc_ms{fn:sgc_cargar}": {
+   "p(90)": 11.70783,
+   "p(95)": 12.69793,
+   "max": 44.8421,
+   "count": 1164,
+   "avg": 7.980930756013747,
+   "min": 2.8054,
+   "med": 7.262700000000001,
+   "thresholds": {
+    "p(95)<1500": false
+   }
+  }
+ },
+ "estados": [
+  [
+   "ATENDIDO",
+   "60"
+  ]
+ ],
+ "prioridad": [
+  [
+   "NORMAL",
+   "43"
+  ],
+  [
+   "PRIORITARIA",
+   "11"
+  ],
+  [
+   "CRITICA",
+   "6"
+  ]
+ ],
+ "sis": [
+  [
+   "NO_ASEGURADO",
+   "17"
+  ],
+  [
+   "ACTIVO",
+   "43"
+  ]
+ ],
+ "pagos": [
+  [
+   "BILLETERA",
+   "4",
+   "80.00"
+  ],
+  [
+   "EFECTIVO",
+   "8",
+   "160.00"
+  ],
+  [
+   "SIS",
+   "43",
+   "0.00"
+  ],
+  [
+   "TARJETA",
+   "5",
+   "100.00"
+  ]
+ ],
+ "citas": [
+  [
+   "t",
+   "ATENDIDA",
+   "6"
+  ],
+  [
+   "f",
+   "ATENDIDA",
+   "54"
+  ]
+ ],
+ "recetas": [
+  [
+   "60",
+   "60"
+  ]
+ ],
+ "auditoria": [
+  [
+   "437"
+  ]
+ ],
+ "auditoria_ops": [
+  [
+   "INSERT",
+   "257"
+  ],
+  [
+   "UPDATE",
+   "120"
+  ],
+  [
+   "SELECT",
+   "60"
+  ]
+ ],
+ "duracion": [
+  [
+   "01:45:35",
+   "01:50:17",
+   "4.7"
+  ]
+ ],
+ "integridad": [
+  [
+   "codigos de turno repetidos en el dia",
+   "0"
+  ],
+  [
+   "turnos ATENDIDO sin atencion_medica",
+   "0"
+  ],
+  [
+   "atenciones sin receta",
+   "0"
+  ],
+  [
+   "recetas con codigo repetido",
+   "0"
+  ],
+  [
+   "turnos con mas de un pago",
+   "0"
+  ],
+  [
+   "turnos sin seguro atendidos sin pago",
+   "0"
+  ],
+  [
+   "turnos con mas de un triaje",
+   "0"
+  ],
+  [
+   "consultas atendidas sin cita",
+   "0"
+  ],
+  [
+   "pacientes con dos turnos activos",
+   "0"
+  ],
+  [
+   "marcas de tiempo fuera de secuencia",
+   "0"
+  ]
+ ],
+ "etapas": [
+  [
+   "llegada -> llamado a triaje",
+   "1.8",
+   "6.3"
+  ],
+  [
+   "llamado a triaje -> fin de triaje",
+   "3.8",
+   "5.0"
+  ],
+  [
+   "llamado a consulta -> cierre",
+   "5.6",
+   "6.9"
+  ],
+  [
+   "llegada -> cierre (total)",
+   "16.4",
+   "20.9"
+  ]
+ ]
+}

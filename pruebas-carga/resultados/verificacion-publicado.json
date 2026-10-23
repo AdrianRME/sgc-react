@@ -1,0 +1,108 @@
+{
+  "fecha": "2026-10-23T17:16:59.508Z",
+  "proyecto": "jyxoxymjxywvigmhjgmj",
+  "results": [
+    {
+      "item": "1 Admisión registra paciente sin seguro",
+      "ok": true,
+      "detalle": "TR-046 (DNI ficticio 70793588) queda PENDIENTE_PAGO"
+    },
+    {
+      "item": "2 Caja cobra y emite boleta",
+      "ok": true,
+      "detalle": "boleta B001-004111, S/ 20; pago no válido rechazado: Medio de pago no válido."
+    },
+    {
+      "item": "3 Enfermería llama, hace el triaje y la base fija la prioridad",
+      "ok": true,
+      "detalle": "prioridad NORMAL, pasa a PENDIENTE_CITA"
+    },
+    {
+      "item": "4 Citas sugiere especialidad y cupo según horario",
+      "ok": true,
+      "detalle": "sugiere CAR; cita 27/10/2026, 9:30:00 a. m. con m.cardio, turno CITADO; cita a las 03:00 rechazada: Dr. Raúl Vega (demo) no atiende el 24/10/2026 a las 03:00."
+    },
+    {
+      "item": "5 Admisión registra la llegada de un citado de hoy",
+      "ok": true,
+      "detalle": "TR-015 pasa a la espera de consulta"
+    },
+    {
+      "item": "CR-06 bloquea llamar a otro paciente con una atención abierta",
+      "ok": true,
+      "detalle": "app: Termine o devuelva la atención de TR-040 antes de llamar a otro paciente. · servidor: Termine o devuelva la atención abierta en Consultorio 1 antes de llamar a otro paciente."
+    },
+    {
+      "item": "6 El médico llama, atiende, registra CIE-10 y receta, y finaliza",
+      "ok": true,
+      "detalle": "TR-040 ATENDIDO, receta REC-2026-000899; m.consulta2 llamando a un paciente ajeno: El turno TR-042 tiene cita con otro médico."
+    },
+    {
+      "item": "7 Jefatura agrega un bloque y la base rechaza un cruce de consultorio",
+      "ok": true,
+      "detalle": "bloque de domingo agregado y quitado: sí; cruce rechazado: El horario se cruza con otro bloque ese día: Dra. Elena Ríos (demo) en Consultorio 1 de 07:00 a 13:00."
+    },
+    {
+      "item": "8 La pantalla de sala no muestra nombres ni DNI",
+      "ok": true,
+      "detalle": "5 registros; sin DNI ni nombres"
+    },
+    {
+      "item": "9 Admisión y Caja no acceden a datos de Jefatura ni a historias",
+      "ok": true,
+      "detalle": "indicadores: Solo Jefatura puede consultar los indicadores de gestión. · historia: Su rol no puede consultar historias clínicas."
+    },
+    {
+      "item": "10 Jefatura crea un usuario y debe cambiar la contraseña temporal",
+      "ok": true,
+      "detalle": "v.h5fhbl inicia sesión: sí; sin cambiarla: sgc_cargar no entrega datos (me = null) hasta cambiar la contraseña temporal; luego se desactivó"
+    },
+    {
+      "item": "11 Tablero gerencial responde en los 4 periodos",
+      "ok": true,
+      "detalle": "1 d: 25 turnos · 7 d: 133 turnos · 14 d: 265 turnos · 28 d: 509 turnos"
+    },
+    {
+      "item": "12 El médico consulta la historia de 70000001",
+      "ok": true,
+      "detalle": "3 atenciones anteriores"
+    }
+  ],
+  "latencia_ms": {
+    "sgc_cargar": {
+      "n": 59,
+      "mediana": 214,
+      "p95": 331.3
+    },
+    "sgc_restablecer_demo": {
+      "n": 1,
+      "mediana": 319.7,
+      "p95": 319.7
+    },
+    "sgc_restablecer_demo_lote": {
+      "n": 6,
+      "mediana": 668.2,
+      "p95": 1106.4
+    },
+    "sgc_guardar": {
+      "n": 20,
+      "mediana": 112.1,
+      "p95": 219.6
+    },
+    "sgc_historia": {
+      "n": 3,
+      "mediana": 122.4,
+      "p95": 136.1
+    },
+    "sgc_sala": {
+      "n": 1,
+      "mediana": 136.4,
+      "p95": 136.4
+    },
+    "sgc_indicadores": {
+      "n": 5,
+      "mediana": 133.3,
+      "p95": 222.4
+    }
+  }
+}
