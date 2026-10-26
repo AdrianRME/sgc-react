@@ -27,6 +27,8 @@ export const DEMO_USERS = [
   { u: 'm.cardio', n: 'Dr. Raúl Vega (demo)', role: 'med', col: 'CMP-00003', on: true, esp: 'CAR' },
   { u: 'j.jefatura', n: 'Marco Soto (demo)', role: 'jef', col: '', on: true },
   { u: 'e.turno2', n: 'Iris Campos (demo)', role: 'enf', col: 'CEP-00001', on: false },
+  // Autor de las citas que el paciente reserva por la web (no inicia sesión)
+  { u: 'a.citasweb', n: 'Citas por web (sistema)', role: 'adm', col: '', on: false },
 ];
 
 const bloque = (med, dows, ini, fin, area) => dows.map((dow) => ({ id: `hor-${med}-${dow}`, med, dow, ini, fin, area, on: true }));

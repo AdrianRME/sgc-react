@@ -3,6 +3,7 @@ import { useStore } from '../store/useStore.js';
 import { fmtDT, fmtHora, fmtLongDay, fmtSoles, age, maskDni, fullName } from '../lib/format.js';
 import { CONCEPTO_PAGO, METODOS_PAGO, TARIFA_CONSULTA } from '../lib/constants.js';
 import { especialidad, sameDay } from '../lib/agenda.js';
+import { esperaDe, rangoEspera } from '../lib/espera.js';
 import { usePatientHistory } from '../hooks/usePatientHistory.js';
 import { useNow } from '../hooks/useNow.js';
 import { Modal } from './Modal.jsx';
@@ -80,6 +81,40 @@ function nextStep(t) {
   return <>Permanezca atento a la pantalla de sala.</>;
 }
 
+/** Espera aproximada (RF-14) si el turno está en la cola de triaje o de consulta. */
+function EsperaAprox({ turn: t }) {
+  const { db } = useStore();
+  const now = useNow(60_000);
+  const r = rangoEspera(esperaDe(db.turns, t, now));
+  if (!r) return null;
+  const etapa = t.state === 'EN_ESPERA_TRIAJE' ? 'para triaje' : 'para la consulta';
+  return <p className="tk-b">Espera aproximada {etapa}: <b>{r}</b>. Puede variar: los casos más graves pasan primero.</p>;
+}
+
+/** Estaciones que le quedan al paciente después de Admisión, para el ticket. */
+const TK_RUTA = [['caj', 'Caja', 'scroll'], ['enf', 'Triaje', 'thermometer'], ['adm', 'Cita', 'calendar'], ['med', 'Consulta', 'stethoscope']];
+const TK_PASO = {
+  PENDIENTE_PAGO: 0, EN_ESPERA_TRIAJE: 1, LLAMADO_TRIAJE: 1, EN_TRIAJE: 1, PENDIENTE_CITA: 2, CITADO: 2,
+  EN_ESPERA_CONSULTA: 3, LLAMADO_CONSULTA: 3, EN_CONSULTA: 3, ATENDIDO: 4,
+};
+
+/** Ruta del ticket: lo hecho, dónde debe ir ahora y lo que sigue. Con SIS, la Caja figura como exonerada. */
+function TicketRuta({ turn: t }) {
+  const paso = TK_PASO[t.state] ?? 0;
+  const sis = t.pago?.metodo === 'SIS';
+  return (
+    <ol className="tk-route" aria-label="Su recorrido">
+      {TK_RUTA.map(([k, n, icon], i) => (
+        <li key={k} data-role={k} className={i < paso ? 'done' : i === paso ? 'cur' : ''} aria-current={i === paso ? 'step' : undefined}>
+          <span className="tk-ic"><Icon3D name={icon} size={26} /></span>
+          <b>{n}</b>
+          {k === 'caj' && sis && <small>SIS</small>}
+        </li>
+      ))}
+    </ol>
+  );
+}
+
 export function Ticket({ turn: t, onClose }) {
   const { patient } = useStore();
   const p = patient(t.dni);
@@ -87,11 +122,16 @@ export function Ticket({ turn: t, onClose }) {
     <Modal label="Ticket de turno" onClose={onClose} size="sm" className="doc ticket">
       <DocHead title="Su turno" icon="ticket" />
       <div className="tk-n tcode">{t.id}</div>
+      <TicketRuta turn={t} />
       <p className="tk-b">{nextStep(t)}</p>
+      <EsperaAprox turn={t} />
+      <div className="tk-cut" aria-hidden="true" />
       <dl className="doc-meta">
         <div><dt>Emitido</dt><dd>{fmtDT(t.t0)}</dd></div>
         <div><dt>DNI</dt><dd>{p ? maskDni(p.dni) : '—'}</dd></div>
+        {p?.hc && <div><dt>Historia</dt><dd>{p.hc}</dd></div>}
       </dl>
+      <p className="tk-foot">Conserve este ticket. Su código aparecerá en la pantalla de la sala.</p>
       <DocActions onClose={onClose} />
     </Modal>
   );
@@ -147,6 +187,7 @@ export function ConstanciaCita({ turn: t, onClose }) {
       <p className="tk-b">{hoy
         ? 'Espere en la sala: su código aparecerá en la pantalla cuando el médico lo llame.'
         : 'Ese día preséntese en Admisión con su DNI 15 minutos antes de su hora. No necesita volver a pagar ni pasar por triaje.'}</p>
+      {hoy && <EsperaAprox turn={t} />}
       {c.sobre && <Msg tone="crit">Sobrecupo por prioridad crítica: será atendido lo antes posible.</Msg>}
       <dl className="doc-meta">
         <div><dt>Turno</dt><dd>{t.id}</dd></div>

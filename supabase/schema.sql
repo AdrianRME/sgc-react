@@ -542,6 +542,7 @@ language sql immutable set search_path = '' as $$
     ('EN_TRIAJE','PENDIENTE_CITA'),          ('EN_TRIAJE','EN_ESPERA_TRIAJE'),
     ('PENDIENTE_CITA','EN_ESPERA_CONSULTA'), ('PENDIENTE_CITA','CITADO'), ('PENDIENTE_CITA','CANCELADO'),
     ('CITADO','CITADO'),                     ('CITADO','EN_ESPERA_CONSULTA'), ('CITADO','CANCELADO'),
+    ('CITADO','PENDIENTE_PAGO'),             ('CITADO','EN_ESPERA_TRIAJE'),   ('EN_TRIAJE','EN_ESPERA_CONSULTA'),
     ('EN_ESPERA_CONSULTA','LLAMADO_CONSULTA'), ('EN_ESPERA_CONSULTA','CANCELADO'),
     ('LLAMADO_CONSULTA','LLAMADO_CONSULTA'), ('LLAMADO_CONSULTA','EN_CONSULTA'), ('LLAMADO_CONSULTA','CANCELADO'),
     ('EN_CONSULTA','ATENDIDO'),              ('EN_CONSULTA','EN_ESPERA_CONSULTA')) $$;
@@ -552,13 +553,17 @@ language sql immutable set search_path = '' as $$
   select case p_rol
     when 'CAJA'       then p_desde = 'PENDIENTE_PAGO' and p_hacia in ('EN_ESPERA_TRIAJE','CANCELADO')
     when 'ENFERMERIA' then (p_desde in ('EN_ESPERA_TRIAJE','LLAMADO_TRIAJE') and p_hacia in ('LLAMADO_TRIAJE','CANCELADO'))
+                        -- al terminar el triaje, Enfermería da la cita (el paciente no vuelve a Admisión)
+                        or (p_desde = 'PENDIENTE_CITA' and p_hacia in ('EN_ESPERA_CONSULTA','CITADO'))
                         or (p_desde = 'LLAMADO_TRIAJE' and p_hacia = 'EN_TRIAJE')
-                        or (p_desde = 'EN_TRIAJE' and p_hacia in ('EN_ESPERA_TRIAJE','PENDIENTE_CITA'))
+                        or (p_desde = 'EN_TRIAJE' and p_hacia in ('EN_ESPERA_TRIAJE','PENDIENTE_CITA','EN_ESPERA_CONSULTA'))
     when 'MEDICO'     then (p_desde in ('EN_ESPERA_CONSULTA','LLAMADO_CONSULTA') and p_hacia in ('LLAMADO_CONSULTA','CANCELADO'))
                         or (p_desde = 'LLAMADO_CONSULTA' and p_hacia = 'EN_CONSULTA')
                         or (p_desde = 'EN_CONSULTA' and p_hacia in ('ATENDIDO','EN_ESPERA_CONSULTA'))
     when 'ADMISION'   then p_hacia = 'CANCELADO'
                         or (p_desde in ('PENDIENTE_CITA','CITADO') and p_hacia in ('EN_ESPERA_CONSULTA','CITADO'))
+                        -- llegada de quien reservó por web o teléfono: va a Caja o, con SIS, a triaje
+                        or (p_desde = 'CITADO' and p_hacia in ('PENDIENTE_PAGO','EN_ESPERA_TRIAJE'))
     else false end $$;
 
 -- Umbrales: clave de la app -> (parámetro, nivel, operador)
@@ -608,12 +613,12 @@ language sql immutable set search_path = '' as $$
            when 'UMBRALES' then 'umbral_clinico'
            when 'PAGO_REGISTRADO' then 'pago'      when 'CITA_ASIGNADA' then 'cita'
            when 'CITA_REPROGRAMADA' then 'cita'    when 'LLEGADA_CITA' then 'cita'
-           when 'HORARIO' then 'horario_medico'
+           when 'HORARIO' then 'horario_medico'   when 'CITA_WEB' then 'cita'
            else 'turno' end,
          case when p_accion in ('LOGIN','LOGOUT') then p_accion
               when p_accion in ('BUSQUEDA_DNI','HC_CONSULTADA','AREA') then 'SELECT'
               when p_accion in ('PACIENTE_NUEVO','TURNO_CREADO','TRIAJE_GUARDADO','ATENCION_FINALIZADA',
-                                'ALERGIA_CONFIRMADA','UMBRALES','PAGO_REGISTRADO','CITA_ASIGNADA') then 'INSERT'
+                                'ALERGIA_CONFIRMADA','UMBRALES','PAGO_REGISTRADO','CITA_ASIGNADA','CITA_WEB') then 'INSERT'
               when p_accion = 'USUARIO' and p_detalle like '% creado%' then 'INSERT'
               when p_accion = 'HORARIO' and p_detalle like 'Horario agregado%' then 'INSERT'
               else 'UPDATE' end $$;
@@ -1125,6 +1130,10 @@ cross join lateral unnest(x.dias) as d(dia);
 -- Contraseña de las cuentas de demostración: SgcDemo2026 (cámbiela desde la app)
 select sgc_interno.fijar_credencial(username, 'SgcDemo2026', false) from public.usuario;
 
+-- Autor de las citas que el paciente reserva por la web. No tiene cuenta en Supabase Auth: no puede iniciar sesión.
+insert into public.usuario (username, password_hash, rol, nombre_completo, activo)
+values ('a.citasweb', 'sin-acceso', 'ADMISION', 'Citas por web (sistema)', false);
+
 -- Umbrales iniciales (valores de demostración, a validar por el responsable clínico)
 select sgc_interno.guardar_umbrales(
   '{"spo2":90,"spo2A":93,"tmp":40,"tmpA":38.5,"pasLo":80,"pasA":180,"fcHi":130,"fcA":110,"frHi":30,"frA":25}'::jsonb,
@@ -1463,8 +1472,18 @@ begin
       update public.turno set estado = 'EN_CONSULTA', id_usuario_en_atencion = yo.id_usuario
        where id_turno = t.id_turno;
 
+    when 'PENDIENTE_PAGO' then
+      -- Llegada de quien reservó su cita (sin seguro): primero paga en Caja
+      perform sgc_interno.llegada_reserva(t.id_turno, false);
+      update public.turno set estado = 'PENDIENTE_PAGO', hora_llegada = now() where id_turno = t.id_turno;
+
     when 'EN_ESPERA_TRIAJE' then
-      if v_desde = 'PENDIENTE_PAGO' then
+      if v_desde = 'CITADO' then
+        -- Llegada de quien reservó su cita (con SIS): no paga y pasa a triaje
+        perform sgc_interno.llegada_reserva(t.id_turno, true);
+        perform sgc_interno.guardar_pago(t.id_turno, '{"metodo": "SIS", "monto": 0}'::jsonb, yo.id_usuario, now());
+        update public.turno set estado = 'EN_ESPERA_TRIAJE', hora_llegada = now() where id_turno = t.id_turno;
+      elsif v_desde = 'PENDIENTE_PAGO' then
         -- Cobro en Caja: la tarifa la fija la base; el medio de pago y la boleta se validan
         if coalesce(r->'pago'->>'metodo', '') not in ('EFECTIVO','TARJETA','BILLETERA') then
           raise exception 'Medio de pago no válido.' using errcode = 'P0001';
@@ -1514,8 +1533,32 @@ begin
         end if;
         update public.cita set ts_llegada = now() where id_turno = t.id_turno;
         update public.turno set estado = 'EN_ESPERA_CONSULTA' where id_turno = t.id_turno;
+      elsif v_desde = 'EN_TRIAJE' then
+        -- Fin del triaje de quien ya tiene cita para hoy (la reservó): pasa directo a la espera de su médico
+        if (select fecha_cita from public.cita where id_turno = t.id_turno) is distinct from sgc_interno.hoy() then
+          raise exception 'El turno % no tiene cita para hoy: debe recibirla al terminar el triaje.', r->>'id' using errcode = 'P0001';
+        end if;
+        tri := r->'tri';
+        if jsonb_typeof(tri) <> 'object' then
+          raise exception 'Faltan los signos vitales del triaje.' using errcode = 'P0001';
+        end if;
+        v_pa := regexp_match(tri->>'pa', '^\s*(\d{2,3})\s*/\s*(\d{2,3})\s*$');
+        if v_pa is null then
+          raise exception 'Presión arterial no válida: %', tri->>'pa' using errcode = 'P0001';
+        end if;
+        v_prio := sgc_interno.prioridad(v_pa[1]::numeric, (tri->>'fc')::numeric, (tri->>'fr')::numeric,
+                                        (tri->>'t')::numeric, (tri->>'spo2')::numeric);
+        perform sgc_interno.guardar_signos(t.id_turno, tri, yo.id_usuario, now(), v_prio);
+        update public.cita set ts_llegada = now() where id_turno = t.id_turno;
+        update public.turno set estado = 'EN_ESPERA_CONSULTA', nivel_prioridad = v_prio, ts_fin_triaje = now(),
+               id_usuario_en_atencion = null, ts_ultimo_llamado = null
+         where id_turno = t.id_turno;
       elsif v_desde = 'CITADO' then
         -- Llegada del paciente citado: solo el día de su cita
+        if t.ts_fin_triaje is null then
+          raise exception '% reservó su cita sin pasar por triaje: registre su llegada para que pase por Caja o triaje.', r->>'id'
+            using errcode = 'P0001';
+        end if;
         if (select fecha_cita from public.cita where id_turno = t.id_turno) is distinct from sgc_interno.hoy() then
           raise exception 'La llegada de % se registra el día de su cita.', r->>'id' using errcode = 'P0001';
         end if;
@@ -1722,15 +1765,73 @@ end $$;
 -- ---------------------------------------------------------------------
 -- sgc_sala(): datos públicos de la pantalla de sala. Sin nombres ni DNI.
 -- ---------------------------------------------------------------------
+-- RF-14: espera aproximada (min) de cada turno en cola. Misma regla que src/lib/espera.js:
+--   resto de la atención en curso + turnos por delante × promedio móvil de las últimas 20 atenciones
+--   del día (triaje: un módulo; consulta: la cola de cada médico). Con menos de 3 atenciones se usa
+--   la referencia (7 min de triaje; la duración del cupo en consulta). Nadie pasa antes de su cita.
+create function sgc_interno.esperas() returns table (id_turno uuid, espera integer)
+language sql stable set search_path = '' as $$
+  with desde as (select ((now() at time zone 'America/Lima')::date)::timestamp at time zone 'America/Lima' as t),
+  tri_d as (
+    select extract(epoch from t.ts_fin_triaje - t.ts_inicio_triaje) / 60 as d,
+           row_number() over (order by t.ts_fin_triaje desc) as n
+      from public.turno t, desde
+     where t.ts_inicio_triaje is not null and t.ts_fin_triaje >= desde.t and t.ts_fin_triaje <= now()),
+  tri_m as (select case when count(*) >= 3 then avg(d) filter (where n <= 20) else 7 end as m from tri_d),
+  tri_ocupado as (
+    select coalesce(sum(greatest(1, m.m - extract(epoch from now() - t.ts_inicio_triaje) / 60)), 0) as r
+      from public.turno t, tri_m m
+     where t.estado = 'EN_TRIAJE' or (t.estado = 'LLAMANDO' and t.ts_fin_triaje is null)),
+  tri as (
+    select t.id_turno, (row_number() over (order by t.hora_llegada) - 1) * m.m + o.r as e
+      from public.turno t, tri_m m, tri_ocupado o
+     where t.estado = 'EN_ESPERA_TRIAJE'),
+  cola as (
+    select t.id_turno, c.id_usuario_medico as med, e.duracion_cita_min as ref,
+           (c.fecha_cita + c.hora_cita) at time zone 'America/Lima' as hora,
+           row_number() over (partition by c.id_usuario_medico
+                              order by array_position(array['CRITICA','PRIORITARIA','NORMAL']::text[], t.nivel_prioridad::text),
+                                       greatest(c.ts_llegada, (c.fecha_cita + c.hora_cita) at time zone 'America/Lima'),
+                                       t.hora_llegada) - 1 as i
+      from public.turno t
+      join public.cita c on c.id_turno = t.id_turno
+      join public.especialidad e on e.id_especialidad = c.id_especialidad
+     where t.estado = 'EN_ESPERA_CONSULTA'),
+  med_d as (
+    select am.id_usuario_medico as med, extract(epoch from t.ts_cierre - t.ts_llamado_consulta) / 60 as d,
+           row_number() over (partition by am.id_usuario_medico order by t.ts_cierre desc) as n
+      from public.turno t join public.atencion_medica am on am.id_turno = t.id_turno, desde
+     where t.estado = 'ATENDIDO' and t.ts_llamado_consulta is not null
+       and t.ts_cierre >= desde.t and t.ts_cierre <= now()),
+  med_m as (
+    select q.med, case when (select count(*) from med_d d where d.med = q.med) >= 3
+                       then (select avg(d.d) from med_d d where d.med = q.med and d.n <= 20)
+                       else q.ref end as m
+      from (select distinct med, ref from cola) q),
+  med_ocupado as (
+    select m.med, coalesce((
+             select sum(greatest(1, m.m - extract(epoch from now() - t.ts_llamado_consulta) / 60))
+               from public.turno t join public.cita c on c.id_turno = t.id_turno
+              where c.id_usuario_medico = m.med
+                and (t.estado = 'EN_CONSULTA' or (t.estado = 'LLAMANDO' and t.ts_fin_triaje is not null))), 0) as r
+      from med_m m),
+  med as (
+    select q.id_turno, greatest(o.r + q.i * m.m, extract(epoch from q.hora - now()) / 60) as e
+      from cola q join med_m m on m.med = q.med join med_ocupado o on o.med = q.med)
+  select id_turno, round(e::numeric)::integer from tri
+  union all
+  select id_turno, round(e::numeric)::integer from med $$;
+
 create function public.sgc_sala() returns jsonb
 language sql stable security definer set search_path = '' as $$
   -- Ya ordenado como se muestra: llamados (el último primero), consulta por prioridad y hora de la cita,
-  -- triaje por llegada. No expone la prioridad ni la hora de llegada.
+  -- triaje por llegada. No expone la prioridad ni la hora de llegada; sí la espera aproximada (RF-14).
   select coalesce(jsonb_agg(jsonb_strip_nulls(jsonb_build_object(
            'id', t.codigo_turno,
            'state', sgc_interno.estado_app(t.estado, t.ts_fin_triaje),
            'calledAt', sgc_interno.ms(t.ts_ultimo_llamado),
-           'dest', a.nombre))
+           'dest', a.nombre,
+           'espera', es.espera))
          order by case t.estado when 'LLAMANDO' then 0 when 'EN_ESPERA_CONSULTA' then 1 else 2 end,
                   t.ts_ultimo_llamado desc nulls last,
                   case when t.estado = 'EN_ESPERA_CONSULTA'
@@ -1741,8 +1842,160 @@ language sql stable security definer set search_path = '' as $$
                   t.hora_llegada), '[]'::jsonb)
   from public.turno t left join public.area_atencion a on a.id_area = t.id_area_destino
   left join public.cita c on c.id_turno = t.id_turno
+  left join sgc_interno.esperas() es on es.id_turno = t.id_turno
   where t.estado in ('EN_ESPERA_TRIAJE','LLAMANDO','EN_ESPERA_CONSULTA')
-    and t.fecha_turno >= (now() at time zone 'America/Lima')::date - 1 $$;
+    -- turnos de hoy o de ayer, y los citados para hoy aunque hayan sacado la cita días antes
+    and (t.fecha_turno >= (now() at time zone 'America/Lima')::date - 1
+         or c.fecha_cita = (now() at time zone 'America/Lima')::date) $$;
+
+-- =====================================================================
+-- Cita por web o por teléfono. El paciente (o Admisión, por teléfono) reserva
+-- con el DNI y la fecha de nacimiento. Solo pacientes con historia clínica y
+-- una sola cita o turno activo a la vez. El día de la cita registra su llegada
+-- en Admisión, paga en Caja si no tiene SIS, pasa por triaje y lo atiende su médico.
+-- =====================================================================
+
+-- Intentos fallidos por DNI: tras 5 en 15 minutos se bloquea (evita adivinar la fecha de nacimiento)
+create table sgc_interno.intento_cita (
+    dni    varchar(15) not null,
+    fecha  timestamptz not null default now()
+);
+create index ix_intento_cita on sgc_interno.intento_cita (dni, fecha);
+
+-- Paciente con historia que coincide con DNI y fecha de nacimiento (null si no coincide)
+create function sgc_interno.verificar_paciente(p_dni text, p_nac date) returns uuid
+language plpgsql volatile security definer set search_path = '' as $$
+declare v_pac uuid;
+begin
+  if (select count(*) from sgc_interno.intento_cita
+       where dni = p_dni and fecha > now() - interval '15 minutes') >= 5 then
+    raise exception 'Demasiados intentos con ese DNI. Espere 15 minutos e inténtelo de nuevo.' using errcode = 'P0001';
+  end if;
+  select p.id_paciente into v_pac
+    from public.paciente p join public.historia_clinica h on h.id_paciente = p.id_paciente
+   where p.tipo_documento = 'DNI' and p.numero_documento = p_dni and p.fecha_nacimiento = p_nac;
+  if v_pac is null then
+    insert into sgc_interno.intento_cita (dni) values (left(coalesce(p_dni, ''), 15));
+  end if;
+  return v_pac;
+end $$;
+
+-- Cita o turno activo del paciente (sin datos clínicos)
+create function sgc_interno.cita_activa(p_pac uuid) returns jsonb
+language sql stable security definer set search_path = '' as $$
+  select jsonb_build_object(
+           'id', t.codigo_turno, 'state', sgc_interno.estado_app(t.estado, t.ts_fin_triaje),
+           'cita', case when c.id_cita is not null then jsonb_build_object(
+             'esp', e.codigo, 'med', u.username, 'medico', u.nombre_completo, 'area', a.nombre,
+             'at', sgc_interno.ms((c.fecha_cita + c.hora_cita) at time zone 'America/Lima')) end)
+    from public.turno t
+    left join public.cita c on c.id_turno = t.id_turno
+    left join public.especialidad e on e.id_especialidad = c.id_especialidad
+    left join public.usuario u on u.id_usuario = c.id_usuario_medico
+    left join public.area_atencion a on a.id_area = c.id_area
+   where t.id_paciente = p_pac and t.estado not in ('ATENDIDO','CANCELADO')
+   order by t.hora_llegada desc limit 1 $$;
+
+-- Llegada de quien reservó: la cita debe ser hoy y todavía sin triaje; con o sin SIS según corresponda
+create function sgc_interno.llegada_reserva(p_turno uuid, p_exonerado boolean) returns void
+language plpgsql security definer set search_path = '' as $$
+begin
+  if (select fecha_cita from public.cita where id_turno = p_turno) is distinct from sgc_interno.hoy() then
+    raise exception 'La llegada se registra el día de la cita.' using errcode = 'P0001';
+  end if;
+  if (select ts_fin_triaje from public.turno where id_turno = p_turno) is not null then
+    raise exception 'Este paciente ya pasó por triaje: pasa directo a la espera de su médico.' using errcode = 'P0001';
+  end if;
+  if sgc_interno.exonerado((select p.condicion_sis from public.turno t join public.paciente p using (id_paciente)
+                             where t.id_turno = p_turno)) is distinct from p_exonerado then
+    raise exception '%', case when p_exonerado then 'Sin SIS, el paciente primero paga en Caja.'
+                              else 'Con SIS no se cobra: el paciente pasa directo a triaje.' end using errcode = 'P0001';
+  end if;
+end $$;
+
+-- Identifica al paciente y devuelve su nombre de pila y su cita o turno activo
+create function public.sgc_paciente_cita(p_dni text, p_nac date) returns jsonb
+language plpgsql volatile security definer set search_path = '' as $$
+declare v_pac uuid;
+begin
+  v_pac := sgc_interno.verificar_paciente(p_dni, p_nac);
+  if v_pac is null then
+    return jsonb_build_object('error', 'No encontramos un paciente con ese DNI y esa fecha de nacimiento. '
+                                       'Si es su primera atención, acérquese a Admisión para abrir su historia clínica.');
+  end if;
+  return jsonb_build_object('nom', (select split_part(nombres, ' ', 1) from public.paciente where id_paciente = v_pac),
+                            'activa', sgc_interno.cita_activa(v_pac));
+end $$;
+
+-- Médicos, horario y cupos ya tomados de una especialidad (solo médico y hora: sin datos de pacientes)
+create function public.sgc_cupos(p_esp text) returns jsonb
+language sql stable security definer set search_path = '' as $$
+select jsonb_build_object(
+  'users', coalesce((
+    select jsonb_agg(jsonb_build_object('u', u.username, 'n', u.nombre_completo, 'role', 'med', 'on', true, 'esp', e.codigo))
+      from public.usuario u join public.especialidad e on e.id_especialidad = u.id_especialidad
+     where u.rol = 'MEDICO' and u.activo and e.codigo = p_esp), '[]'::jsonb),
+  'horarios', coalesce((
+    select jsonb_agg(jsonb_build_object(
+             'id', h.id_horario, 'med', u.username, 'dow', h.dia_semana,
+             'ini', to_char(h.hora_inicio, 'HH24:MI'), 'fin', to_char(h.hora_fin, 'HH24:MI'),
+             'area', a.nombre, 'on', h.activo))
+      from public.horario_medico h
+      join public.usuario u on u.id_usuario = h.id_usuario_medico
+      join public.especialidad e on e.id_especialidad = u.id_especialidad
+      join public.area_atencion a on a.id_area = h.id_area
+     where h.activo and u.activo and e.codigo = p_esp), '[]'::jsonb),
+  'ocupadas', coalesce((
+    select jsonb_agg(jsonb_build_object('med', u.username,
+             'at', sgc_interno.ms((c.fecha_cita + c.hora_cita) at time zone 'America/Lima')))
+      from public.cita c
+      join public.usuario u on u.id_usuario = c.id_usuario_medico
+      join public.especialidad e on e.id_especialidad = c.id_especialidad
+     where e.codigo = p_esp and not c.es_sobrecupo and c.estado not in ('CANCELADA','NO_ASISTIO')
+       and c.fecha_cita >= sgc_interno.hoy()), '[]'::jsonb)) $$;
+
+-- Reserva la cita. Por teléfono la registra Admisión con su sesión; por la web, el usuario a.citasweb.
+create function public.sgc_reservar_cita(p_dni text, p_nac date, p_cita jsonb) returns jsonb
+language plpgsql volatile security definer set search_path = '' as $$
+declare
+  v_pac uuid; yo record; v_autor uuid; v_canal text; v_turno uuid; v_codigo text; v_act jsonb;
+begin
+  v_pac := sgc_interno.verificar_paciente(p_dni, p_nac);
+  if v_pac is null then
+    return jsonb_build_object('error', 'No encontramos un paciente con ese DNI y esa fecha de nacimiento.');
+  end if;
+  -- Una sola cita o turno activo: se bloquea al paciente para que dos pedidos a la vez no pasen los dos
+  perform 1 from public.paciente where id_paciente = v_pac for update;
+  v_act := sgc_interno.cita_activa(v_pac);
+  if v_act is not null then
+    raise exception 'Ya tiene % (%). Solo puede tener una a la vez: espere a ser atendido o pida en Admisión que la anulen.',
+      case when v_act->'cita' is not null then 'una cita pendiente' else 'un turno activo' end, v_act->>'id'
+      using errcode = 'P0001';
+  end if;
+
+  select * into yo from sgc_interno.usuario_actual();
+  if yo.id_usuario is not null and yo.rol = 'ADMISION' then
+    v_autor := yo.id_usuario; v_canal := 'teléfono';
+  else
+    select id_usuario into v_autor from public.usuario where username = 'a.citasweb';
+    v_canal := 'web';
+  end if;
+
+  -- Código del turno: el siguiente entre los de hoy y los que siguen abiertos (igual que la app)
+  select 'TR-' || lpad((coalesce(max((regexp_match(codigo_turno, '^TR-(\d+)$'))[1]::int), 0) + 1)::text, 3, '0')
+    into v_codigo
+    from public.turno
+   where fecha_turno = sgc_interno.hoy() or estado not in ('ATENDIDO','CANCELADO');
+
+  insert into public.turno (fecha_turno, codigo_turno, id_paciente, id_usuario_admision, hora_llegada, estado)
+  values (sgc_interno.hoy(), v_codigo, v_pac, v_autor, now(), 'CITADO')
+  returning id_turno into v_turno;
+  -- Sin triaje no hay prioridad: la cita es un cupo normal del horario (nunca sobrecupo)
+  perform sgc_interno.guardar_cita(v_turno, p_cita - 'sobre', v_autor, 'NORMAL', true);
+  perform sgc_interno.guardar_auditoria(v_autor, 'CITA_WEB', format('%s reservó su cita por %s', v_codigo, v_canal),
+                                        sgc_interno.ip_cliente(), now());
+  return sgc_interno.cita_activa(v_pac);
+end $$;
 
 -- =====================================================================
 -- Permisos y políticas de seguridad (RLS)
@@ -1754,7 +2007,9 @@ revoke execute on function public.sgc_cargar(), public.sgc_guardar(jsonb), publi
                            public.sgc_restablecer_demo_lote(uuid, jsonb), public.sgc_historia(text),
                            public.sgc_indicadores(date, date), public.sgc_clave_cambiada(), public.sgc_sala()
   from public, anon, authenticated;
-revoke all on sgc_interno.carga_demo, sgc_interno.clave_temporal from public, anon, authenticated;
+revoke all on sgc_interno.carga_demo, sgc_interno.clave_temporal, sgc_interno.intento_cita from public, anon, authenticated;
+revoke execute on function public.sgc_paciente_cita(text, date), public.sgc_cupos(text),
+                           public.sgc_reservar_cita(text, date, jsonb) from public;
 
 grant usage on schema public to anon, authenticated, service_role;
 grant all on all tables in schema public to service_role;
@@ -1785,6 +2040,9 @@ grant execute on function public.sgc_cargar(), public.sgc_guardar(jsonb), public
                           public.sgc_indicadores(date, date), public.sgc_clave_cambiada()
   to authenticated;
 grant execute on function public.sgc_sala() to anon, authenticated;
+-- Cita por web o por teléfono: el paciente se identifica con su DNI y su fecha de nacimiento
+grant execute on function public.sgc_paciente_cita(text, date), public.sgc_cupos(text),
+                          public.sgc_reservar_cita(text, date, jsonb) to anon, authenticated;
 
 do $$
 declare t text;

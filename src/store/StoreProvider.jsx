@@ -213,7 +213,7 @@ export function StoreProvider({ children }) {
 
   const value = {
     db: authed ? db : null, repo, patient, status, auth, user, area, prefs, updatePrefs, run, toast, toasts, dismissToast, resetDemo,
-    signIn, signOut, changePassword, idleLeft,
+    signIn, signOut, changePassword, idleLeft, reload,
     th: db ? currentThresholds(db) : null,
   };
   return <StoreCtx.Provider value={value}>{children}</StoreCtx.Provider>;

@@ -202,7 +202,7 @@ export function returnToQueue(db, ctx, id) {
 
 export function saveTriage(db, ctx, id, vitals, allergies) {
   const t = findTurn(db, id, ctx.now);
-  assertTransition(t, 'PENDIENTE_CITA');
+  assertTransition(t, t.cita && sameDay(t.cita.at, ctx.now) ? 'EN_ESPERA_CONSULTA' : 'PENDIENTE_CITA');
   const errs = validateVitals(vitals);
   if (Object.keys(errs).length) throw new DomainError('Revise los signos vitales marcados.');
   const tri = {
@@ -210,7 +210,12 @@ export function saveTriage(db, ctx, id, vitals, allergies) {
     peso: +vitals.peso, talla: +vitals.talla, motivo: vitals.motivo.trim(),
   };
   const r = evalTriage(tri, currentThresholds(db));
-  const turn = { ...t, tri, prio: r.prio, state: 'PENDIENTE_CITA', tTriSave: ctx.now, enf: ctx.user.u, calledAt: null };
+  // Quien reservó su cita para hoy ya la tiene: del triaje pasa directo a la espera de su médico
+  const conCita = t.cita && sameDay(t.cita.at, ctx.now);
+  const turn = {
+    ...t, tri, prio: r.prio, state: conCita ? 'EN_ESPERA_CONSULTA' : 'PENDIENTE_CITA', tTriSave: ctx.now, enf: ctx.user.u, calledAt: null,
+    ...(conCita && { llego: ctx.now, tLlega: Math.max(ctx.now, t.cita.at) }),
+  };
   const changes = { turns: [turn], audit: [auditEntry(ctx, 'TRIAJE_GUARDADO', `${id} prioridad ${r.prio}`)] };
   const p = db.patients.find((x) => x.dni === t.dni);
   if (p && (allergies ?? '').trim() !== (p.alg ?? '')) {
@@ -220,8 +225,10 @@ export function saveTriage(db, ctx, id, vitals, allergies) {
   return {
     changes,
     toast: [r.prio === 'CRITICA' ? 'crit' : 'ok',
-      `Triaje de ${id} guardado · prioridad ${PRIO[r.prio][0].toUpperCase()}. ${r.prio === 'CRITICA'
-        ? 'Admisión debe darle un sobrecupo para hoy.' : 'El paciente pasa a Admisión para sacar su cita.'}`],
+      `Triaje de ${id} guardado · prioridad ${PRIO[r.prio][0].toUpperCase()}. ${conCita
+        ? `Ya tiene cita a las ${fmtHora(t.cita.at)} con ${medName(db, t.cita.med)}: pasa a la espera de su médico.`
+        : r.prio === 'CRITICA' ? 'Asígnele ahora un sobrecupo para hoy.' : 'Asígnele ahora su cita: no necesita volver a Admisión.'}`],
+    result: turn,
   };
 }
 
@@ -275,11 +282,69 @@ export function checkIn(db, ctx, id) {
       ? `La cita de ${id} fue el ${fmtD(t.cita.at)} y venció. Reprográmela o márquela como no asistida.`
       : `La cita de ${id} es el ${fmtLongDay(t.cita.at)}. La llegada se registra el mismo día de la cita.`);
   }
+  if (!t.tTriSave) {
+    // Reservó su cita por web o por teléfono: todavía no pasó por Caja ni por triaje. Su llegada real es ahora.
+    const p = db.patients.find((x) => x.dni === t.dni);
+    const exonerado = SIS_EXONERADO.includes(p?.sis);
+    const to = exonerado ? 'EN_ESPERA_TRIAJE' : 'PENDIENTE_PAGO';
+    assertTransition(t, to);
+    const turn = {
+      ...t, _prev: turnKey(t), state: to, t0: ctx.now,
+      ...(exonerado && { tPago: ctx.now, pago: { metodo: 'SIS', monto: 0, comp: null, by: ctx.user.u, t: ctx.now } }),
+    };
+    return {
+      changes: { turns: [turn], audit: [auditEntry(ctx, 'LLEGADA_CITA', `${id} llegó a su cita reservada de las ${fmtHora(t.cita.at)}`)] },
+      toast: ['ok', exonerado
+        ? `Llegada registrada. ${id} tiene SIS: pasa a triaje y luego a su cita de las ${fmtHora(t.cita.at)}.`
+        : `Llegada registrada. ${id} paga primero en Caja, pasa a triaje y luego a su cita de las ${fmtHora(t.cita.at)}.`],
+      result: { ...turn, _prev: undefined },
+    };
+  }
   assertTransition(t, 'EN_ESPERA_CONSULTA');
   const turn = { ...t, state: 'EN_ESPERA_CONSULTA', llego: ctx.now, tLlega: Math.max(ctx.now, t.cita.at) };
   return {
     changes: { turns: [turn], audit: [auditEntry(ctx, 'LLEGADA_CITA', `${id} llegó a su cita de las ${fmtHora(t.cita.at)}`)] },
     toast: ['ok', `Llegada registrada. ${id} espera en sala: cita de las ${fmtHora(t.cita.at)} con ${medName(db, t.cita.med)} (${t.cita.area}).`],
+    result: turn,
+  };
+}
+
+/* ---------- Cita por web o por teléfono ---------- */
+
+/** Paciente con historia que coincide con DNI y fecha de nacimiento (o null). */
+export const pacienteVerificado = (db, dni, nac) =>
+  db.patients.find((p) => p.dni === String(dni).trim() && p.nac === nac) ?? null;
+
+/** Cita o turno activo de un paciente, con el nombre del médico (lo que ve el paciente al identificarse). */
+export function citaActivaDe(db, dni) {
+  const t = activeTurnOf(db, dni);
+  if (!t) return null;
+  return { id: t.id, state: t.state, cita: t.cita ? { ...t.cita, medico: medName(db, t.cita.med) } : null };
+}
+
+/**
+ * Reserva de cita por web (el propio paciente) o por teléfono (Admisión). Requiere DNI y fecha de nacimiento
+ * de un paciente con historia y que no tenga otra cita o turno activo. Sin triaje no hay prioridad: la cita es
+ * un cupo normal del horario del médico. El día de la cita el paciente registra su llegada en Admisión.
+ */
+export function reservarCita(db, ctx, { dni, nac, cita, canal }) {
+  const p = pacienteVerificado(db, dni, nac);
+  if (!p) throw new DomainError('No encontramos un paciente con ese DNI y esa fecha de nacimiento.');
+  const act = activeTurnOf(db, p.dni);
+  if (act) {
+    throw new DomainError(`Ya tiene ${act.state === 'CITADO' ? 'una cita pendiente' : 'un turno activo'} (${act.id}). Solo puede tener una a la vez: espere a ser atendido o pida en Admisión que la anulen.`);
+  }
+  const c = { esp: cita.esp, med: cita.med, at: +cita.at, sobre: false };
+  const { area } = validarCita(db, c, { now: ctx.now, prio: 'NORMAL' });
+  const id = nextTurnId(db.turns, ctx.now);
+  const turn = {
+    id, dni: p.dni, adm: ctx.user.u, state: 'CITADO', prio: null, t0: ctx.now, tCita: ctx.now,
+    cita: { ...c, area, by: ctx.user.u, t: ctx.now },
+  };
+  return {
+    changes: { turns: [turn], audit: [auditEntry(ctx, 'CITA_WEB', `${id} reservó su cita por ${canal}`)] },
+    toast: ['ok', `Cita reservada: ${citaText(db, turn.cita)}.`],
+    result: turn,
   };
 }
 
@@ -340,6 +405,10 @@ export function createUser(db, ctx, f) {
   if (db.users.some((x) => x.u === u)) throw new DomainError('Ese usuario ya existe.');
   if (!f.n.trim()) throw new DomainError('Ingrese el nombre completo.');
   if (!ROLES[f.role]) throw new DomainError('Rol no válido.');
+  const { prefix } = ROLES[f.role];
+  if (!u.startsWith(prefix) || u.length <= prefix.length) {
+    throw new DomainError(`El usuario de ${ROLES[f.role].n} empieza con «${prefix}», por ejemplo ${prefix}apellido.`);
+  }
   if (f.role === 'med' && !/^CMP-\d{5}$/.test(f.col.trim())) throw new DomainError('La colegiatura del médico debe tener el formato CMP-00000.');
   if (f.role === 'enf' && f.col.trim() && !/^CEP-\d{5}$/.test(f.col.trim())) throw new DomainError('La colegiatura de enfermería debe tener el formato CEP-00000.');
   if (f.role === 'med' && !ESPECIALIDADES.some((e) => e.k === f.esp)) throw new DomainError('Elija la especialidad del médico.');

@@ -134,7 +134,6 @@ async function main() {
   db = await load('m.consulta');
   const abiertos = db.turns.filter((x) => x.state === 'EN_CONSULTA' && x.dest === AREA);
   const mios = db.turns.filter((x) => x.state === 'EN_ESPERA_CONSULTA' && x.cita?.med === 'm.consulta');
-  const ajenos = db.turns.filter((x) => x.state === 'EN_ESPERA_CONSULTA' && x.cita && x.cita.med !== 'm.consulta');
   if (abiertos.length) log('6 Consulta', false, `${AREA} ya tiene una atención abierta (${abiertos[0].id}); no se interrumpe`);
   else if (mios.length < 2) log('6 Consulta', false, `se necesitan 2 pacientes en espera de m.consulta y hay ${mios.length}`);
   else {

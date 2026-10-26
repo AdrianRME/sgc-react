@@ -1,6 +1,8 @@
-.rooms { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }
-.room { display: flex; align-items: center; gap: 12px; padding: 12px 14px; border: 1px solid var(--line); border-radius: var(--r-panel); background: var(--surface); }
-.room.busy { border-color: var(--role-line); background: var(--role-soft); }
+.rooms { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; margin-bottom: 16px; }
+.room { display: flex; align-items: center; gap: 12px; padding: 12px 14px; border: 1px solid var(--line); border-left: 5px solid var(--line-strong); border-radius: var(--r-panel); background: var(--surface); transition: background-color 0.3s, border-color 0.3s; }
+.room.busy { border-color: var(--role-line); border-left-color: var(--role); background: linear-gradient(90deg, var(--role-soft), var(--surface)); }
+.room-st { padding: 3px 10px; border-radius: 999px; background: var(--surface-2); }
+.room-st.on { background: var(--role); color: var(--on-strong) !important; }
 .room-b { min-width: 0; flex: 1; display: flex; flex-direction: column; gap: 2px; font-size: var(--fs-sm); }
 .room-b > span { color: var(--ink-2); }
 .room-b .calling { color: var(--info-text); font-weight: 600; font-size: var(--fs-xs); }
@@ -12,20 +14,22 @@
 @media (max-width: 1500px) { .board { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
 @media (max-width: 900px) { .board { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
 @media (max-width: 600px) { .board { grid-template-columns: minmax(0, 1fr); } }
-.col { min-width: 0; display: flex; flex-direction: column; gap: 10px; padding: 12px; border-radius: var(--r-panel); background: var(--sunken); }
+.col { min-width: 0; display: flex; flex-direction: column; gap: 10px; padding: 12px; border-radius: var(--r-panel); background: color-mix(in oklab, var(--c) 8%, var(--sunken)); border-top: 5px solid var(--c); }
 .col header { display: flex; align-items: center; gap: 10px; padding: 2px 4px; }
 .col header i { width: 14px; height: 14px; border-radius: 50%; background: var(--c); }
 .col header.wait i { background: var(--surface); box-shadow: inset 0 0 0 3px var(--c); }
 .col header h2 { font-size: var(--fs-md); flex: 1; }
+.col header .count { min-width: 26px; padding: 2px 8px; border-radius: 999px; background: var(--c); color: #fff; font-weight: 700; text-align: center; }
 .cards { display: flex; flex-direction: column; gap: 8px; min-height: 80px; }
-.card { display: flex; flex-direction: column; gap: 6px; padding: 12px; border-radius: 12px; background: var(--surface); border: 1px solid var(--line); border-left: 4px solid var(--c); }
+.card { display: flex; flex-direction: column; gap: 6px; padding: 12px; border-radius: 12px; background: linear-gradient(135deg, color-mix(in oklab, var(--c) 9%, var(--surface)), var(--surface) 60%); border: 1px solid var(--line); border-left: 5px solid var(--c); box-shadow: 0 4px 12px -10px rgb(0 0 0 / 0.4); }
 .card.crit { border-left-color: var(--crit); }
 .card.late { box-shadow: 0 0 0 1px color-mix(in oklab, var(--crit) 45%, transparent); }
 .card-h { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
 .card-h .tcode { font-size: 1.25rem; }
 .card-n { font-size: var(--fs-sm); font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.card-f { display: flex; align-items: center; justify-content: space-between; gap: 8px; font-size: var(--fs-xs); color: var(--muted); }
+.card-f { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 4px 8px; font-size: var(--fs-xs); color: var(--muted); }
 .card-f .to { display: inline-flex; align-items: center; gap: 4px; color: var(--info-text); font-weight: 600; }
 .card-f svg { width: 13px; height: 13px; }
+.card-f .eta { color: var(--ink-2); font-weight: 600; }
 .col .empty { padding: 18px 8px; }
 .col .empty .i3d { width: 36px; height: 36px; }

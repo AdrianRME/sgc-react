@@ -1,11 +1,12 @@
 import { useMemo, useState } from 'react';
 import { ArrowDownRight, ArrowUpRight, Download, Minus } from 'lucide-react';
 import { useStore } from '../../store/useStore.js';
-import { AREAS, DAY, PRIO, WAIT_TARGET } from '../../lib/constants.js';
+import { AREAS, DAY, HISTORY_DAYS, PRIO, WAIT_TARGET } from '../../lib/constants.js';
 import {
   RANGES, periodOf, slice, summarize, series, heatmap, topDx, destinos, perfil, cumplimiento, porConsultorio, porEspecialidad, delta, toCSV,
+  afluenciaPrevista, HORAS_AFLUENCIA,
 } from '../../lib/analytics.js';
-import { DOW_NAMES, fmtDay, fmtLongDay, fmtMin, fmtNum, fmtPct, isoDay } from '../../lib/format.js';
+import { DOW_NAMES, fmtDay, fmtLongDay, fmtMin, fmtNum, fmtPct, isoDay, startOfDay } from '../../lib/format.js';
 import { downloadText } from '../../lib/download.js';
 import { useQuery } from '../../hooks/useQuery.js';
 import { useNow } from '../../hooks/useNow.js';
@@ -67,6 +68,10 @@ export default function Tablero() {
   // Se vuelve a pedir cuando cambia algún turno de hoy (llegan por tiempo real)
   const live = db.turns.map((t) => `${t.id}${t.state}`).join('|');
   const q = useQuery(() => repo.indicadores(from, to), `${from}|${to}|${live}`);
+  // RF-15: la previsión usa las últimas semanas, sea cual sea el periodo elegido (se calcula una vez al día)
+  const hoy = isoDay(now);
+  const qa = useQuery(() => repo.indicadores(isoDay(startOfDay(now) - HISTORY_DAYS * DAY), hoy), hoy);
+  const prevision = qa.data ? afluenciaPrevista(qa.data, now) : null;
 
   const v = useMemo(() => {
     if (!q.data) return null;
@@ -188,6 +193,10 @@ export default function Tablero() {
               />
             </Panel>
 
+            <Panel title="Afluencia prevista para los próximos días" sub={`Promedio de llegadas del mismo día y hora en las últimas ${prevision?.semanas ?? 4} semanas, en todo el centro`} className="span-3">
+              <Prevision v={prevision} error={qa.error} />
+            </Panel>
+
             <Panel title="Morbilidad: diagnósticos más frecuentes" sub="Códigos CIE-10 registrados en el periodo" className="span-2">
               <BarList
                 color="var(--cat-1)"
@@ -273,6 +282,59 @@ export default function Tablero() {
             </Panel>
           </div>
         </div>
+      )}
+    </>
+  );
+}
+
+const num1 = (x) => x.toLocaleString('es-PE', { maximumFractionDigits: 1 });
+const diaPrevisto = (t, now) => {
+  const hoy = startOfDay(now);
+  if (t === hoy) return 'Hoy';
+  if (t === startOfDay(hoy + DAY + DAY / 2)) return 'Mañana';
+  const d = fmtLongDay(t);
+  return d.charAt(0).toUpperCase() + d.slice(1);
+};
+
+/** Afluencia prevista (RF-15): llegadas por día y hora, franja de mayor afluencia y precisión de la previsión. */
+function Prevision({ v, error }) {
+  const now = useNow(60_000);
+  if (error) return <Msg tone="crit">No se pudo calcular la previsión: {error}</Msg>;
+  if (!v) return <div className="skeleton" style={{ height: 120 }} />;
+  if (!v.dias.length) return <Msg tone="info">Aún no hay semanas anteriores para prever la afluencia.</Msg>;
+  const max = Math.max(...v.dias.flatMap((d) => d.pred), 1);
+  const f = v.pico.franja;
+  return (
+    <>
+      <p className="prev-lead">
+        Mayor afluencia prevista: <b>{diaPrevisto(v.pico.t, now).toLowerCase()} de {f.ini}:00 a {f.fin}:00</b>, con unas {num1(f.porHora)} llegadas por hora.
+      </p>
+      <div className="tblw">
+        <table className="tbl prev">
+          <thead><tr><th>Día</th><th className="num">Llegadas previstas</th><th>Mayor afluencia</th><th>Por hora, de {HORAS_AFLUENCIA[0]} a {HORAS_AFLUENCIA.at(-1) + 1} h</th></tr></thead>
+          <tbody>
+            {v.dias.map((d) => (
+              <tr key={d.t}>
+                <td>{diaPrevisto(d.t, now)}</td>
+                <td className="num">{fmtNum(Math.round(d.total))}</td>
+                <td>{d.franja.ini}:00 a {d.franja.fin}:00</td>
+                <td>
+                  <span className="hbars" role="img" aria-label={`Llegadas previstas por hora: ${d.pred.map((x, i) => `${HORAS_AFLUENCIA[i]} h ${num1(x)}`).join(', ')}`}>
+                    {d.pred.map((x, i) => (
+                      <i key={i} className={HORAS_AFLUENCIA[i] >= d.franja.ini && HORAS_AFLUENCIA[i] < d.franja.fin ? 'peak' : ''} style={{ height: `${Math.max(4, (x / max) * 100)}%` }} title={`${HORAS_AFLUENCIA[i]} h: ${num1(x)}`} />
+                    ))}
+                  </span>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+      {v.evaluados > 0 && (
+        <p className="prev-note">
+          Precisión: al prever los últimos {v.evaluados} días con sus semanas anteriores, el error medio fue de ±{num1(v.mae)} llegadas
+          por hora (llegaron {num1(v.mediaHora)} por hora en promedio).
+        </p>
       )}
     </>
   );

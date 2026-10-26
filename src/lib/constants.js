@@ -18,28 +18,65 @@ export const IDLE_WARN_MS = 60_000;
  */
 export const ROLES = {
   adm: {
-    n: 'Admisión', slug: 'admision', icon: 'idcard', space: 'Espacio de Admisión', tag: 'Registro, citas y llegada de pacientes',
+    n: 'Admisión', slug: 'admision', icon: 'idcard', prefix: 'a.', space: 'Espacio de Admisión', tag: 'Registro, citas y llegada de pacientes',
     queue: 'citas',
-    sections: [['registro', 'Registro y turnos', 'ticket'], ['citas', 'Citas', 'calendar'], ['flujo', 'Flujo en vivo', 'satellite']],
+    // En el orden en que llega el paciente: ventanilla, cita después del triaje, agenda y el flujo del centro
+    sections: [
+      ['registro', 'Ventanilla', 'ticket'], ['citas', 'Asignar citas', 'calendar'], ['agenda', 'Agenda de citas', 'clipboard'],
+      ['flujo', 'Flujo en vivo', 'satellite'],
+    ],
   },
   caj: {
-    n: 'Caja', slug: 'caja', icon: 'scroll', space: 'Espacio de Caja', tag: 'Cobro de la consulta y comprobantes',
+    n: 'Caja', slug: 'caja', icon: 'scroll', prefix: 'c.', space: 'Espacio de Caja', tag: 'Cobro de la consulta y comprobantes',
     sections: [['cobros', 'Cobros', 'scroll']],
   },
   enf: {
-    n: 'Enfermería', slug: 'triaje', icon: 'thermometer', space: 'Espacio de Triaje', tag: 'Signos vitales y prioridad',
+    n: 'Enfermería', slug: 'triaje', icon: 'thermometer', prefix: 'e.', space: 'Espacio de Triaje', tag: 'Signos vitales y prioridad',
     sections: [['lista', 'Lista de triaje', 'clipboard']],
   },
   med: {
-    n: 'Médico', slug: 'consulta', icon: 'stethoscope', space: 'Espacio del Médico', tag: 'Consulta, diagnóstico y receta',
+    n: 'Médico', slug: 'consulta', icon: 'stethoscope', prefix: 'm.', space: 'Espacio del Médico', tag: 'Consulta, diagnóstico y receta',
     sections: [['atencion', 'Mis pacientes', 'stethoscope'], ['historias', 'Historias clínicas', 'folder']],
   },
   jef: {
-    n: 'Jefatura', slug: 'jefatura', icon: 'barchart', space: 'Espacio de Jefatura', tag: 'Indicadores, usuarios y control',
+    n: 'Jefatura', slug: 'jefatura', icon: 'barchart', prefix: 'j.', space: 'Espacio de Jefatura', tag: 'Indicadores, usuarios y control',
     sections: [
       ['tablero', 'Tablero gerencial', 'barchart'], ['flujo', 'Flujo en vivo', 'satellite'], ['usuarios', 'Usuarios', 'people'],
       ['horarios', 'Horarios médicos', 'calendar'], ['auditoria', 'Auditoría', 'scroll'], ['umbrales', 'Umbrales clínicos', 'knobs'],
     ],
+  },
+};
+
+/**
+ * El usuario empieza con el prefijo de su rol (a.admision, m.cardio…). Así el inicio de sesión reconoce el área
+ * mientras se escribe, sin consultar al servidor: no revela si la cuenta existe.
+ */
+export const roleFromUsername = (u) => {
+  const x = String(u || '').trim().toLowerCase();
+  return Object.keys(ROLES).find((k) => x.startsWith(ROLES[k].prefix)) ?? null;
+};
+
+/** Guía de cada espacio: qué hace el rol y sus cuatro pasos (encabezado del espacio e inicio de sesión). */
+export const GUIDE = {
+  adm: {
+    lead: 'Identifique al paciente por DNI y verifique el SIS. Con SIS pasa directo a triaje; sin seguro, primero paga en Caja. La cita se la dan en el triaje; el día de su cita, registre aquí su llegada.',
+    steps: ['Busque al paciente por DNI', 'Verifique el SIS', 'Genere el turno y entregue el ticket', 'El día de la cita, registre su llegada'],
+  },
+  caj: {
+    lead: 'Cobre la consulta a los pacientes sin seguro y entregue la boleta. Al pagar, el paciente pasa a la lista de triaje.',
+    steps: ['Elija al paciente por cobrar', 'Elija el medio de pago', 'Registre el pago', 'Entregue la boleta'],
+  },
+  enf: {
+    lead: 'Llame al siguiente paciente y registre sus signos vitales. El sistema calcula el IMC y la prioridad, y al terminar propone su cita: confírmela y el paciente va directo a su consulta.',
+    steps: ['Llame al siguiente', 'Inicie el triaje', 'Registre los signos vitales', 'Guarde y confirme la cita'],
+  },
+  med: {
+    lead: 'Solo ve a los pacientes que tienen cita con usted y ya llegaron, ordenados por prioridad clínica y hora de la cita. Al cerrar la atención se emite la receta.',
+    steps: ['Revise su agenda de hoy', 'Llame al siguiente', 'Inicie la atención', 'Diagnóstico, receta y alta'],
+  },
+  jef: {
+    lead: 'Supervise los tiempos de atención, administre las cuentas del personal, registre los umbrales clínicos y revise la auditoría.',
+    steps: ['Revise el tablero gerencial', 'Siga el flujo en vivo', 'Gestione usuarios y umbrales', 'Revise la auditoría'],
   },
 };
 

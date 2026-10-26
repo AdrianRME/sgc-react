@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { buildSeed } from '../seed.js';
-import { toFacts, summarize, periodOf, series, heatmap, topDx, cumplimiento, slice, delta, toCSV, grupoEdad } from '../analytics.js';
+import { toFacts, summarize, periodOf, series, heatmap, topDx, cumplimiento, slice, delta, toCSV, grupoEdad, afluenciaPrevista } from '../analytics.js';
 import { evalTriage } from '../clinical.js';
 import { TH_DEFAULT, DAY, ACTIVE_STATES } from '../constants.js';
 import { diffEvents } from '../activity.js';
@@ -116,5 +116,36 @@ describe('centro de notificaciones', () => {
     const other = db.users.find((x) => x.role === 'med' && x.u !== doc.u);
     expect(diffEvents(before, db, doc).some((e) => e.tone === 'crit' && e.text.includes(t.id))).toBe(true);
     expect(diffEvents(before, db, other).some((e) => e.text.includes(t.id))).toBe(false);
+  });
+});
+
+describe('afluencia prevista (RF-15)', () => {
+  // Lunes 26 de octubre de 2026, 07:30
+  const now = new Date(2026, 9, 26, 7, 30).getTime();
+  const llegadas = (day, porHora) => Object.entries(porHora).flatMap(([h, n]) =>
+    Array.from({ length: n }, () => ({ t0: new Date(day).setHours(+h, 0, 0, 0) })));
+  const lunes = (k) => new Date(2026, 9, 26 - 7 * k).getTime();
+  const facts = [
+    ...[1, 2, 3, 4].flatMap((k) => llegadas(lunes(k), { 8: 10 + (k % 2 ? 1 : -1), 9: 9, 10: 3, 14: 2 })),
+    ...llegadas(new Date(2026, 9, 24).getTime(), { 8: 4 }), // sábado anterior
+  ];
+
+  it('prevé cada hora con el promedio del mismo día en las semanas anteriores y ubica la franja de mayor afluencia', () => {
+    const p = afluenciaPrevista(facts, now);
+    const hoy = p.dias[0];
+    expect(hoy.t).toBe(new Date(2026, 9, 26).getTime());
+    expect(hoy.pred[1]).toBe(10); // 8 h
+    expect(hoy.total).toBe(24);
+    expect(hoy.franja).toEqual({ ini: 8, fin: 10, porHora: 10 });
+    expect(p.pico.t).toBe(hoy.t);
+    expect(p.dias.some((d) => new Date(d.t).getDay() === 0)).toBe(false);
+  });
+
+  it('mide su error en la última semana con las semanas previas a cada día', () => {
+    const p = afluenciaPrevista(facts, now);
+    // Se evaluaron el lunes anterior (con 3 semanas) y el sábado (sin llegadas los sábados previos: error 4 a las 8 h)
+    expect(p.evaluados).toBeGreaterThan(0);
+    expect(p.mae).toBeGreaterThan(0);
+    expect(afluenciaPrevista([], now)).toBeNull();
   });
 });

@@ -12,17 +12,23 @@
 :root[data-theme='dark'] { color-scheme: dark; }
 
 :root {
-  /* Superficies: verde agua de las paredes de un centro de salud, no gris neutro */
-  --paper: light-dark(#e9efed, #0b1618);
-  --surface: light-dark(#fbfcfc, #122125);
-  --surface-2: light-dark(#f1f5f4, #17292d);
-  --sunken: light-dark(#e0e8e6, #0e1c1f);
-  --line: light-dark(#d2ddda, #23363a);
-  --line-strong: light-dark(#b5c4c0, #34494e);
-  --ink: light-dark(#0f2429, #e3edeb);
-  --ink-2: light-dark(#44595e, #a6b9ba);
-  --muted: light-dark(#6b7e83, #7f9396);
-  --overlay: light-dark(rgb(15 36 41 / 0.42), rgb(3 10 12 / 0.62));
+  /* Superficies: gris azulado clínico, como el prototipo navegable del informe (Anexo A) */
+  --paper: light-dark(#eef3f8, #0a1220);
+  --surface: light-dark(#ffffff, #111b2d);
+  --surface-2: light-dark(#f4f7fb, #16223a);
+  --sunken: light-dark(#e3eaf2, #0d1626);
+  --line: light-dark(#d6dfea, #22314a);
+  --line-strong: light-dark(#b7c5d6, #33455f);
+  --ink: light-dark(#0f1d33, #e4ecf7);
+  --ink-2: light-dark(#44546b, #a9b8cc);
+  --muted: light-dark(#6b7a8f, #8090a6);
+  --overlay: light-dark(rgb(15 29 51 / 0.42), rgb(3 7 15 / 0.62));
+
+  /* Marca clínica: azul médico y azul marino de la barra lateral (los del prototipo) */
+  --brand: light-dark(#1f6fb8, #4b9be3);
+  --brand-strong: light-dark(#18599a, #6aafea);
+  --navy: #0d1b36;
+  --navy-2: #142a52;
 
   /* Estaciones de la ruta = espacios de cada rol (validados para daltonismo entre vecinas) */
   --st-adm: light-dark(#4a3aa7, #9085e9);
@@ -90,6 +96,13 @@
   --ease: cubic-bezier(0.2, 0.8, 0.2, 1);
 }
 
+/* Especialidades: color de la hora en las tarjetas de cita */
+:root {
+  --esp-MG: var(--st-med);
+  --esp-PED: light-dark(#0f9d8f, #22b8a8);
+  --esp-CAR: light-dark(#c2366b, #e0588a);
+}
+
 /* Cada espacio toma el color de su estación */
 [data-role='adm'] { --role: var(--st-adm); --role-strong: var(--st-adm-strong); }
 [data-role='caj'] { --role: var(--st-caj); --role-strong: var(--st-caj-strong); }
@@ -100,3 +113,11 @@
   --role-soft: color-mix(in oklab, var(--role, var(--st-med)) 12%, var(--surface));
   --role-line: color-mix(in oklab, var(--role, var(--st-med)) 45%, var(--line));
 }
+
+/* Colores de prioridad para tarjetas y filtros (no son roles) */
+[data-role='crit'] { --role: var(--crit); --role-strong: var(--crit-text); }
+[data-role='warn'] { --role: var(--warn); --role-strong: var(--warn-text); }
+[data-role='good'] { --role: var(--good); --role-strong: var(--good-text); }
+
+/* Acentos de la app: azul médico en todos los espacios (las estaciones conservan su color en la ruta) */
+.app[data-role], .cw-page { --role: var(--brand); --role-strong: var(--brand-strong); }

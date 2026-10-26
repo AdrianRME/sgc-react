@@ -10,15 +10,19 @@ Hecho con **React 19 + Vite**, publicado en **Vercel**, con **Supabase** (Postgr
 
 | Espacio | Secciones |
 |---|---|
-| Admisión (`#/admision`) | Registro por DNI o apellido, validación SIS, turno y ticket; **citas** después del triaje y llegada de los citados; flujo en vivo con nombres |
+| Admisión (`#/admision`) | **Ventanilla**: registro por DNI o apellido en tres pasos (identificar, verificar SIS, turno) y llegada de los citados, con tarjetas por etapa que filtran a los pacientes del día. **Asignar citas** (respaldo, si Enfermería no la dio), **Agenda de citas** y flujo en vivo |
 | Caja (`#/caja`) | Cobro de la consulta al no asegurado (efectivo con vuelto, tarjeta o billetera), boleta y caja del día. Con SIS no se cobra |
-| Enfermería (`#/triaje`) | Cola de triaje; signos vitales con estado por signo, prioridad en vivo, IMC y tendencia de visitas anteriores |
+| Enfermería (`#/triaje`) | Cola de triaje; signos vitales con estado por signo, prioridad en vivo, IMC y tendencia de visitas anteriores; **al terminar, la cita** con la sugerencia del sistema y su constancia |
 | Médico (`#/consulta`) | Solo sus pacientes con cita que ya llegaron, por prioridad y hora de la cita; agenda del día; ficha, CIE-10, receta con control de alergias y destino; historias clínicas |
 | Jefatura (`#/jefatura`) | Tablero gerencial, flujo en vivo (solo códigos), usuarios, **horarios médicos**, auditoría y umbrales clínicos |
-| Sala (`#/sala`, pública) | Llamado actual con tono y voz, próximos turnos; nunca muestra nombres ni DNI |
+| Sacar cita (`#/cita`, pública) | El paciente con historia reserva su cita con su DNI y su fecha de nacimiento: especialidad, día y hora según el horario del médico. Una cita activa a la vez; tras 5 intentos fallidos el DNI se bloquea 15 min. Admisión usa la misma pantalla para las citas por teléfono |
+| Sala (`#/sala`, pública) | Llamado actual con tono y voz, próximos turnos con su **espera aproximada**; nunca muestra nombres ni DNI |
 
 Comunes a todos los espacios:
 
+- **Inicio de sesión por área.** Cada usuario empieza con el prefijo de su rol: `a.` Admisión, `c.` Caja,
+  `e.` Enfermería, `m.` Médico y `j.` Jefatura. Al escribirlo, la pantalla muestra solo el ícono, el espacio y los
+  pasos de esa área. Lo reconoce por el prefijo, sin consultar al servidor, así que no revela si la cuenta existe.
 - **La ruta en vivo**, de Admisión a Alta, con los turnos que avanzan entre etapas.
 - **Paleta de comandos** con <kbd>Ctrl</kbd> + <kbd>K</kbd>, para ir a cualquier sección o llamar al siguiente.
 - **Centro de avisos** con lo que hacen las otras estaciones. Los casos críticos además aparecen como aviso emergente.
@@ -39,8 +43,37 @@ Comunes a todos los espacios:
   - morbilidad CIE-10;
   - destino de los pacientes;
   - perfil por etapas de vida (MINSA);
-  - productividad por consultorio.
+  - productividad por consultorio;
+  - **afluencia prevista** para los próximos días.
 - **Resumen en tabla** con exportación a CSV.
+
+## Espera aproximada y afluencia prevista (RF-14 y RF-15)
+
+**Espera aproximada (RF-14).** La fórmula es la del capítulo IV del informe:
+
+```
+espera = resto de la atención en curso + turnos por delante × tiempo medio
+```
+
+- **Colas:** hay un solo módulo de triaje, por orden de llegada. En consulta, cada médico tiene su cola, por
+  prioridad y hora de la cita, y nadie pasa antes de su cita.
+- **Tiempo medio:** el promedio de las últimas 20 atenciones del día en esa etapa (en consulta, las del mismo
+  médico). Con menos de 3, se usa una referencia: 7 min en triaje y la duración del cupo en consulta.
+- **Dónde se ve:**
+  - en la pantalla de sala, como un rango de 5 minutos;
+  - en el ticket y en la constancia de una cita para hoy;
+  - en las tarjetas del flujo en vivo.
+- **Dónde se calcula:** en `src/lib/espera.js` y, para la sala pública, en `sgc_interno.esperas()`.
+- **Precisión:** `pruebas-carga/validar-espera.mjs` la mide con datos simulados (los supuestos del Anexo E):
+  - espera de triaje: error medio de 3,8 min, frente a 27,4 min de la base;
+  - espera de consulta: error medio de 2,9 min, frente a 8,1 min.
+
+**Afluencia prevista (RF-15).** Está en el tablero de Jefatura y usa la línea base del informe: para cada hora, el
+promedio de llegadas del mismo día de la semana en las 4 semanas anteriores.
+
+- Muestra los próximos 6 días de atención, con su franja de mayor afluencia.
+- Mide su propio error: prevé cada día de la última semana con las semanas anteriores a él y lo compara con lo que
+  llegó.
 
 ## Pago y citas
 
@@ -48,7 +81,9 @@ Comunes a todos los espacios:
    triaje. Si no tiene seguro, el turno queda **pendiente de pago**.
 2. **Caja** cobra la consulta (S/ 20.00) y emite la boleta `B001-…`. Recién entonces el paciente entra a la lista de
    triaje: la base no deja llamar a triaje a quien no pagó.
-3. **Triaje** registra los signos y calcula la prioridad. El paciente vuelve a Admisión por su cita.
+3. **Triaje** registra los signos y calcula la prioridad. Ahí mismo, Enfermería confirma la cita que propone el sistema
+   y entrega la constancia: el paciente no vuelve a Admisión. Si queda sin cita, Admisión la asigna en «Asignar
+   citas».
 4. **Citas**:
    - El sistema propone la especialidad: Pediatría para menores de 12 años, Cardiología si el motivo es
      cardiovascular y, si no, Medicina General.
@@ -61,7 +96,12 @@ Comunes a todos los espacios:
 5. Si la cita es **hoy**, el paciente pasa a la espera de consulta. Si es **otro día**, el turno queda **citado**. Ese
    día, Admisión registra su llegada y el paciente pasa directo a la espera de su médico, sin pagar ni pasar de nuevo
    por triaje.
-6. **Cómo se sabe quién entra con cita:**
+6. **Cita reservada por web o por teléfono** (`#/cita` o «Cita por teléfono» en la Agenda):
+   - **Reserva:** el paciente con historia clínica elige especialidad, médico, día y hora en los cupos del horario.
+     Nunca hay sobrecupo, porque sin triaje no hay prioridad.
+   - **Día de la cita:** Admisión registra su llegada. Sin SIS paga en Caja; con SIS no paga. Pasa por triaje, que la
+     regla 3 del informe exige, y del triaje va directo a la espera de su médico, sin volver a Admisión.
+7. **Cómo se sabe quién entra con cita:**
    - Cada médico ve solo a los pacientes que tienen cita con él y ya llegaron.
    - La lista se ordena por prioridad clínica y luego por la hora de la cita.
    - Su espera cuenta desde la hora de la cita.
@@ -111,7 +151,7 @@ Seguridad, despliegue y verificación: [`DESPLIEGUE.md`](DESPLIEGUE.md).
 ```bash
 npm install
 npm run dev        # http://localhost:5173
-npm test           # 49 pruebas: lógica clínica, pago, agenda de citas, flujo, indicadores, avisos y seguridad
+npm test           # 57 pruebas: lógica clínica, pago, agenda de citas, espera, afluencia, flujo, indicadores, avisos y seguridad
 npm run lint       # oxlint, sin advertencias
 npm run build      # versión de producción en /dist
 ```

@@ -14,6 +14,8 @@ import { Badge, Empty, Field, Msg, Panel, PrioBadge, StateBadge, TurnCode, WaitT
 import { noShowDialog, useConfirm } from '../hooks/useConfirm.jsx';
 import { Icon3D } from '../components/Icon3D.jsx';
 import { VitalTrends } from '../components/PatientTimeline.jsx';
+import { CitaForm } from '../components/CitaForm.jsx';
+import { useDocuments } from '../hooks/useDocuments.jsx';
 import '../components/charts/charts.css';
 import './workspaces.css';
 
@@ -33,7 +35,7 @@ const BODY = [
 ];
 const STATUS_TXT = { crit: 'Crítico', warn: 'Alerta', ok: 'Normal' };
 
-function TriageForm({ turn, patient }) {
+function TriageForm({ turn, patient, onSaved }) {
   const { run, th } = useStore();
   const hist = usePatientHistory(patient.dni);
   const [v, setV] = useState(EMPTY);
@@ -47,11 +49,12 @@ function TriageForm({ turn, patient }) {
   const last = prev[0];
   const set = (k) => (e) => setV((x) => ({ ...x, [k]: e.target.value }));
 
-  const submit = (e) => {
+  const submit = async (e) => {
     e.preventDefault();
     setTried(true);
     if (Object.keys(validateVitals(v)).length) return;
-    run(saveTriage, turn.id, v, alg);
+    const res = await run(saveTriage, turn.id, v, alg);
+    if (res.ok) onSaved(turn.id);
   };
 
   return (
@@ -120,7 +123,7 @@ function TriageForm({ turn, patient }) {
       {anyVital && !r.c.length && !r.w.length && <Msg tone="ok">Sin alertas en los valores ingresados: prioridad NORMAL.</Msg>}
 
       <div className="actions">
-        <button className="btn lg"><Check /> Finalizar triaje</button>
+        <button className="btn lg"><Check /> Finalizar triaje y dar cita</button>
         <button type="button" className="btn ghost" onClick={() => run(returnToQueue, turn.id)}><Undo2 /> Devolver a la lista</button>
       </div>
 
@@ -137,10 +140,18 @@ function TriageForm({ turn, patient }) {
 export default function Triaje() {
   const { db, run, patient } = useStore();
   const now = useNow();
+  const docs = useDocuments();
   const [ask, dialog] = useConfirm();
+  // Al terminar el triaje, la cita se da aquí mismo: el paciente no vuelve a Admisión
+  const [citaFor, setCitaFor] = useState(null);
   const queue = db.turns.filter((t) => QUEUE.enf.includes(t.state)).sort(byArrival);
   const current = db.turns.find((t) => t.state === 'EN_TRIAJE');
+  const porCitar = citaFor && db.turns.find((t) => t.id === citaFor && t.state === 'PENDIENTE_CITA');
   const pat = (t) => patient(t.dni);
+  const citaLista = (t) => {
+    setCitaFor(null);
+    docs.openCita(t);
+  };
 
   const noShow = (t) =>
     ask(noShowDialog(t, 'El turno se cerrará y el paciente deberá volver a admisión si regresa.', () => run(cancelTurn, t.id, CANCEL.noShow)));
@@ -188,11 +199,19 @@ export default function Triaje() {
             </ul>
           ) : <Empty icon="check" title="No hay pacientes en espera de triaje" />}
         </Panel>
-        <Panel title="Registro de signos vitales" icon="thermometer">
+        <Panel title={!current && porCitar ? 'Último paso: su cita' : 'Registro de signos vitales'} icon={!current && porCitar ? 'calendar' : 'thermometer'}>
           <AnimatePresence mode="wait">
             {current ? (
               <m.div key={current.id} {...listItem}>
-                <TriageForm turn={current} patient={pat(current)} />
+                <TriageForm turn={current} patient={pat(current)} onSaved={setCitaFor} />
+              </m.div>
+            ) : porCitar ? (
+              <m.div key={`cita-${porCitar.id}`} {...listItem} className="stack">
+                <Msg tone="ok">Triaje guardado. Confirme la cita que propone el sistema y entregue la constancia: el paciente va directo a su consulta.</Msg>
+                <CitaForm turn={porCitar} patient={pat(porCitar)} onDone={citaLista} preselect />
+                <div className="actions">
+                  <button type="button" className="btn ghost sm" onClick={() => setCitaFor(null)}>Dejar la cita para Admisión</button>
+                </div>
               </m.div>
             ) : (
               <m.div key="none" {...listItem}>
@@ -202,6 +221,7 @@ export default function Triaje() {
           </AnimatePresence>
         </Panel>
       </div>
+      {docs.element}
       {dialog}
     </>
   );

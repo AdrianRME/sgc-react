@@ -2,8 +2,11 @@
 
 Guía para publicar el sistema con la base de datos y la autenticación en Supabase y la aplicación en Vercel.
 
-**Cómo se probó.** `npm test` pasa las 49 pruebas, `npm run lint` no da advertencias y `npm run build` compila sin
+**Cómo se probó.** `npm test` pasa las 57 pruebas, `npm run lint` no da advertencias y `npm run build` compila sin
 errores.
+
+**Espera aproximada (25 de octubre de 2026).** El mismo banco de PGlite comprobó que `sgc_sala()` entrega para cada
+turno en cola la misma espera que calcula la app, con 4 de 4 turnos iguales (32 comprobaciones aprobadas).
 
 **Pago, citas y horarios (octubre 2026).** `supabase/schema.sql` se ejecutó completo en PostgreSQL 16 (PGlite), con
 `auth`, los roles y la publicación de tiempo real de Supabase simulados. Una batería de 31 comprobaciones generó los
@@ -71,6 +74,14 @@ El script crea:
 
 Ejecutarlo otra vez **borra todos los datos** y restablece esas contraseñas.
 
+**Actualizar un proyecto ya instalado sin borrar datos.** Para pasar a la versión 1.2, ejecute solo
+`supabase/actualizacion-v1.2.sql` en el SQL Editor. Hace dos cambios:
+- agrega la espera aproximada a la pantalla de sala;
+- permite que Enfermería dé la cita al terminar el triaje;
+- agrega la cita por web o por teléfono (`sgc_paciente_cita`, `sgc_cupos` y `sgc_reservar_cita`), con el usuario de
+  sistema `a.citasweb` (inactivo y sin cuenta de acceso), que figura como autor de las reservas web;
+- la pantalla de sala muestra también a los citados de hoy que sacaron su cita días antes.
+
 > Si aparece un error de permisos sobre `auth.users`, Supabase no dejó crear las cuentas desde SQL.
 > Copie el mensaje exacto: la alternativa es crear las cuentas con una Edge Function.
 
@@ -110,15 +121,24 @@ Si cambia las variables, use **Deployments → ⋯ → Redeploy**.
 
 - [ ] `a.admision`: registra un paciente nuevo sin seguro (por ejemplo, DNI `70000027`). El turno queda pendiente de pago.
 - [ ] `c.caja`: cobra el turno en efectivo y emite la boleta. El turno pasa a la lista de triaje.
-- [ ] `e.triaje`: llama al turno, inicia el triaje, registra los signos y guarda. Aparece la prioridad y el paciente
-      pasa a Admisión por su cita.
+- [ ] `e.triaje`: llama al turno, inicia el triaje, registra los signos y pulsa «Finalizar triaje y dar cita». Aparece
+      la prioridad y la cita que propone el sistema; al confirmarla se imprime la constancia. El paciente no vuelve a
+      Admisión.
 - [ ] `a.admision`, **Citas**: con el motivo «Control de presión arterial» el sistema sugiere Cardiología. Si hoy no
       es martes ni jueves, propone el primer cupo de otro día y el turno queda citado.
 - [ ] `a.admision`, **Citas de hoy**: registra la llegada de un citado de hoy.
 - [ ] El médico de la cita (`m.consulta` o `m.cardio`) solo ve a sus pacientes: llama, atiende, registra el CIE-10 y
       la receta, y finaliza.
 - [ ] `j.jefatura`, **Horarios médicos**: agrega un bloque y comprueba que el sistema rechaza un cruce de consultorio.
-- [ ] En otro equipo o en el celular, `…/#/sala` muestra los llamados al instante. No muestra nombres ni DNI.
+- [ ] Sin sesión, `…/#/cita`:
+      - con un DNI y una fecha de nacimiento equivocada aparece el aviso;
+      - con los datos correctos se reserva una cita de Cardiología, que solo ofrece martes y jueves;
+      - al intentar otra cita, el sistema muestra la que ya tiene.
+- [ ] `a.admision`, **Agenda de citas**: la cita figura con «Reservó por web». Ese día, «Registrar llegada» la envía a
+      Caja (o a triaje con SIS) y entrega el ticket. Tras el triaje pasa directo a su médico.
+- [ ] En otro equipo o en el celular, `…/#/sala` muestra los llamados al instante y la espera aproximada de cada
+      turno en cola. No muestra nombres ni DNI.
+- [ ] `j.jefatura`, **Tablero gerencial**: el panel «Afluencia prevista» muestra los próximos días y su precisión.
 - [ ] Con la sesión de `a.admision`, escribir `…/#/jefatura` en la barra devuelve al espacio de Admisión.
 - [ ] `j.jefatura`: crea un usuario. La contraseña temporal se muestra una vez y el usuario debe cambiarla al ingresar.
 - [ ] `j.jefatura`, **Tablero gerencial**: cambie el periodo (Hoy, 7 días, 14 días, 4 semanas) y exporte el CSV.

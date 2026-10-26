@@ -2,9 +2,13 @@
 .app { display: grid; grid-template-columns: 260px minmax(0, 1fr); min-height: 100dvh; background: var(--paper); }
 .side {
   position: sticky; top: 0; height: 100dvh; overflow-y: auto;
-  display: flex; flex-direction: column; gap: 22px; padding: 20px 16px 16px;
-  border-right: 1px solid var(--line); background: var(--paper);
+  display: flex; flex-direction: column; gap: 18px; padding: 18px 14px 14px;
+  color: #dbe6f5; color-scheme: dark;
+  background:
+    radial-gradient(140% 50% at 0% 0%, rgb(75 155 227 / 0.22), transparent 70%),
+    linear-gradient(180deg, var(--navy-2), var(--navy) 55%);
 }
+.side .brand div > span { color: rgb(219 230 245 / 0.6); }
 .main { min-width: 0; display: flex; flex-direction: column; }
 .page { width: 100%; max-width: 1520px; padding: 24px 32px 56px; display: flex; flex-direction: column; gap: 22px; }
 
@@ -15,40 +19,40 @@
 .brand div > span { display: block; font-size: var(--fs-xs); color: var(--muted); margin-top: 3px; }
 
 .space {
-  display: flex; align-items: center; gap: 12px; padding: 12px; border-radius: var(--r-panel);
-  background: var(--role-soft); border: 1px solid var(--role-line);
+  display: flex; align-items: center; gap: 12px; padding: 12px; border-radius: 16px;
+  background: rgb(255 255 255 / 0.07); border: 1px solid rgb(255 255 255 / 0.1);
 }
-.space small { display: block; font-size: var(--fs-xs); color: var(--ink-2); }
-.space b { display: block; font: 700 var(--fs-lg) / 1.15 var(--display); }
-.space span { display: block; font-size: var(--fs-xs); color: var(--ink-2); margin-top: 2px; }
+.space .i3d { filter: drop-shadow(0 6px 10px rgb(0 0 0 / 0.35)); }
+.space small { display: block; font-size: 11px; text-transform: uppercase; letter-spacing: 0.08em; font-weight: 700; color: #7fb6ee; }
+.space b { display: block; font: 700 var(--fs-lg) / 1.15 var(--display); color: #fff; }
+.space span { display: block; font-size: var(--fs-xs); color: rgb(219 230 245 / 0.7); margin-top: 2px; }
 
-/* Navegación como línea de metro: cada sección es una estación del espacio */
-.line-nav { position: relative; display: flex; flex-direction: column; gap: 2px; padding-left: 6px; }
-.line-nav::before { content: ''; position: absolute; left: 21px; top: 18px; bottom: 18px; width: 3px; border-radius: 3px; background: var(--role-line); }
-.line-nav .ln-sep { height: 10px; }
-.nb {
-  position: relative; display: flex; align-items: center; gap: 12px; min-height: 40px; padding: 6px 10px 6px 8px;
-  border-radius: var(--r-ctl); color: var(--ink-2); text-decoration: none; font-weight: 600; font-size: var(--fs-sm);
+/* Navegación: una fila por sección; la actual, en azul médico como en el prototipo */
+.line-nav { display: flex; flex-direction: column; gap: 3px; }
+.line-nav .ln-sep { height: 1px; margin: 8px 6px; background: rgb(255 255 255 / 0.1); }
+.side .nb {
+  position: relative; display: flex; align-items: center; gap: 10px; min-height: 42px; padding: 6px 10px;
+  border-radius: 12px; color: rgb(219 230 245 / 0.78); text-decoration: none; font-weight: 600; font-size: var(--fs-sm);
   transition: background-color 0.15s, color 0.15s;
 }
-.nb:hover { background: var(--sunken); color: var(--ink); }
-.nb .stop { position: relative; z-index: 1; width: 15px; height: 15px; flex: none; border-radius: 50%; border: 3px solid var(--role); background: var(--paper); transition: transform 0.2s var(--ease); }
-.nb[aria-current='page'] { color: var(--ink); background: var(--surface); box-shadow: 0 0 0 1px var(--line); }
-.nb[aria-current='page'] .stop { background: var(--role); transform: scale(1.15); box-shadow: 0 0 0 4px var(--role-soft); }
-.nb .lbl { flex: 1; min-width: 0; }
-.nb .cnt { min-width: 24px; height: 22px; padding: 0 7px; border-radius: var(--r-pill); display: inline-grid; place-items: center; background: var(--role-strong); color: var(--on-strong); font-size: var(--fs-xs); font-weight: 700; font-variant-numeric: tabular-nums; }
-.nb.ext { color: var(--muted); font-weight: 500; }
-.nb.ext svg { width: 15px; height: 15px; margin-left: 2px; }
-.nb.ext .stop { border-style: dotted; }
+.side .nb .stop { display: none; }
+.side .nb .i3d { width: 22px; height: 22px; }
+.side .nb:hover { background: rgb(255 255 255 / 0.07); color: #fff; }
+.side .nb[aria-current='page'] { color: #fff; background: linear-gradient(90deg, #1f6fb8, #2c86d4); box-shadow: 0 8px 18px -10px #2c86d4; }
+.side .nb .lbl { flex: 1; min-width: 0; }
+.side .nb .cnt { min-width: 24px; height: 22px; padding: 0 7px; border-radius: var(--r-pill); display: inline-grid; place-items: center; background: #f5b23c; color: #1a1300; font-size: var(--fs-xs); font-weight: 800; font-variant-numeric: tabular-nums; }
+.side .nb.ext { color: rgb(219 230 245 / 0.55); font-weight: 500; min-height: 34px; }
+.side .nb.ext svg { width: 15px; height: 15px; margin-left: 2px; }
 
-.me { margin-top: auto; display: flex; flex-direction: column; gap: 6px; padding-top: 14px; border-top: 1px solid var(--line); }
-.me-card { display: flex; align-items: center; gap: 10px; padding: 4px 6px 8px; }
-.me-card div > b { display: block; font-size: var(--fs-sm); line-height: 1.25; }
-.me-card div > span { display: block; font-size: var(--fs-xs); color: var(--muted); }
-.me .lnk { display: flex; align-items: center; gap: 10px; width: 100%; height: 34px; padding: 0 8px; border: 0; border-radius: 8px; background: none; color: var(--ink-2); font-size: var(--fs-sm); font-weight: 500; text-align: left; }
-.me .lnk:hover { background: var(--sunken); color: var(--ink); }
-.me .lnk svg { width: 16px; height: 16px; }
-.me .sess { padding: 4px 8px 0; font-size: 11.5px; color: var(--muted); line-height: 1.4; }
+.side .me { margin-top: auto; display: flex; flex-direction: column; gap: 2px; padding: 10px; border-radius: 16px; background: rgb(255 255 255 / 0.06); border: 1px solid rgb(255 255 255 / 0.1); }
+.side .me-card { display: flex; align-items: center; gap: 10px; padding: 2px 4px 8px; margin-bottom: 4px; border-bottom: 1px solid rgb(255 255 255 / 0.1); }
+.side .me-card div > b { display: block; font-size: var(--fs-sm); line-height: 1.25; color: #fff; }
+.side .me-card div > span { display: block; font-size: var(--fs-xs); color: rgb(219 230 245 / 0.6); }
+.side .me .lnk { display: flex; align-items: center; gap: 10px; width: 100%; height: 32px; padding: 0 8px; border: 0; border-radius: 8px; background: none; color: rgb(219 230 245 / 0.78); font-size: var(--fs-sm); font-weight: 500; text-align: left; }
+.side .me .lnk:hover { background: rgb(255 255 255 / 0.08); color: #fff; }
+.side .me .lnk:last-of-type:hover { background: rgb(208 59 59 / 0.25); color: #ffb4ad; }
+.side .me .lnk svg { width: 16px; height: 16px; }
+.side .me .sess { padding: 4px 8px 0; font-size: 11.5px; color: rgb(219 230 245 / 0.5); line-height: 1.4; }
 
 /* Barra superior */
 .topbar {

@@ -43,7 +43,8 @@
 .next-col h3 { display: flex; justify-content: space-between; align-items: baseline; padding-bottom: 8px; border-bottom: 3px solid var(--c); font-size: var(--fs-lg); }
 .next-col h3 span { color: var(--s-ink2); font-variant-numeric: tabular-nums; }
 .next-col ul { list-style: none; margin: 12px 0 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
-.next-col li { padding: 8px 14px; border-radius: 12px; background: var(--s-panel); font: 700 clamp(1.4rem, 2.3vw, 2.2rem) / 1.1 var(--display); font-variant-numeric: tabular-nums; }
+.next-col li { padding: 8px 14px; border-radius: 12px; background: var(--s-panel); font: 700 clamp(1.4rem, 2.3vw, 2.2rem) / 1.1 var(--display); font-variant-numeric: tabular-nums; display: flex; align-items: baseline; justify-content: space-between; gap: 8px; flex-wrap: wrap; }
+.next-col li small { color: var(--s-ink2); font: 600 clamp(0.9rem, 1.2vw, 1.15rem) / 1.2 var(--font); white-space: nowrap; }
 .none-sm { margin-top: 10px; color: var(--s-ink2); font-size: var(--fs-sm); }
 
 .sala-f { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px; padding: 14px clamp(16px, 3vw, 32px); border-top: 1px solid var(--s-line); color: var(--s-ink2); }

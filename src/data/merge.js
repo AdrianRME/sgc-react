@@ -20,8 +20,10 @@ export function applyChanges(db, changes) {
     const key = KEYS[table];
     const map = new Map(next[table].map((r) => [key(r), r]));
     rows.forEach((r) => {
-      const { clave_temporal: _secret, ...clean } = r; // las contraseñas nunca se guardan en el estado local
-      map.set(key(r), clean);
+      // las contraseñas nunca se guardan en el estado local; `_prev` es la clave anterior de una fila que la cambió
+      const { clave_temporal: _secret, _prev, ...clean } = r;
+      if (_prev) map.delete(_prev);
+      map.set(key(clean), clean);
     });
     next[table] = [...map.values()];
   }

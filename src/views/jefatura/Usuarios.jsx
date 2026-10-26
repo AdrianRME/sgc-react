@@ -4,7 +4,7 @@ import { KeyRound, Power, UserPlus } from 'lucide-react';
 import { useStore } from '../../store/useStore.js';
 import { createUser, toggleUser, resetPassword } from '../../store/actions.js';
 import { normalize } from '../../lib/clinical.js';
-import { ESPECIALIDADES, ROLES } from '../../lib/constants.js';
+import { ESPECIALIDADES, ROLES, roleFromUsername } from '../../lib/constants.js';
 import { especialidad } from '../../lib/agenda.js';
 import { listItem } from '../../lib/motion.js';
 import { WorkspaceHeader } from '../../components/WorkspaceHeader.jsx';
@@ -14,7 +14,7 @@ import { useConfirm } from '../../hooks/useConfirm.jsx';
 import { Icon3D } from '../../components/Icon3D.jsx';
 import './jefatura.css';
 
-const EMPTY = { u: '', n: '', role: 'adm', col: '', esp: 'MG' };
+const EMPTY = { u: ROLES.adm.prefix, n: '', role: 'adm', col: '', esp: 'MG' };
 
 export default function Usuarios() {
   const { db, run, user } = useStore();
@@ -24,6 +24,15 @@ export default function Usuarios() {
   const [q, setQ] = useState('');
   const [role, setRole] = useState('');
   const set = (k) => (e) => setF((x) => ({ ...x, [k]: e.target.value }));
+  // El usuario lleva el prefijo de su rol: al cambiar el rol, cambia el prefijo
+  const setRol = (e) => {
+    const r = e.target.value;
+    setF((x) => {
+      const old = roleFromUsername(x.u);
+      const resto = old ? x.u.trim().slice(ROLES[old].prefix.length) : x.u.trim();
+      return { ...x, role: r, u: ROLES[r].prefix + resto };
+    });
+  };
 
   const submit = async (e) => {
     e.preventDefault();
@@ -107,14 +116,11 @@ export default function Usuarios() {
         </Panel>
         <Panel title="Nuevo usuario" icon="sparkles">
           <form onSubmit={submit} noValidate className="stack">
-            <Field label="Usuario" hint="De 4 a 20 caracteres: letras minúsculas, números, punto o guion bajo">
-              {(a) => <input {...a} value={f.u} onChange={set('u')} placeholder="p.ejemplo" autoComplete="off" />}
-            </Field>
             <Field label="Nombre completo">{(a) => <input {...a} value={f.n} onChange={set('n')} />}</Field>
             <div className="row">
               <Field label="Rol">
                 {(a) => (
-                  <select {...a} value={f.role} onChange={set('role')}>
+                  <select {...a} value={f.role} onChange={setRol}>
                     {Object.entries(ROLES).map(([k, r]) => <option key={k} value={k}>{r.n}</option>)}
                   </select>
                 )}
@@ -123,6 +129,9 @@ export default function Usuarios() {
                 {(a) => <input {...a} value={f.col} onChange={set('col')} placeholder={f.role === 'enf' ? 'CEP-00000' : 'CMP-00000'} disabled={!['med', 'enf'].includes(f.role)} />}
               </Field>
             </div>
+            <Field label="Usuario" hint={`Empieza con «${ROLES[f.role].prefix}» para que el inicio de sesión reconozca el área. De 4 a 20 caracteres: minúsculas, números, punto o guion bajo.`}>
+              {(a) => <input {...a} value={f.u} onChange={set('u')} placeholder={`${ROLES[f.role].prefix}apellido`} autoComplete="off" />}
+            </Field>
             {f.role === 'med' && (
               <Field label="Especialidad" hint="Define a qué pacientes se le dan citas. Su horario se registra en «Horarios médicos».">
                 {(a) => (
@@ -133,7 +142,7 @@ export default function Usuarios() {
               </Field>
             )}
             <div className="actions">
-              <button className="btn" disabled={!f.u || !f.n}><UserPlus /> Crear usuario</button>
+              <button className="btn" disabled={f.u.trim().length <= ROLES[f.role].prefix.length || !f.n}><UserPlus /> Crear usuario</button>
             </div>
             <p className="note">La contraseña temporal se muestra una sola vez y debe cambiarse en el primer ingreso.</p>
           </form>

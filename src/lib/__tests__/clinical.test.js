@@ -7,8 +7,9 @@ import { nextTurnId, nextRecipe, nextHC } from '../ids.js';
 import { buildSeed } from '../seed.js';
 import {
   createTurn, registerPayment, callTurn, callNext, startTriage, saveTriage, returnToQueue, assignCita, checkIn, startConsult, finishConsult, toggleUser,
+  reservarCita, activeTurnOf,
 } from '../../store/actions.js';
-import { especialidadSugerida, isoDow, sugerirCita } from '../agenda.js';
+import { cuposLibres, especialidadSugerida, isoDow, sugerirCita } from '../agenda.js';
 import { applyChanges } from '../../data/merge.js';
 
 const normal = { pa: '120/80', fc: 75, fr: 16, t: 36.6, spo2: 98, peso: 70, talla: 1.7, motivo: 'Control' };
@@ -85,7 +86,7 @@ describe('colas y correlativos', () => {
     expect(canTransition('EN_ESPERA_TRIAJE', 'EN_CONSULTA')).toBe(false);
     expect(canTransition('ATENDIDO', 'CANCELADO')).toBe(false);
     expect(canTransition('PENDIENTE_PAGO', 'LLAMADO_TRIAJE')).toBe(false); // sin pagar no hay triaje
-    expect(canTransition('EN_TRIAJE', 'EN_ESPERA_CONSULTA')).toBe(false); // sin cita no hay consulta
+    expect(canTransition('PENDIENTE_PAGO', 'EN_ESPERA_CONSULTA')).toBe(false); // sin triaje no hay consulta
     expect(canTransition('CITADO', 'LLAMADO_CONSULTA')).toBe(false); // el citado primero registra su llegada
   });
 });
@@ -111,7 +112,7 @@ describe('flujo completo del paciente', () => {
     expect(mine(t).pago).toMatchObject({ metodo: 'EFECTIVO', monto: 20 });
     expect(mine(t).pago.comp).toMatch(/^B001-\d{6}$/);
 
-    // Triaje crítico: pasa a Admisión por su cita
+    // Triaje crítico: la cita se la da Enfermería al terminar el triaje
     for (const x of db.turns.filter((y) => y.state === 'EN_TRIAJE')) step(returnToQueue, ctx('e.triaje'), x.id);
     step(callTurn, ctx('e.triaje'), t.id);
     step(startTriage, ctx('e.triaje'), t.id);
@@ -121,7 +122,7 @@ describe('flujo completo del paciente', () => {
     // Crítico: sobrecupo hoy con el médico de turno (Dra. Ríos, lunes de 07:00 a 13:00)
     const sug = sugerirCita(db, 'MG', 'CRITICA', NOW);
     expect(sug.cita).toMatchObject({ med: 'm.consulta', sobre: true, at: NOW });
-    step(assignCita, ctx('a.admision'), t.id, sug.cita);
+    step(assignCita, ctx('e.triaje'), t.id, sug.cita);
     expect(mine(t)).toMatchObject({ state: 'EN_ESPERA_CONSULTA', tLlega: NOW });
 
     // Solo su médico lo llama
@@ -189,5 +190,44 @@ describe('flujo completo del paciente', () => {
     const db = buildSeed();
     const ctx = { user: db.users.find((x) => x.u === 'j.jefatura'), now: Date.now() };
     expect(() => toggleUser(db, ctx, 'j.jefatura')).toThrow();
+  });
+});
+
+describe('cita por web o por teléfono', () => {
+  // Domingo 11 de octubre de 2026 por la noche: el paciente reserva para el lunes por la web
+  const SUN = new Date(2026, 9, 11, 20, 0).getTime();
+  const MON = new Date(2026, 9, 12, 7, 30).getTime();
+  it('reserva con DNI y fecha de nacimiento, una sola a la vez, y el día de la cita pasa por Caja y triaje hasta su médico', () => {
+    let db = buildSeed(SUN);
+    const u = (x) => db.users.find((y) => y.u === x);
+    const step = (fn, c, ...a) => { const r = fn(db, c, ...a); db = applyChanges(db, r.changes); return r; };
+    const web = { user: u('a.citasweb'), now: SUN, ip: '' };
+    const p = db.patients.find((x) => !activeTurnOf(db, x.dni) && x.sis === 'NO_ASEGURADO');
+    const cupo = cuposLibres(db, 'MG', SUN, { limit: 1 })[0];
+    const cita = { esp: 'MG', med: cupo.med, at: cupo.at };
+
+    expect(() => reservarCita(db, web, { dni: p.dni, nac: '1900-01-01', cita, canal: 'web' })).toThrow(/No encontramos/);
+    expect(() => reservarCita(db, web, { dni: p.dni, nac: p.nac, cita: { ...cita, at: cupo.at + 60_000 }, canal: 'web' })).toThrow(/no es un cupo/);
+    const t = step(reservarCita, web, { dni: p.dni, nac: p.nac, cita, canal: 'web' }).result;
+    expect(t).toMatchObject({ state: 'CITADO', prio: null, adm: 'a.citasweb', cita: { med: cupo.med, at: cupo.at, sobre: false } });
+    expect(() => reservarCita(db, web, { dni: p.dni, nac: p.nac, cita, canal: 'web' })).toThrow(/una a la vez/);
+    // Otro paciente no puede tomar el mismo cupo
+    const otro = db.patients.find((x) => x.dni !== p.dni && !activeTurnOf(db, x.dni));
+    expect(() => reservarCita(db, web, { dni: otro.dni, nac: otro.nac, cita, canal: 'web' })).toThrow(/tomado/);
+
+    // El lunes llega: sin seguro va a Caja (y su llegada real es ahora)
+    const ctx = (user) => ({ user: u(user), area: 'Consultorio 1', now: MON, ip: '' });
+    expect(() => checkIn(db, { ...ctx('a.admision'), now: SUN }, t.id)).toThrow(/mismo día/);
+    step(checkIn, ctx('a.admision'), t.id);
+    const mine = () => db.turns.filter((x) => x.id === t.id && x.dni === p.dni);
+    expect(mine()).toHaveLength(1);
+    expect(mine()[0]).toMatchObject({ state: 'PENDIENTE_PAGO', t0: MON });
+    step(registerPayment, ctx('c.caja'), t.id, { metodo: 'EFECTIVO', recibido: 20 });
+    for (const x of db.turns.filter((y) => y.state === 'EN_TRIAJE')) step(returnToQueue, ctx('e.triaje'), x.id);
+    step(callTurn, ctx('e.triaje'), t.id);
+    step(startTriage, ctx('e.triaje'), t.id);
+    step(saveTriage, ctx('e.triaje'), t.id, normal, '');
+    // Ya tiene cita: del triaje pasa directo a la espera de su médico
+    expect(mine()[0]).toMatchObject({ state: 'EN_ESPERA_CONSULTA', prio: 'NORMAL', tLlega: Math.max(MON, cupo.at) });
   });
 });

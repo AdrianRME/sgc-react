@@ -2,7 +2,7 @@ import { useCallback, useRef, useState } from 'react';
 import { AnimatePresence, m } from 'motion/react';
 import { CircleHelp } from 'lucide-react';
 import { useStore } from '../store/useStore.js';
-import { ROLES } from '../lib/constants.js';
+import { GUIDE, ROLES } from '../lib/constants.js';
 import { minutesBetween } from '../lib/clinical.js';
 import { mean } from '../lib/analytics.js';
 import { startOfToday, fmtMin, fmtSoles } from '../lib/format.js';
@@ -14,28 +14,6 @@ import { RouteStrip } from './RouteStrip.jsx';
 import { useDismiss } from '../hooks/useDismiss.js';
 
 /** Qué hace cada rol y en qué orden (se consulta desde el botón de ayuda). */
-const GUIDE = {
-  adm: {
-    lead: 'Identifique al paciente por DNI y verifique el SIS. Con SIS pasa directo a triaje; sin seguro, primero paga en Caja. Después del triaje vuelve aquí por su cita.',
-    steps: ['Busque al paciente por DNI', 'Verifique el SIS y genere el turno', 'Tras el triaje, asigne la cita', 'El día de la cita, registre su llegada'],
-  },
-  caj: {
-    lead: 'Cobre la consulta a los pacientes sin seguro y entregue la boleta. Al pagar, el paciente pasa a la lista de triaje.',
-    steps: ['Elija al paciente por cobrar', 'Elija el medio de pago', 'Registre el pago', 'Entregue la boleta'],
-  },
-  enf: {
-    lead: 'Llame al siguiente paciente y registre sus signos vitales. El sistema calcula el IMC y la prioridad; luego el paciente pasa a Admisión por su cita.',
-    steps: ['Llame al siguiente', 'Inicie el triaje', 'Registre los signos vitales', 'Guarde: la prioridad es automática'],
-  },
-  med: {
-    lead: 'Solo ve a los pacientes que tienen cita con usted y ya llegaron, ordenados por prioridad clínica y hora de la cita. Al cerrar la atención se emite la receta.',
-    steps: ['Revise su agenda de hoy', 'Llame al siguiente', 'Inicie la atención', 'Diagnóstico, receta y alta'],
-  },
-  jef: {
-    lead: 'Supervise los tiempos de atención, administre las cuentas del personal, registre los umbrales clínicos y revise la auditoría.',
-    steps: ['Revise el tablero gerencial', 'Siga el flujo en vivo', 'Gestione usuarios y umbrales', 'Revise la auditoría'],
-  },
-};
 
 /** Estación de la ruta que se resalta en cada espacio (Admisión registra y también da las citas). */
 const HERE = { adm: 'adm', caj: 'caj', enf: 'enf', med: 'med' };

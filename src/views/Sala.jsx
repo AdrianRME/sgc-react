@@ -2,7 +2,8 @@ import { useEffect, useRef, useState } from 'react';
 import { AnimatePresence, LayoutGroup, m } from 'motion/react';
 import { Bell, BellOff, Maximize, Mic, MicOff, WifiOff } from 'lucide-react';
 import { useStore } from '../store/useStore.js';
-import { byArrival, byConsulta } from '../lib/clinical.js';
+import { byArrival, byConsulta, turnKey } from '../lib/clinical.js';
+import { estimarEsperas, rangoEspera } from '../lib/espera.js';
 import { TRIAGE_STATION } from '../lib/constants.js';
 import { fmtLongDay, fmtT } from '../lib/format.js';
 import { beep, announce } from '../lib/sound.js';
@@ -67,6 +68,10 @@ export default function Sala({ standalone = false }) {
   const cur = calls[0];
   const nextMed = sortBy(turns.filter((t) => t.state === 'EN_ESPERA_CONSULTA'), byConsulta);
   const nextTri = sortBy(turns.filter((t) => t.state === 'EN_ESPERA_TRIAJE'), byArrival);
+  // RF-14: la función pública ya trae la espera calculada en la base; con sesión se calcula aquí igual.
+  // (Si la base aún no tiene la actualización v1.2, la sala pública no trae marcas de tiempo y no se muestra.)
+  const est = estimarEsperas(turns.filter((t) => t.t0 != null), now);
+  const espera = (t) => rangoEspera(t.espera ?? est.get(turnKey(t)), { aprox: true });
 
   const key = cur ? `${cur.id}@${cur.calledAt}` : '';
   useEffect(() => {
@@ -143,7 +148,8 @@ export default function Sala({ standalone = false }) {
                     <AnimatePresence initial={false}>
                       {list.slice(0, 7).map((t) => (
                         <m.li key={t.id} layout initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }} transition={spring}>
-                          {t.id}
+                          <span>{t.id}</span>
+                          {espera(t) && <small><span className="sr-only">Espera aproximada: </span>{espera(t)}</small>}
                         </m.li>
                       ))}
                     </AnimatePresence>
@@ -158,7 +164,7 @@ export default function Sala({ standalone = false }) {
       </div>
 
       <footer className="sala-f">
-        <span className={error ? 'err' : ''}>{error ? <><WifiOff aria-hidden="true" /> Sin conexión: reintentando…</> : 'Por favor, permanezca atento a la pantalla y a su código de turno.'}</span>
+        <span className={error ? 'err' : ''}>{error ? <><WifiOff aria-hidden="true" /> Sin conexión: reintentando…</> : 'Permanezca atento a su código. La espera es aproximada: los casos más graves pasan primero.'}</span>
         <div className="sala-ctl">
           <button onClick={() => { setSound((s) => !s); if (!sound) beep(); }} aria-pressed={sound}>
             {sound ? <Bell aria-hidden="true" /> : <BellOff aria-hidden="true" />}{sound ? 'Sonido activado' : 'Activar sonido'}

@@ -20,6 +20,18 @@
 .ticket .tk-n { font-size: 4.2rem; line-height: 1; color: var(--role-strong, var(--st-adm)); margin: 6px 0; }
 .ticket .tk-b { color: var(--ink-2); }
 .ticket .doc-meta { text-align: left; }
+.ticket .tk-n { letter-spacing: -0.02em; }
+.tk-route { list-style: none; margin: 4px 0 10px; padding: 0; display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); }
+.tk-route li { position: relative; display: flex; flex-direction: column; align-items: center; gap: 3px; font-size: var(--fs-xs); color: var(--muted); }
+.tk-route li + li::before { content: ''; position: absolute; top: 19px; right: 50%; width: 100%; height: 3px; border-radius: 3px; background: var(--line); z-index: 0; }
+.tk-route li.done + li::before, .tk-route li.done::before { background: var(--role-strong); }
+.tk-ic { position: relative; z-index: 1; display: grid; place-items: center; width: 40px; height: 40px; border-radius: 50%; background: var(--surface-2); border: 2px solid var(--line); filter: grayscale(0.7); opacity: 0.7; }
+.tk-route li.done .tk-ic { border-color: var(--role-strong); filter: none; opacity: 1; }
+.tk-route li.cur .tk-ic { border-color: var(--role); background: var(--role-soft); filter: none; opacity: 1; box-shadow: 0 0 0 4px color-mix(in oklab, var(--role) 20%, transparent); }
+.tk-route li.cur b { color: var(--role-strong); }
+.tk-route small { font-weight: 700; color: var(--good-text); }
+.tk-cut { height: 0; margin: 14px 0; border-top: 2px dashed var(--line-strong); }
+.tk-foot { margin-top: 8px; font-size: var(--fs-xs); color: var(--muted); }
 
 /* Línea de tiempo de atenciones */
 .timeline { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; }

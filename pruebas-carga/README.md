@@ -8,6 +8,7 @@ Scripts para medir el sistema con peticiones masivas y datos ficticios. No usan 
 | `concurrencia.js` | Choques entre estaciones (RNF-09): doble cobro del mismo turno, el mismo código de turno desde dos admisiones y dos pacientes a la vez en el único módulo de triaje. Por cada caso, uno se guarda y el otro se rechaza. |
 | `estres.js` | De 10 a 30 usuarios virtuales en escalones de 5, para ver desde cuándo el percentil 95 supera 1,5 s (RNF-01). |
 | `verificar.sql` | Controles de integridad y tiempos por etapa en la base después de la prueba. |
+| `validar-espera.mjs` | Precisión de la espera aproximada (RF-14) en 18 jornadas simuladas con los supuestos del Anexo E. Se ejecuta con Node, sin k6: `TZ=America/Lima node pruebas-carga/validar-espera.mjs`. |
 
 ## Entorno usado (23 de octubre de 2026)
 

@@ -125,6 +125,74 @@ export function heatmap(facts, from, to) {
   return { hours, dows, cells, max: Math.max(0, ...cells.flat().map((c) => c.avg)) };
 }
 
+/** Horas de llegada que se prevén (las mismas del mapa de calor). */
+export const HORAS_AFLUENCIA = Array.from({ length: 10 }, (_, i) => 7 + i);
+
+/**
+ * Afluencia prevista (RF-15) con la línea base del capítulo IV del informe: para cada hora, el promedio de
+ * llegadas del mismo día de la semana en las `semanas` semanas anteriores. Devuelve los próximos `dias`
+ * días de atención (desde hoy, sin domingos) con su franja de mayor afluencia: las horas vecinas a la de más
+ * llegadas que tienen al menos el 80 % de ese máximo.
+ *
+ * La precisión se mide igual que se usaría: se prevé cada día de la última semana con las semanas anteriores
+ * a él y se compara con lo que llegó (error absoluto medio por hora).
+ */
+export function afluenciaPrevista(facts, now, { semanas = 4, dias = 6 } = {}) {
+  const porDia = new Map();
+  for (const f of facts) {
+    const i = new Date(f.t0).getHours() - HORAS_AFLUENCIA[0];
+    if (i < 0 || i >= HORAS_AFLUENCIA.length) continue;
+    const d = startOfDay(f.t0);
+    if (!porDia.has(d)) porDia.set(d, HORAS_AFLUENCIA.map(() => 0));
+    porDia.get(d)[i]++;
+  }
+  if (!porDia.size) return null;
+  const primero = Math.min(...porDia.keys());
+  const vacio = HORAS_AFLUENCIA.map(() => 0);
+  const prever = (d) => {
+    const prev = [];
+    for (let k = 1; k <= semanas; k++) {
+      const p = startOfDay(d - k * 7 * DAY + DAY / 2);
+      if (p >= primero) prev.push(porDia.get(p) || vacio);
+    }
+    return prev.length ? HORAS_AFLUENCIA.map((_, i) => mean(prev.map((c) => c[i]))) : null;
+  };
+  const franja = (pred) => {
+    const max = Math.max(...pred);
+    const top = pred.indexOf(max);
+    let lo = top;
+    let hi = top;
+    while (lo > 0 && pred[lo - 1] >= 0.8 * max) lo--;
+    while (hi < pred.length - 1 && pred[hi + 1] >= 0.8 * max) hi++;
+    return { ini: HORAS_AFLUENCIA[lo], fin: HORAS_AFLUENCIA[hi] + 1, porHora: max };
+  };
+
+  const hoy = startOfDay(now);
+  const proximos = [];
+  for (let k = 0; proximos.length < dias && k < dias + 2; k++) {
+    const d = startOfDay(hoy + k * DAY + DAY / 2);
+    if (new Date(d).getDay() === 0) continue; // domingo: el centro no atiende
+    const pred = prever(d);
+    if (pred) proximos.push({ t: d, pred, total: pred.reduce((a, b) => a + b, 0), franja: franja(pred) });
+  }
+
+  const errores = [];
+  const reales = [];
+  let evaluados = 0;
+  for (let k = 1; k <= 7; k++) {
+    const d = startOfDay(hoy - k * DAY + DAY / 2);
+    if (new Date(d).getDay() === 0 || d < primero) continue;
+    const pred = prever(d);
+    if (!pred) continue;
+    const real = porDia.get(d) || vacio;
+    pred.forEach((v, i) => errores.push(Math.abs(v - real[i])));
+    reales.push(...real);
+    evaluados++;
+  }
+  const pico = proximos.reduce((a, x) => (x.franja.porHora > (a?.franja.porHora ?? -1) ? x : a), null);
+  return { semanas, dias: proximos, pico, mae: mean(errores), mediaHora: mean(reales), evaluados };
+}
+
 const CIE_DESC = new Map(CIE);
 
 /** Diagnósticos más frecuentes (morbilidad). */

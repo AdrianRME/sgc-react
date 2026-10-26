@@ -1,0 +1,124 @@
+{
+  "fecha": "2026-10-25T22:45:05.023Z",
+  "supuestos": "Anexo E, sección 9 del informe",
+  "dias": 18,
+  "diasBase": 14,
+  "turnos": 1105,
+  "etapas": {
+    "triaje": {
+      "esperaRealMedia": 40.96,
+      "base": {
+        "n": 250,
+        "mae": 27.35,
+        "rmse": 32.37,
+        "r2": -0.14,
+        "sesgo": 11.47
+      },
+      "rf14": {
+        "n": 250,
+        "mae": 3.79,
+        "rmse": 5.31,
+        "r2": 0.97,
+        "sesgo": -0.45
+      },
+      "dentroDelRango": 0.45,
+      "errorHasta5min": 0.74,
+      "ejemplo": [
+        {
+          "mostrado": "menos de 5 min",
+          "est": 0,
+          "real": 0
+        },
+        {
+          "mostrado": "menos de 5 min",
+          "est": 0,
+          "real": 0
+        },
+        {
+          "mostrado": "menos de 5 min",
+          "est": 2,
+          "real": 1.5
+        },
+        {
+          "mostrado": "menos de 5 min",
+          "est": 0,
+          "real": 0
+        },
+        {
+          "mostrado": "menos de 5 min",
+          "est": 4,
+          "real": 7
+        }
+      ]
+    },
+    "consulta": {
+      "esperaRealMedia": 7.81,
+      "base": {
+        "n": 250,
+        "mae": 8.11,
+        "rmse": 9.74,
+        "r2": -0.19,
+        "sesgo": 3.93
+      },
+      "rf14": {
+        "n": 250,
+        "mae": 2.85,
+        "rmse": 4.87,
+        "r2": 0.7,
+        "sesgo": -1.01
+      },
+      "dentroDelRango": 0.55,
+      "errorHasta5min": 0.82,
+      "porPrioridad": {
+        "CRITICA": {
+          "n": 21,
+          "mae": 2.14,
+          "rmse": 3.16,
+          "r2": 0.71,
+          "sesgo": -0.67
+        },
+        "PRIORITARIA": {
+          "n": 57,
+          "mae": 2.29,
+          "rmse": 3.37,
+          "r2": 0.63,
+          "sesgo": 0.2
+        },
+        "NORMAL": {
+          "n": 172,
+          "mae": 3.13,
+          "rmse": 5.43,
+          "r2": 0.7,
+          "sesgo": -1.45
+        }
+      },
+      "ejemplo": [
+        {
+          "mostrado": "menos de 5 min",
+          "est": 0,
+          "real": 0
+        },
+        {
+          "mostrado": "menos de 5 min",
+          "est": 0,
+          "real": 0
+        },
+        {
+          "mostrado": "menos de 5 min",
+          "est": 0,
+          "real": 0
+        },
+        {
+          "mostrado": "menos de 5 min",
+          "est": 0,
+          "real": 0
+        },
+        {
+          "mostrado": "menos de 5 min",
+          "est": 0,
+          "real": 0
+        }
+      ]
+    }
+  }
+}

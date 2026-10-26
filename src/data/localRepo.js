@@ -3,6 +3,7 @@ import { DEMO_PASSWORD, ACTIVE_STATES, DAY } from '../lib/constants.js';
 import { isCurrent } from '../lib/clinical.js';
 import { toFacts } from '../lib/analytics.js';
 import { lastComprobante, lastRecipe, uid } from '../lib/ids.js';
+import { citaActivaDe, pacienteVerificado, reservarCita } from '../store/actions.js';
 
 // v4: pago, cita y horarios médicos (los datos guardados con versiones anteriores se vuelven a sembrar)
 const KEY = 'sgc-db-v4';
@@ -117,6 +118,32 @@ export function createLocalRepo() {
     },
     async sala() {
       return (read() || EMPTY_DB).turns.filter((t) => ACTIVE_STATES.includes(t.state));
+    },
+    /* Cita por web o por teléfono (en Supabase: sgc_paciente_cita, sgc_cupos y sgc_reservar_cita) */
+    async pacienteCita(dni, nac) {
+      const db = await ensure();
+      const p = pacienteVerificado(db, dni, nac);
+      if (!p) throw new Error('No encontramos un paciente con ese DNI y esa fecha de nacimiento. Si es su primera atención, acérquese a Admisión para abrir su historia clínica.');
+      return { nom: p.nom.split(' ')[0], activa: citaActivaDe(db, p.dni) };
+    },
+    async cupos(esp) {
+      const db = await ensure();
+      return {
+        users: db.users.filter((u) => u.role === 'med' && u.on && u.esp === esp),
+        horarios: db.horarios.filter((h) => h.on),
+        ocupadas: db.turns.filter((t) => t.cita && !t.cita.sobre && t.state !== 'CANCELADO').map((t) => ({ med: t.cita.med, at: t.cita.at })),
+      };
+    },
+    async reservarCita(dni, nac, cita) {
+      const db = await ensure();
+      const me = await this.getSession();
+      // Por teléfono la registra Admisión con su sesión; por la web, el usuario del sistema
+      const staff = me && db.users.find((u) => u.u === me.u && u.role === 'adm');
+      const user = staff || db.users.find((u) => u.u === 'a.citasweb') || { u: 'a.citasweb' };
+      const r = reservarCita(db, { user, now: Date.now(), ip: '' }, { dni, nac, cita, canal: staff ? 'teléfono' : 'web' });
+      const next = applyChanges(db, r.changes);
+      write(next);
+      return citaActivaDe(next, r.result.dni);
     },
     subscribe(onChange) {
       const h = (e) => e.key === KEY && onChange();

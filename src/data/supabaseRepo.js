@@ -146,6 +146,20 @@ export function createSupabaseRepo(url, anonKey) {
     async sala() {
       return call('sgc_sala');
     },
+    /* Cita por web (sin sesión) o por teléfono (Admisión): la base verifica DNI y fecha de nacimiento */
+    async pacienteCita(dni, nac) {
+      const r = await call('sgc_paciente_cita', { p_dni: dni, p_nac: nac });
+      if (r?.error) throw new Error(r.error);
+      return r;
+    },
+    async cupos(esp) {
+      return call('sgc_cupos', { p_esp: esp });
+    },
+    async reservarCita(dni, nac, cita) {
+      const r = await call('sgc_reservar_cita', { p_dni: dni, p_nac: nac, p_cita: cita });
+      if (r?.error) throw new Error(r.error);
+      return r;
+    },
     subscribe(onChange) {
       let timer;
       const debounced = () => {

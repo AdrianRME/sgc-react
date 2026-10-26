@@ -13,9 +13,15 @@ import { Login } from './views/Login.jsx';
 
 /* Cada sección se descarga recién cuando se abre: un rol nunca descarga el código de los demás. */
 const Sala = lazy(() => import('./views/Sala.jsx'));
+const CitaWeb = lazy(() => import('./views/CitaWeb.jsx'));
 const Flujo = lazy(() => import('./views/Flujo.jsx'));
 const VIEWS = {
-  adm: { registro: lazy(() => import('./views/Admision.jsx')), citas: lazy(() => import('./views/Citas.jsx')), flujo: Flujo },
+  adm: {
+    registro: lazy(() => import('./views/Admision.jsx')),
+    citas: lazy(() => import('./views/Citas.jsx')),
+    agenda: lazy(() => import('./views/Citas.jsx').then((x) => ({ default: x.Agenda }))),
+    flujo: Flujo,
+  },
   caj: { cobros: lazy(() => import('./views/Caja.jsx')) },
   enf: { lista: lazy(() => import('./views/Triaje.jsx')) },
   med: { atencion: lazy(() => import('./views/Consulta.jsx')), historias: lazy(() => import('./views/Historias.jsx')) },
@@ -56,7 +62,7 @@ function Router() {
 
   // Cada rol trabaja solo en su espacio: otra dirección lo devuelve al suyo.
   useEffect(() => {
-    if (!role || hash === '#/sala' || (route === role.slug && section)) return;
+    if (!role || hash === '#/sala' || hash === '#/cita' || (route === role.slug && section)) return;
     if (route !== role.slug && Object.values(ROLES).some((r) => r.slug === route)) {
       toast('info', `Acceso restringido: su espacio es ${role.space}.`);
     }
@@ -65,6 +71,8 @@ function Router() {
 
   // Pantalla pública para el televisor de la sala (no requiere sesión ni muestra datos personales).
   if (hash === '#/sala') return <Suspense fallback={<Splash />}><Sala standalone /></Suspense>;
+  // Página pública para que el paciente saque su cita con su DNI y su fecha de nacimiento
+  if (hash === '#/cita') return <Suspense fallback={<Splash />}><CitaWeb /></Suspense>;
   if (auth === undefined) return <Splash />;
   if (!auth) return <Login />;
   // Con contraseña temporal no se carga ningún dato: primero hay que definir una propia

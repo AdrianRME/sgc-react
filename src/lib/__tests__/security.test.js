@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { tempPassword } from '../ids.js';
-import { PASSWORD_RULE, ROLES } from '../constants.js';
+import { PASSWORD_RULE, ROLES, roleFromUsername } from '../constants.js';
 import { applyChanges } from '../../data/merge.js';
 import { buildSeed } from '../seed.js';
 import { createUser, resetPassword } from '../../store/actions.js';
@@ -17,6 +17,16 @@ describe('seguridad', () => {
   it('un médico se crea con su especialidad', () => {
     const db = buildSeed();
     expect(() => createUser(db, ctx(db), { u: 'm.otro', n: 'Dr. Sin Especialidad', role: 'med', col: 'CMP-12346' })).toThrow(/especialidad/);
+  });
+
+  it('el usuario lleva el prefijo de su rol, que el inicio de sesión usa para reconocer el área', () => {
+    const db = buildSeed();
+    expect(() => createUser(db, ctx(db), { u: 'ana.gil', n: 'Ana Gil', role: 'caj', col: '' })).toThrow(/empieza con «c\.»/);
+    expect(() => createUser(db, ctx(db), { u: 'c.', n: 'Ana Gil', role: 'caj', col: '' })).toThrow(/4 a 20/);
+    expect(createUser(db, ctx(db), { u: 'c.gil', n: 'Ana Gil', role: 'caj', col: '' }).result.u).toBe('c.gil');
+    expect(db.users.every((x) => roleFromUsername(x.u) === x.role)).toBe(true);
+    expect(roleFromUsername(' M.Cardio ')).toBe('med');
+    expect(roleFromUsername('x.otro')).toBeNull();
   });
 
   it('las contraseñas temporales nunca quedan en el estado local', () => {
