@@ -1,7 +1,7 @@
 import { Printer } from 'lucide-react';
 import { useStore } from '../store/useStore.js';
 import { cap, fmtDT, fmtHora, fmtLongDay, fmtSoles, age, maskDni, fullName } from '../lib/format.js';
-import { CONCEPTO_PAGO, METODOS_PAGO, TARIFA_CONSULTA } from '../lib/constants.js';
+import { CENTRO, CONCEPTO_PAGO, METODOS_PAGO, TARIFA_CONSULTA } from '../lib/constants.js';
 import { especialidad, sameDay } from '../lib/agenda.js';
 import { esperaDe, rangoEspera } from '../lib/espera.js';
 import { usePatientHistory } from '../hooks/usePatientHistory.js';
@@ -11,13 +11,14 @@ import { Msg, SisBadge } from './ui.jsx';
 import { Icon3D } from './Icon3D.jsx';
 import { BrandMark } from './BrandMark.jsx';
 import { PatientTimeline, VitalTrends } from './PatientTimeline.jsx';
+import { BoletaPrint, CitaPrint, HistoriaPrint, RecetaPrint, TicketPrint } from './PrintSheets.jsx';
 import './documents.css';
 
 const DocHead = ({ title, code, icon }) => (
   <header className="doc-h">
     <BrandMark />
     <div>
-      <small>Centro de Salud (demo)</small>
+      <small>{CENTRO.nombre}</small>
       <h3>{title}</h3>
     </div>
     {code && <b className="tcode doc-code">{code}</b>}
@@ -70,6 +71,7 @@ export function Recipe({ turn: t, onClose }) {
       </dl>
       <p className="wm">Documento de demostración sin validez clínica ni legal.</p>
       <DocActions onClose={onClose} />
+      <RecetaPrint turn={t} control={control} />
     </Modal>
   );
 }
@@ -119,8 +121,9 @@ function TicketRuta({ turn: t }) {
 }
 
 export function Ticket({ turn: t, onClose }) {
-  const { patient } = useStore();
+  const { patient, db } = useStore();
   const p = patient(t.dni);
+  const now = useNow(60_000);
   return (
     <Modal label="Ticket de turno" onClose={onClose} size="sm" className="doc ticket">
       <DocHead title="Su turno" icon="ticket" />
@@ -136,6 +139,7 @@ export function Ticket({ turn: t, onClose }) {
       </dl>
       <p className="tk-foot">Conserve este ticket. Su código aparecerá en la pantalla de la sala.</p>
       <DocActions onClose={onClose} />
+      <TicketPrint turn={t} indicacion={nextStep(t)} espera={rangoEspera(esperaDe(db.turns, t, now))} />
     </Modal>
   );
 }
@@ -170,6 +174,7 @@ export function Comprobante({ turn: t, onClose }) {
       </dl>
       <p className="wm">Documento de demostración sin validez tributaria.</p>
       <DocActions onClose={onClose} />
+      <BoletaPrint turn={t} />
     </Modal>
   );
 }
@@ -198,6 +203,7 @@ export function ConstanciaCita({ turn: t, onClose }) {
         <div><dt>DNI</dt><dd>{p ? maskDni(p.dni) : '—'}</dd></div>
       </dl>
       <DocActions onClose={onClose} />
+      <CitaPrint turn={t} />
     </Modal>
   );
 }
@@ -226,6 +232,7 @@ export function ClinicalHistory({ dni, onClose, onRecipe }) {
       {h.error && <Msg tone="crit">{h.error}</Msg>}
       <p className="wm info">Este acceso queda registrado en la auditoría (RF-18).</p>
       <DocActions onClose={onClose} />
+      <HistoriaPrint patient={p} visits={h.attended} />
     </Modal>
   );
 }

@@ -483,12 +483,15 @@ create index ix_auditoria_fecha on public.auditoria (fecha_hora desc);
 insert into public.especialidad (codigo, nombre, duracion_cita_min) values
   ('MG',  'Medicina General', 20),
   ('PED', 'Pediatría',        20),
-  ('CAR', 'Cardiología',      30);
+  ('CAR', 'Cardiología',      30),
+  ('GIN', 'Ginecología y Obstetricia', 20);
 
 insert into public.area_atencion (nombre, tipo) values
   ('Módulo de Triaje 1', 'TRIAJE'),
   ('Consultorio 1', 'CONSULTORIO'),
-  ('Consultorio 2', 'CONSULTORIO');
+  ('Consultorio 2', 'CONSULTORIO'),
+  ('Consultorio 3', 'CONSULTORIO'),
+  ('Consultorio 4', 'CONSULTORIO');
 
 insert into public.diagnostico_cie10 (codigo_cie10, descripcion) values
   ('J00',   'Rinofaringitis aguda (resfriado común)'),
@@ -1108,20 +1111,37 @@ from (values
   ('m.consulta2', 'MEDICO',     'Dr. Luis Paz (demo)',    'CMP-00001', true,  'MG'),
   ('m.pediatria', 'MEDICO',     'Dra. Sofía Mora (demo)', 'CMP-00002', true,  'PED'),
   ('m.cardio',    'MEDICO',     'Dr. Raúl Vega (demo)',   'CMP-00003', true,  'CAR'),
+  ('m.general3',  'MEDICO',     'Dra. Patricia Núñez (demo)', 'CMP-00004', true, 'MG'),
+  ('m.pediatria2','MEDICO',     'Dr. Andrés Salas (demo)', 'CMP-00005', true,  'PED'),
+  ('a.admision2', 'ADMISION',   'Jorge Huamán (demo)',    null,        true,  null),
+  ('c.caja2',     'CAJA',       'Lucía Paredes (demo)',   null,        true,  null),
+  ('e.triaje2',   'ENFERMERIA', 'Ana Quispe (demo)',      'CEP-00002', true,  null),
+  ('m.gineco',    'MEDICO',     'Dra. Carmen Salazar (demo)', 'CMP-00006', true, 'GIN'),
+  ('m.general4',  'MEDICO',     'Dr. Hugo Medina (demo)', 'CMP-00007', true,  'MG'),
+  ('a.admision3', 'ADMISION',   'Elsa Chávez (demo)',     null,        true,  null),
+  ('c.caja3',     'CAJA',       'Martín Rojas (demo)',    null,        true,  null),
+  ('e.triaje3',   'ENFERMERIA', 'Luis Vargas (demo)',     'CEP-00003', true,  null),
+  ('j.calidad',   'JEFATURA',   'Silvia Torres (demo)',   null,        true,  null),
   ('j.jefatura',  'JEFATURA',   'Marco Soto (demo)',      null,        true,  null),
   ('e.turno2',    'ENFERMERIA', 'Iris Campos (demo)',     'CEP-00001', false, null)
 ) as x(usr, rol, nombre, col, act, esp)
 left join public.especialidad e on e.codigo = x.esp;
 
 -- Horario semanal de la demostración (el mismo de src/lib/seedHistory.js): Medicina General de mañana
--- y de tarde, Pediatría lunes, miércoles y viernes, y Cardiología solo martes y jueves.
+-- (dos médicos) y de tarde, Pediatría lunes, miércoles y viernes (mañana y tarde), Cardiología martes y jueves
+-- y Ginecología y Obstetricia lunes, miércoles y viernes por la mañana.
 insert into public.horario_medico (id_usuario_medico, id_area, dia_semana, hora_inicio, hora_fin)
 select u.id_usuario, a.id_area, d.dia, x.ini, x.fin
 from (values
   ('m.consulta',  'Consultorio 1', time '07:00', time '13:00', array[1,2,3,4,5,6]),
   ('m.consulta2', 'Consultorio 1', time '13:00', time '19:00', array[1,2,3,4,5]),
   ('m.pediatria', 'Consultorio 2', time '08:00', time '14:00', array[1,3,5]),
-  ('m.cardio',    'Consultorio 2', time '08:00', time '13:00', array[2,4])
+  ('m.cardio',    'Consultorio 2', time '08:00', time '13:00', array[2,4]),
+  ('m.general3',  'Consultorio 3', time '07:00', time '13:00', array[1,2,3,4,5]),
+  ('m.pediatria2','Consultorio 3', time '14:00', time '19:00', array[1,3,5]),
+  ('m.gineco',    'Consultorio 4', time '08:00', time '13:00', array[1,3,5]),
+  ('m.general4',  'Consultorio 4', time '13:00', time '19:00', array[2,4]),
+  ('m.general4',  'Consultorio 4', time '08:00', time '13:00', array[6])
 ) as x(usr, area, ini, fin, dias)
 join public.usuario u on u.username = x.usr
 join public.area_atencion a on a.nombre = x.area

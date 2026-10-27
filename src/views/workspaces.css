@@ -326,3 +326,32 @@ button.chip[aria-pressed='true'] { border-color: var(--role); background: var(--
 .ctl-slot[aria-checked='true'] { border-color: var(--role); box-shadow: 0 0 0 3px color-mix(in oklab, var(--role) 25%, transparent); background: color-mix(in oklab, var(--role) 8%, var(--surface)); }
 .pac-note { font-size: var(--fs-xs); color: var(--ink-2); line-height: 1.35; }
 .pac-meta > span { white-space: nowrap; }
+
+/* Citas según el día: las de días anteriores se atenúan, las de días siguientes van un tono menor y las de
+   hoy resaltan. Al pasar el cursor o enfocar una cita atenuada recupera su color para poder usarla. */
+.cita-card { transition: transform 0.15s var(--ease), box-shadow 0.15s, opacity 0.2s, filter 0.2s; }
+.cita-card[data-dia='hoy'] { border-color: color-mix(in oklab, var(--e) 55%, var(--line)); box-shadow: 0 0 0 1px color-mix(in oklab, var(--e) 30%, transparent), 0 8px 20px -14px color-mix(in oklab, var(--e) 70%, transparent); }
+.cita-card[data-dia='futuro'] { opacity: 0.8; filter: saturate(0.7); }
+.cita-card[data-dia='pasado'] { opacity: 0.45; filter: grayscale(0.85); }
+.cita-card[data-dia='futuro']:is(:hover, :focus-within), .cita-card[data-dia='pasado']:is(:hover, :focus-within) { opacity: 1; filter: none; }
+
+/* Lo que ya se atendió hoy (o se canceló) también pasa a segundo plano */
+.cita-card[data-dia='hoy'][data-cerrada] { opacity: 0.6; box-shadow: none; border-color: var(--line); }
+.cita-card[data-cerrada]:is(:hover, :focus-within) { opacity: 1; }
+
+/* Tablero de cupos: la columna de hoy resalta y los días siguientes van un tono menor. Al elegir una hora,
+   todo lo demás se atenúa y solo queda resaltada la elegida (vuelve a verse al pasar el cursor). */
+.tab-col, .cupo, .slot, .day-chips .chip { transition: opacity 0.2s, filter 0.2s, box-shadow 0.2s; }
+.tab-col[data-dia='hoy'] { background: color-mix(in oklab, var(--e) 14%, var(--surface)); box-shadow: 0 0 0 2px color-mix(in oklab, var(--e) 40%, transparent); }
+.tab-col[data-dia='futuro'] { opacity: 0.85; }
+.tablero:has(.cupo[aria-pressed='true']) .tab-col:not(:has(.cupo[aria-pressed='true'])) { opacity: 0.4; filter: saturate(0.4); }
+.tablero:has(.cupo[aria-pressed='true']) .tab-col:has(.cupo[aria-pressed='true']) { opacity: 1; filter: none; box-shadow: 0 0 0 2px var(--e), 0 12px 26px -18px var(--e); }
+:is(.tablero, .cupo-grid):has(.cupo[aria-pressed='true']) .cupo:not([aria-pressed='true']) { opacity: 0.35; }
+.cupo[aria-pressed='true'] { transform: scale(1.06); }
+:is(.tablero, .cupo-grid):has(.cupo[aria-pressed='true']) :is(.tab-col, .cupo):is(:hover, :focus-visible) { opacity: 1; filter: none; }
+
+/* Reserva por web: el día de hoy resalta, los siguientes van un tono menor y, al elegir una hora, las demás se atenúan */
+.day-chips .chip[data-dia='futuro']:not(.on) { opacity: 0.75; }
+.day-chips .chip[data-dia='hoy'] { border-color: var(--role-strong); }
+.slots:has(.slot.on) .slot:not(.on) { opacity: 0.35; }
+.slots:has(.slot.on) .slot:not(.on):is(:hover, :focus-visible) { opacity: 1; }

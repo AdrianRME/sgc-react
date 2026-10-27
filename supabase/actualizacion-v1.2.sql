@@ -583,6 +583,52 @@ insert into public.usuario (username, password_hash, rol, nombre_completo, activ
 values ('a.citasweb', 'sin-acceso', 'ADMISION', 'Citas por web (sistema)', false)
 on conflict (username) do nothing;
 
+-- Más personal de demostración: Ginecología y Obstetricia, Consultorios 3 y 4, tres ventanillas de Admisión,
+-- tres cajas, tres enfermeras, cuatro médicos más y una segunda cuenta de Jefatura (calidad)
+insert into public.especialidad (codigo, nombre, duracion_cita_min) values ('GIN', 'Ginecología y Obstetricia', 20)
+on conflict (codigo) do nothing;
+
+insert into public.area_atencion (nombre, tipo) values ('Consultorio 3', 'CONSULTORIO'), ('Consultorio 4', 'CONSULTORIO')
+on conflict (nombre) do nothing;
+
+insert into public.usuario (username, password_hash, rol, nombre_completo, colegiatura, activo, id_especialidad)
+select x.usr, 'pendiente', x.rol, x.nombre, x.col, true, e.id_especialidad
+from (values
+  ('m.general3',   'MEDICO',     'Dra. Patricia Núñez (demo)', 'CMP-00004', 'MG'),
+  ('m.pediatria2', 'MEDICO',     'Dr. Andrés Salas (demo)',    'CMP-00005', 'PED'),
+  ('a.admision2',  'ADMISION',   'Jorge Huamán (demo)',        null,        null),
+  ('c.caja2',      'CAJA',       'Lucía Paredes (demo)',       null,        null),
+  ('e.triaje2',    'ENFERMERIA', 'Ana Quispe (demo)',          'CEP-00002', null),
+  ('m.gineco',     'MEDICO',     'Dra. Carmen Salazar (demo)', 'CMP-00006', 'GIN'),
+  ('m.general4',   'MEDICO',     'Dr. Hugo Medina (demo)',     'CMP-00007', 'MG'),
+  ('a.admision3',  'ADMISION',   'Elsa Chávez (demo)',         null,        null),
+  ('c.caja3',      'CAJA',       'Martín Rojas (demo)',        null,        null),
+  ('e.triaje3',    'ENFERMERIA', 'Luis Vargas (demo)',         'CEP-00003', null),
+  ('j.calidad',    'JEFATURA',   'Silvia Torres (demo)',       null,        null)
+) as x(usr, rol, nombre, col, esp)
+left join public.especialidad e on e.codigo = x.esp
+on conflict (username) do nothing;
+
+insert into public.horario_medico (id_usuario_medico, id_area, dia_semana, hora_inicio, hora_fin)
+select u.id_usuario, a.id_area, d.dia, x.ini, x.fin
+from (values
+  ('m.general3',   'Consultorio 3', time '07:00', time '13:00', array[1,2,3,4,5]),
+  ('m.pediatria2', 'Consultorio 3', time '14:00', time '19:00', array[1,3,5]),
+  ('m.gineco',     'Consultorio 4', time '08:00', time '13:00', array[1,3,5]),
+  ('m.general4',   'Consultorio 4', time '13:00', time '19:00', array[2,4]),
+  ('m.general4',   'Consultorio 4', time '08:00', time '13:00', array[6])
+) as x(usr, area, ini, fin, dias)
+join public.usuario u on u.username = x.usr
+join public.area_atencion a on a.nombre = x.area
+cross join lateral unnest(x.dias) as d(dia)
+where not exists (select 1 from public.horario_medico h where h.id_usuario_medico = u.id_usuario and h.dia_semana = d.dia);
+
+-- Contraseña de las cuentas nuevas: SgcDemo2026 (la misma de las demás cuentas de demostración)
+select sgc_interno.fijar_credencial(username, 'SgcDemo2026', false)
+from public.usuario where username in ('m.general3', 'm.pediatria2', 'a.admision2', 'c.caja2', 'e.triaje2',
+                                       'm.gineco', 'm.general4', 'a.admision3', 'c.caja3', 'e.triaje3', 'j.calidad')
+  and not exists (select 1 from auth.users a where lower(a.email) = lower(username || '@' || sgc_interno.dominio()));
+
 -- Permisos
 revoke all on sgc_interno.intento_cita from public, anon, authenticated;
 -- Las funciones internas nuevas no se ejecutan desde fuera (las reemplazadas conservan sus permisos)

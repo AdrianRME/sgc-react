@@ -9,7 +9,7 @@ import {
   cuposLibres, deTurnoHoy, diaNombre, diasDeAtencion, especialidad, especialidadSugerida,
   isoDow, listaDias, porDia, sameDay, sobrecupo, sugerirCita,
 } from '../lib/agenda.js';
-import { age, fmtCitaDia, fmtHora, fullName, initials } from '../lib/format.js';
+import { age, fmtCitaDia, fmtHora, fullName, initials, tonoDia } from '../lib/format.js';
 import { listItem } from '../lib/motion.js';
 import { useNow } from '../hooks/useNow.js';
 import { Badge, Msg, PrioBadge, StateBadge, TurnCode } from './ui.jsx';
@@ -150,7 +150,7 @@ export function CitaForm({ turn, patient, onDone, preselect = false }) {
             {dias.map((d) => {
               const porMed = [...new Set(d.cupos.map((c) => c.med))];
               return (
-                <section key={d.day} className="tab-col">
+                <section key={d.day} className="tab-col" data-dia={tonoDia(d.day, now)}>
                   <header>
                     <b>{fmtCitaDia(d.day, now)}</b>
                     <small>{d.cupos.length} libres</small>
@@ -192,7 +192,7 @@ export function CitaRow({ t, now, actions }) {
   const late = t.state === 'CITADO' && sameDay(c.at, now) && now > c.at + 15 * MIN;
   const doc = db.users.find((x) => x.u === c.med);
   return (
-    <m.li {...listItem} layout className={`cita-card ${t.prio === 'CRITICA' ? 'crit' : ''}`} style={{ '--e': `var(--esp-${c.esp})` }}>
+    <m.li {...listItem} layout className={`cita-card ${t.prio === 'CRITICA' ? 'crit' : ''}`} data-dia={tonoDia(c.at, now)} data-cerrada={['ATENDIDO', 'CANCELADO'].includes(t.state) || undefined} style={{ '--e': `var(--esp-${c.esp})` }}>
       <div className="cc-time">
         <b>{fmtHora(c.at)}</b>
         <small>{fmtCitaDia(c.at, now)}</small>

@@ -101,6 +101,7 @@
   --esp-MG: var(--st-med);
   --esp-PED: light-dark(#0f9d8f, #22b8a8);
   --esp-CAR: light-dark(#c2366b, #e0588a);
+  --esp-GIN: light-dark(#b4530f, #e08a3c);
 }
 
 /* Cada espacio toma el color de su estación */

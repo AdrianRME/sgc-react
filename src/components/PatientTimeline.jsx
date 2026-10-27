@@ -1,6 +1,6 @@
 import { m } from 'motion/react';
 import { Activity, FileText } from 'lucide-react';
-import { fmtD, fmtT } from '../lib/format.js';
+import { fmtD, fmtT, tonoDia } from '../lib/format.js';
 import { parsePA } from '../lib/clinical.js';
 import { listItem } from '../lib/motion.js';
 import { Sparkline } from './charts/Sparkline.jsx';
@@ -43,7 +43,7 @@ export function PatientTimeline({ visits, onRecipe, loading }) {
   return (
     <ol className="timeline">
       {visits.map((t) => (
-        <m.li key={`${t.id}-${t.t0}`} {...listItem} layout="position">
+        <m.li key={`${t.id}-${t.t0}`} {...listItem} layout="position" data-dia={tonoDia(t.consult?.t ?? t.t0)}>
           <div className="tl-date">
             <b>{fmtD(t.t0)}</b>
             <span>{fmtT(t.t0)}</span>

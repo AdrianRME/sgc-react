@@ -4,7 +4,7 @@ import { ArrowLeft, CalendarCheck, Check, LogIn, Printer, Search } from 'lucide-
 import { useStore } from '../store/useStore.js';
 import { ESPECIALIDADES } from '../lib/constants.js';
 import { agendaPublica as agendaDe, cuposLibres, diasDeAtencion, listaDias, porDia } from '../lib/agenda.js';
-import { fmtCitaDia, fmtHora, fmtLongDay, isoDay } from '../lib/format.js';
+import { fmtCitaDia, fmtHora, fmtLongDay, isoDay, tonoDia } from '../lib/format.js';
 import { listItem } from '../lib/motion.js';
 import { useNow } from '../hooks/useNow.js';
 import { Field, Msg } from '../components/ui.jsx';
@@ -172,7 +172,7 @@ export function ReservaCita({ telefono = false, onDone }) {
               <>
                 <div className="day-chips" role="group" aria-label="Día de la cita">
                   {dias.map((d) => (
-                    <button key={d.day} type="button" className={`chip ${curDay?.day === d.day ? 'on' : ''}`} aria-pressed={curDay?.day === d.day} onClick={() => { setDay(d.day); setPick(null); }}>
+                    <button key={d.day} type="button" className={`chip ${curDay?.day === d.day ? 'on' : ''}`} data-dia={tonoDia(d.day, now)} aria-pressed={curDay?.day === d.day} onClick={() => { setDay(d.day); setPick(null); }}>
                       <b>{cap(fmtCitaDia(d.day, now))}</b><small>{d.cupos.length} cupos</small>
                     </button>
                   ))}

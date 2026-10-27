@@ -76,3 +76,40 @@ export const isoDay = (t) => {
   const d = new Date(t);
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 };
+
+/**
+ * Tono de una fecha respecto de hoy, para las listas que mezclan días: lo de días anteriores se atenúa,
+ * lo de días siguientes va un tono menor y lo de hoy resalta.
+ */
+export const tonoDia = (t, now = Date.now()) => {
+  const d = startOfDay(t);
+  const h = startOfDay(now);
+  return d < h ? 'pasado' : d > h ? 'futuro' : 'hoy';
+};
+
+const UNIDADES = ['', 'un', 'dos', 'tres', 'cuatro', 'cinco', 'seis', 'siete', 'ocho', 'nueve', 'diez', 'once', 'doce', 'trece',
+  'catorce', 'quince', 'dieciséis', 'diecisiete', 'dieciocho', 'diecinueve', 'veinte', 'veintiún', 'veintidós', 'veintitrés',
+  'veinticuatro', 'veinticinco', 'veintiséis', 'veintisiete', 'veintiocho', 'veintinueve'];
+const DECENAS = ['', '', '', 'treinta', 'cuarenta', 'cincuenta', 'sesenta', 'setenta', 'ochenta', 'noventa'];
+const CENTENAS = ['', 'ciento', 'doscientos', 'trescientos', 'cuatrocientos', 'quinientos', 'seiscientos', 'setecientos', 'ochocientos', 'novecientos'];
+function menosDeMil(n) {
+  if (n === 100) return 'cien';
+  const c = Math.floor(n / 100);
+  const r = n % 100;
+  const resto = r < 30 ? UNIDADES[r] : `${DECENAS[Math.floor(r / 10)]}${r % 10 ? ` y ${UNIDADES[r % 10]}` : ''}`;
+  return [CENTENAS[c], resto].filter(Boolean).join(' ');
+}
+/** Número entero en letras (hasta 999 999): 21 → «veintiún», 1500 → «mil quinientos». */
+export function enLetras(n) {
+  n = Math.floor(Math.abs(n));
+  if (n === 0) return 'cero';
+  const miles = Math.floor(n / 1000);
+  const resto = n % 1000;
+  const m = miles === 0 ? '' : miles === 1 ? 'mil' : `${menosDeMil(miles)} mil`;
+  return [m, menosDeMil(resto)].filter(Boolean).join(' ');
+}
+/** Importe en letras como lo pide la boleta: «SON: VEINTE CON 00/100 SOLES». */
+export const solesEnLetras = (monto) => {
+  const cent = Math.round((monto ?? 0) * 100);
+  return `SON: ${enLetras(Math.floor(cent / 100)).replace(/ún$/, 'uno').replace(/\bun$/, 'uno').toUpperCase()} CON ${String(cent % 100).padStart(2, '0')}/100 SOLES`;
+};

@@ -1,0 +1,92 @@
+/* ---------- Formatos de impresión ----------
+   En pantalla no se muestran. Al imprimir reemplazan a la ventana del documento y cada uno usa su papel:
+   térmico de 80 mm (ticket, constancia de cita y boleta), A5 (receta) y A4 (historia clínica). */
+.ps { display: none; }
+
+@page termica { size: 80mm 210mm; margin: 4mm 4mm 6mm; }
+@page receta { size: A5 portrait; margin: 9mm 10mm 10mm; }
+@page historia {
+  size: A4 portrait; margin: 14mm 14mm 16mm;
+  @bottom-right { content: 'Hoja ' counter(page) ' de ' counter(pages); font: 8pt Arial, Helvetica, sans-serif; color: #444; }
+}
+
+@media print {
+  .dialog:has(> .ps) > :not(.ps) { display: none !important; }
+  .dialog:has(> .ps) { transform: none !important; opacity: 1 !important; border-radius: 0; background: #fff; overflow: visible; }
+  .overlay:has(.ps) { transform: none !important; opacity: 1 !important; }
+
+  .ps {
+    display: block; color: #000; background: #fff; font: 9pt / 1.35 Arial, Helvetica, sans-serif; text-align: left;
+    -webkit-print-color-adjust: exact; print-color-adjust: exact;
+  }
+  .ps * { font-family: inherit; }
+  .ps b { font-weight: 700; }
+  .ps-termica { page: termica; width: 72mm; font-size: 8.5pt; }
+  .ps-a5 { page: receta; }
+  .ps-a4 { page: historia; font-size: 9.5pt; }
+
+  /* Comunes */
+  .ps-f dt { font-size: 0.78em; text-transform: uppercase; letter-spacing: 0.04em; color: #444; }
+  .ps-f dd { margin: 0; font-weight: 600; }
+  .ps-h { margin: 3.5mm 0 1.5mm; padding-bottom: 0.8mm; border-bottom: 0.6pt solid #000; font-size: 1.02em; text-transform: uppercase; letter-spacing: 0.04em; break-after: avoid; }
+  .ps-tbl { width: 100%; border-collapse: collapse; margin: 1mm 0; }
+  .ps-tbl th, .ps-tbl td { padding: 1mm 1.2mm; border: 0.5pt solid #000; vertical-align: top; text-align: left; }
+  .ps-tbl th { background: #e9e9e9; font-size: 0.85em; }
+  .ps-tbl .n { text-align: right; font-variant-numeric: tabular-nums; }
+  .ps-box { margin: 2mm 0; padding: 1.8mm 2.2mm; border: 0.8pt solid #000; border-radius: 1.5mm; }
+  .ps-foot { margin: 2mm 0 0; font-size: 0.82em; color: #222; }
+  .ps-demo { margin: 1.5mm 0 0; padding: 1mm 1.5mm; border: 0.6pt dashed #000; font-size: 0.78em; font-weight: 700; text-align: center; }
+
+  /* Papel térmico: una sola columna centrada, sin colores */
+  .ps-tmem { display: flex; flex-direction: column; align-items: center; text-align: center; padding-bottom: 2mm; border-bottom: 0.8pt dashed #000; }
+  .ps-tmem b { font-size: 1.15em; }
+  .ps-tmem span { font-size: 0.85em; }
+  .ps-ttl { margin: 2.5mm 0 0; text-align: center; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; }
+  .ps-big { margin: 1mm 0; text-align: center; font: 800 30pt / 1 Arial, Helvetica, sans-serif; letter-spacing: -0.5pt; }
+  .ps-c { margin: 0.8mm 0; text-align: center; }
+  .ps-day { font-weight: 700; font-size: 1.1em; }
+  .ps-ruta { list-style: none; display: grid; grid-template-columns: 1fr 1fr; gap: 0.6mm 3mm; margin: 2.5mm 0; padding: 0; }
+  .ps-ruta li { color: #555; }
+  .ps-ruta li.ok { color: #000; }
+  .ps-ruta li.cur { color: #000; font-weight: 800; }
+  .ps-cut { margin: 2.5mm 0; border: 0; border-top: 0.8pt dashed #000; }
+  .ps-kv { display: grid; grid-template-columns: 1fr 1fr; gap: 1.2mm 3mm; margin: 2mm 0; }
+  .ps-kv .wide { grid-column: 1 / -1; }
+  .ps-list { margin: 2mm 0; padding-left: 4mm; }
+  .ps-comp { display: flex; flex-direction: column; align-items: center; gap: 0.5mm; margin: 2.5mm 0; padding: 1.8mm; border: 1pt solid #000; text-transform: uppercase; text-align: center; }
+  .ps-comp b:last-child { font-size: 1.3em; letter-spacing: 0.04em; }
+  .ps-termica .ps-tbl th, .ps-termica .ps-tbl td { border: 0; border-bottom: 0.5pt dashed #000; padding: 0.8mm 0.6mm; background: none; }
+  .ps-tot { margin: 1.5mm 0 0; }
+  .ps-tot div { display: flex; justify-content: space-between; }
+  .ps-tot dd { margin: 0; font-variant-numeric: tabular-nums; }
+  .ps-tot .big { margin-top: 0.8mm; padding-top: 0.8mm; border-top: 0.8pt solid #000; font-weight: 800; font-size: 1.15em; }
+  .ps-letras { margin: 1.5mm 0; font-weight: 700; font-size: 0.9em; }
+
+  /* Membrete institucional (A5 y A4) */
+  .ps-mem { display: flex; justify-content: space-between; gap: 4mm; padding-bottom: 2mm; margin-bottom: 2mm; border-bottom: 1.2pt solid #000; }
+  .ps-mem-ent, .ps-mem-doc { display: flex; flex-direction: column; gap: 0.3mm; }
+  .ps-mem-ent b { font-size: 1.25em; }
+  .ps-mem-ent span, .ps-mem-doc span { font-size: 0.85em; }
+  .ps-mem-doc { align-items: flex-end; text-align: right; }
+  .ps-mem-doc b { font-size: 1.2em; text-transform: uppercase; letter-spacing: 0.06em; }
+  .ps-num { padding: 0.5mm 2mm; border: 1pt solid #000; font-weight: 700; font-size: 1em !important; }
+  .ps-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 1.5mm 3mm; margin: 1.5mm 0; }
+  .ps-grid .wide { grid-column: span 2; }
+  .ps-a5 .ps-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .ps-dx { margin: 0; padding-left: 4mm; }
+  .ps-firma { display: flex; flex-direction: column; align-items: center; width: 62mm; margin: 12mm 0 0 auto; text-align: center; break-inside: avoid; }
+  .ps-firma-l { width: 100%; margin-bottom: 1mm; border-top: 0.8pt solid #000; }
+  .ps-firma span { font-size: 0.85em; }
+
+  /* Historia clínica: el membrete y el pie se repiten en cada hoja (thead y tfoot de la tabla) */
+  .ps-page { width: 100%; border-collapse: collapse; }
+  .ps-page > thead > tr > td, .ps-page > tfoot > tr > td, .ps-page > tbody > tr > td { padding: 0; }
+  .ps-page > tfoot .ps-foot { margin-top: 3mm; padding-top: 1.5mm; border-top: 0.6pt solid #000; }
+  .ps-at { margin: 0 0 3mm; padding: 2mm 2.5mm; border: 0.6pt solid #000; break-inside: avoid; }
+  .ps-at > header { display: flex; justify-content: space-between; gap: 3mm; padding-bottom: 1mm; margin-bottom: 1.2mm; border-bottom: 0.5pt solid #000; }
+  .ps-at > header span { font-size: 0.9em; }
+  .ps-vit td, .ps-vit th { text-align: center; }
+  .ps-at > footer { display: flex; justify-content: space-between; align-items: flex-end; gap: 3mm; margin-top: 2mm; font-size: 0.88em; }
+  .ps-sello { min-width: 62mm; margin-top: 9mm; padding-top: 1mm; border-top: 0.6pt solid #000; text-align: center; }
+  .ps-sello i { display: block; font-style: normal; font-size: 0.85em; color: #444; }
+}

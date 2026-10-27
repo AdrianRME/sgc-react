@@ -64,3 +64,10 @@
   .overlay { position: static; background: none; backdrop-filter: none; padding: 0; display: block; }
   .dialog { box-shadow: none; max-height: none; width: 100%; padding: 0; }
 }
+
+/* Atenciones según el día: las de días anteriores atenuadas y la de hoy resaltada */
+.timeline > li { transition: opacity 0.2s, filter 0.2s; }
+.timeline > li[data-dia='pasado'] { opacity: 0.55; filter: grayscale(0.8); }
+.timeline > li[data-dia='pasado']:is(:hover, :focus-within) { opacity: 1; filter: none; }
+.timeline > li[data-dia='hoy'] .tl-body { padding: 10px 12px 10px 22px; border-radius: 12px; background: var(--role-soft, color-mix(in oklab, var(--st-med) 10%, var(--surface))); }
+.timeline > li[data-dia='hoy'] .tl-date b { color: var(--role-strong, var(--st-med)); }

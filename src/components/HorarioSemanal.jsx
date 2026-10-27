@@ -22,6 +22,8 @@ export function HorarioSemanal({ esp = null, onRemove }) {
   const now = useNow(60_000);
   const today = isoDow(now);
   const ahora = new Date(now).getHours() * 60 + new Date(now).getMinutes();
+  // Días de esta semana: los que ya pasaron se atenúan, los que vienen van un tono menor y hoy resalta
+  const dia = (d) => (d === today ? 'today' : d < today ? 'past' : 'next');
   const days = DIAS_SEMANA.filter(([d]) => d < 7 || db.horarios.some((h) => h.on && h.dow === 7));
   const groups = ESPECIALIDADES.filter((e) => !esp || e.k === esp)
     .map((e) => ({ e, meds: db.users.filter((u) => u.role === 'med' && u.on && u.esp === e.k) }))
@@ -33,7 +35,7 @@ export function HorarioSemanal({ esp = null, onRemove }) {
       <div className="hs-row hs-head" aria-hidden="true">
         <span />
         {days.map(([d, n]) => (
-          <span key={d} className={d === today ? 'today' : ''}>{n.slice(0, 3)}{d === today && <small>Hoy</small>}</span>
+          <span key={d} className={dia(d)}>{n.slice(0, 3)}{d === today && <small>Hoy</small>}</span>
         ))}
       </div>
       {groups.map(({ e, meds }) => (
@@ -50,7 +52,7 @@ export function HorarioSemanal({ esp = null, onRemove }) {
                 {days.map(([d, n]) => {
                   const hs = horariosDe(db.horarios, u.u, d);
                   return (
-                    <div key={d} className={`hs-cell ${d === today ? 'today' : ''}`} aria-label={`${n}: ${hs.length ? hs.map((h) => `${h.ini} a ${h.fin}, ${h.area}`).join('; ') : 'no atiende'}`}>
+                    <div key={d} className={`hs-cell ${dia(d)}`} aria-label={`${n}: ${hs.length ? hs.map((h) => `${h.ini} a ${h.fin}, ${h.area}`).join('; ') : 'no atiende'}`}>
                       {hs.length ? hs.map((h) => {
                         const en = d === today && ahora >= toMin(h.ini) && ahora < toMin(h.fin);
                         return (

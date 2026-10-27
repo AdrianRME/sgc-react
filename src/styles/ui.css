@@ -298,3 +298,10 @@ button.hero-kpi:hover { transform: translateY(-2px); }
   .hero-t > div:nth-child(2) { flex-basis: calc(100% - 70px); }
   .hero-acts { order: 3; width: 100%; }
 }
+
+/* Horario semanal: los días de esta semana que ya pasaron se atenúan, los que vienen van un tono menor y hoy resalta */
+.hs-cell, .hs-head span { transition: opacity 0.2s, filter 0.2s; }
+.hs-cell.past, .hs-head span.past { opacity: 0.4; filter: grayscale(0.8); }
+.hs-cell.next, .hs-head span.next { opacity: 0.8; }
+.hs-cell.today { box-shadow: inset 0 0 0 2px var(--role-line), 0 8px 20px -16px var(--role); }
+.hs-cell.past:is(:hover, :focus-within) { opacity: 1; filter: none; }

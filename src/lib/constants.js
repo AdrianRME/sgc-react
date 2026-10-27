@@ -173,7 +173,7 @@ export const SIS = {
 };
 
 export const TRIAGE_STATION = 'Módulo de Triaje 1';
-export const AREAS = ['Consultorio 1', 'Consultorio 2'];
+export const AREAS = ['Consultorio 1', 'Consultorio 2', 'Consultorio 3', 'Consultorio 4'];
 
 /* ---------- Caja ---------- */
 
@@ -185,6 +185,24 @@ export const METODOS_PAGO = { EFECTIVO: 'Efectivo', TARJETA: 'Tarjeta', BILLETER
 /** Condiciones de seguro exoneradas del pago. En contingencia (SIS sin validar) no se detiene la atención. */
 export const SIS_EXONERADO = ['ACTIVO', 'PENDIENTE_VALIDACION'];
 export const SERIE_BOLETA = 'B001';
+/** IGV incluido en la tarifa (la boleta lo desglosa). */
+export const IGV = 0.18;
+
+/**
+ * Datos del establecimiento que encabezan los documentos impresos. Todos son ficticios (demostración):
+ * el RUC y el código RENIPRESS no corresponden a ninguna entidad real.
+ */
+export const CENTRO = {
+  nombre: 'Centro de Salud SGC (demo)',
+  razon: 'SGC Servicios de Salud S.A.C. (demo)',
+  ruc: '20000000001',
+  renipress: '00000000',
+  categoria: 'I-3',
+  direccion: 'Av. Ejemplo 123, Lima (dirección ficticia)',
+  telefono: '(01) 000-0000',
+};
+/** Días de vigencia de la receta desde su emisión (valor de demostración, a definir por la jefatura médica). */
+export const VIGENCIA_RECETA_DIAS = 7;
 
 /* ---------- Citas ---------- */
 
@@ -196,6 +214,7 @@ export const ESPECIALIDADES = [
   { k: 'MG', n: 'Medicina General', dur: 20 },
   { k: 'PED', n: 'Pediatría', dur: 20 },
   { k: 'CAR', n: 'Cardiología', dur: 30 },
+  { k: 'GIN', n: 'Ginecología y Obstetricia', dur: 20 },
 ];
 /** Hasta cuántos días adelante se pueden dar citas. */
 export const CITA_DIAS_MAX = 30;
@@ -265,6 +284,9 @@ export const TH_DEFAULT = {
 
 export const FAKE_IPS = {
   'a.admision': '192.168.1.11', 'e.triaje': '192.168.1.12', 'c.caja': '192.168.1.13',
+  'a.admision2': '192.168.1.14', 'c.caja2': '192.168.1.15', 'e.triaje2': '192.168.1.16',
   'm.consulta': '192.168.1.20', 'm.consulta2': '192.168.1.21', 'm.pediatria': '192.168.1.22', 'm.cardio': '192.168.1.23',
+  'm.general3': '192.168.1.24', 'm.pediatria2': '192.168.1.25', 'm.gineco': '192.168.1.26', 'm.general4': '192.168.1.27',
+  'a.admision3': '192.168.1.17', 'c.caja3': '192.168.1.18', 'e.triaje3': '192.168.1.19', 'j.calidad': '192.168.1.31',
   'j.jefatura': '192.168.1.30',
 };

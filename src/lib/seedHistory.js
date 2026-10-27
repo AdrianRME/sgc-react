@@ -25,6 +25,17 @@ export const DEMO_USERS = [
   { u: 'm.consulta2', n: 'Dr. Luis Paz (demo)', role: 'med', col: 'CMP-00001', on: true, esp: 'MG' },
   { u: 'm.pediatria', n: 'Dra. Sofía Mora (demo)', role: 'med', col: 'CMP-00002', on: true, esp: 'PED' },
   { u: 'm.cardio', n: 'Dr. Raúl Vega (demo)', role: 'med', col: 'CMP-00003', on: true, esp: 'CAR' },
+  { u: 'm.general3', n: 'Dra. Patricia Núñez (demo)', role: 'med', col: 'CMP-00004', on: true, esp: 'MG' },
+  { u: 'm.pediatria2', n: 'Dr. Andrés Salas (demo)', role: 'med', col: 'CMP-00005', on: true, esp: 'PED' },
+  { u: 'a.admision2', n: 'Jorge Huamán (demo)', role: 'adm', col: '', on: true },
+  { u: 'c.caja2', n: 'Lucía Paredes (demo)', role: 'caj', col: '', on: true },
+  { u: 'e.triaje2', n: 'Ana Quispe (demo)', role: 'enf', col: 'CEP-00002', on: true },
+  { u: 'm.gineco', n: 'Dra. Carmen Salazar (demo)', role: 'med', col: 'CMP-00006', on: true, esp: 'GIN' },
+  { u: 'm.general4', n: 'Dr. Hugo Medina (demo)', role: 'med', col: 'CMP-00007', on: true, esp: 'MG' },
+  { u: 'a.admision3', n: 'Elsa Chávez (demo)', role: 'adm', col: '', on: true },
+  { u: 'c.caja3', n: 'Martín Rojas (demo)', role: 'caj', col: '', on: true },
+  { u: 'e.triaje3', n: 'Luis Vargas (demo)', role: 'enf', col: 'CEP-00003', on: true },
+  { u: 'j.calidad', n: 'Silvia Torres (demo)', role: 'jef', col: '', on: true },
   { u: 'j.jefatura', n: 'Marco Soto (demo)', role: 'jef', col: '', on: true },
   { u: 'e.turno2', n: 'Iris Campos (demo)', role: 'enf', col: 'CEP-00001', on: false },
   // Autor de las citas que el paciente reserva por la web (no inicia sesión)
@@ -34,14 +45,20 @@ export const DEMO_USERS = [
 const bloque = (med, dows, ini, fin, area) => dows.map((dow) => ({ id: `hor-${med}-${dow}`, med, dow, ini, fin, area, on: true }));
 
 /**
- * Horario semanal de la demostración (el mismo que inserta schema.sql): Medicina General de mañana y de
- * tarde, Pediatría lunes, miércoles y viernes, y Cardiología solo martes y jueves.
+ * Horario semanal de la demostración (el mismo que inserta schema.sql): Medicina General de mañana (dos
+ * médicos) y de tarde, Pediatría lunes, miércoles y viernes (mañana y tarde), Cardiología solo martes y jueves y
+ * Ginecología y Obstetricia lunes, miércoles y viernes por la mañana.
  */
 export const DEMO_HORARIOS = [
   ...bloque('m.consulta', [1, 2, 3, 4, 5, 6], '07:00', '13:00', 'Consultorio 1'),
   ...bloque('m.consulta2', [1, 2, 3, 4, 5], '13:00', '19:00', 'Consultorio 1'),
   ...bloque('m.pediatria', [1, 3, 5], '08:00', '14:00', 'Consultorio 2'),
   ...bloque('m.cardio', [2, 4], '08:00', '13:00', 'Consultorio 2'),
+  ...bloque('m.general3', [1, 2, 3, 4, 5], '07:00', '13:00', 'Consultorio 3'),
+  ...bloque('m.pediatria2', [1, 3, 5], '14:00', '19:00', 'Consultorio 3'),
+  ...bloque('m.gineco', [1, 3, 5], '08:00', '13:00', 'Consultorio 4'),
+  ...bloque('m.general4', [2, 4], '13:00', '19:00', 'Consultorio 4'),
+  ...bloque('m.general4', [6], '08:00', '13:00', 'Consultorio 4'),
 ];
 
 /** Datos del médico tal como firma la atención. */
@@ -49,7 +66,14 @@ export const medico = (u) => {
   const x = DEMO_USERS.find((y) => y.u === u);
   return { u: x.u, n: x.n, col: x.col };
 };
-export const STAFF = ['a.admision', 'c.caja', 'e.triaje', 'm.consulta', 'm.consulta2'];
+export const STAFF = ['a.admision', 'a.admision2', 'a.admision3', 'c.caja', 'c.caja2', 'c.caja3', 'e.triaje', 'e.triaje3', 'm.consulta', 'm.consulta2', 'm.general3'];
+
+/**
+ * Quién atiende cada paso: de mañana dos ventanillas de Admisión, dos cajas (el paciente va a la que esté libre) y
+ * dos enfermeras; de tarde, el turno de tarde.
+ */
+const ventanilla = (t, a, b, tarde) => (new Date(t).getHours() >= 13 ? tarde : new Date(t).getMinutes() % 2 ? b : a);
+const enfermeraDe = (t) => ventanilla(t, 'e.triaje', 'e.triaje3', 'e.triaje2');
 
 /** Generador pseudoaleatorio reproducible (mulberry32). */
 export function rng(seed) {
@@ -234,30 +258,31 @@ export function generateHistory({ now, days, todayUntil, seed = 2026, firstHc = 
     const profile = fixedVisit?.profile || chooseProfile(p, ageYears);
     const tri = { ...vitalsFor(r, profile, p, ageYears), motivo: r.pick(profile.motivo) };
     const { prio } = evalTriage(tri, TH_DEFAULT);
-    const turn = { dni: p.dni, adm: 'a.admision', t0 };
+    const adm = ventanilla(t0, 'a.admision', 'a.admision2', 'a.admision3');
+    const turn = { dni: p.dni, adm, t0 };
 
     // Caja: con SIS no se cobra; el no asegurado paga antes del triaje
     const sis = SIS_EXONERADO.includes(p.sis);
     if (!sis && !fixedVisit && r.chance(0.03)) {
-      return { ...turn, state: 'CANCELADO', prio: null, cancel: { motivo: CANCEL.sinPago, by: 'c.caja', t: t0 + 30 * MIN } };
+      return { ...turn, state: 'CANCELADO', prio: null, cancel: { motivo: CANCEL.sinPago, by: ventanilla(t0, 'c.caja', 'c.caja2', 'c.caja3'), t: t0 + 30 * MIN } };
     }
     const tPago = sis ? t0 : t0 + Math.round(r.between(2, 9) * eff * MIN);
     const pago = sis
-      ? { metodo: 'SIS', monto: 0, comp: null, by: 'a.admision', t: tPago }
-      : { metodo: r.weighted([['EFECTIVO', 55], ['BILLETERA', 30], ['TARJETA', 15]]), monto: TARIFA_CONSULTA, comp: null, by: 'c.caja', t: tPago };
+      ? { metodo: 'SIS', monto: 0, comp: null, by: adm, t: tPago }
+      : { metodo: r.weighted([['EFECTIVO', 55], ['BILLETERA', 30], ['TARJETA', 15]]), monto: TARIFA_CONSULTA, comp: null, by: ventanilla(tPago, 'c.caja', 'c.caja2', 'c.caja3'), t: tPago };
     const paid = { ...turn, tPago, pago };
 
     const tTriCall = tPago + Math.round((3 + r.next() * 6 + load * 0.9) * eff * MIN);
     if (!fixedVisit && r.chance(0.03)) {
       return { ...paid, state: 'CANCELADO', prio: null, tTriCall, calls: 3, dest: TRIAGE_STATION,
-        cancel: { motivo: CANCEL.noShow, by: 'e.triaje', t: tTriCall + 6 * MIN } };
+        cancel: { motivo: CANCEL.noShow, by: enfermeraDe(tTriCall), t: tTriCall + 6 * MIN } };
     }
     const tTriSave = tTriCall + Math.round(r.between(4, 9) * MIN);
 
     // Cita: el primer cupo libre de la especialidad (sobrecupo si es crítico)
     const tCita = tTriSave + Math.round(r.between(1, 5) * eff * MIN);
     const c = book(p, tri, prio, tCita);
-    const base = { ...paid, prio, tTriCall, tTriSave, enf: 'e.triaje', tri, tCita, cita: { ...c, by: 'a.admision', t: tCita } };
+    const base = { ...paid, prio, tTriCall, tTriSave, enf: enfermeraDe(tTriCall), tri, tCita, cita: { ...c, by: 'a.admision', t: tCita } };
     const otherDay = !sameDay(c.at, tCita);
     if (otherDay && !fixedVisit && r.chance(0.06)) {
       return { ...base, state: 'CANCELADO', cancel: { motivo: CANCEL.noAsistio, by: 'a.admision', t: c.at + 60 * MIN } };
