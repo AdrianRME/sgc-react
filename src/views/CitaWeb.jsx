@@ -3,7 +3,7 @@ import { AnimatePresence, m } from 'motion/react';
 import { ArrowLeft, CalendarCheck, Check, LogIn, Printer, Search } from 'lucide-react';
 import { useStore } from '../store/useStore.js';
 import { ESPECIALIDADES } from '../lib/constants.js';
-import { cuposLibres, diasDeAtencion, listaDias, porDia } from '../lib/agenda.js';
+import { agendaPublica as agendaDe, cuposLibres, diasDeAtencion, listaDias, porDia } from '../lib/agenda.js';
 import { fmtCitaDia, fmtHora, fmtLongDay, isoDay } from '../lib/format.js';
 import { listItem } from '../lib/motion.js';
 import { useNow } from '../hooks/useNow.js';
@@ -16,11 +16,6 @@ const ESP_ICON = { MG: 'stethoscope', PED: 'nurse', CAR: 'heart' };
 const DAYS_SHOWN = 10;
 const PASOS = ['Identifíquese', 'Especialidad', 'Día y hora', 'Listo'];
 const cap = (s) => s.charAt(0).toUpperCase() + s.slice(1);
-
-/** La agenda pública de una especialidad como una base mínima, para calcular los cupos con agenda.js. */
-const agendaDe = (c) => ({
-  users: c.users, horarios: c.horarios, turns: c.ocupadas.map((o) => ({ state: 'CITADO', cita: { ...o, sobre: false } })),
-});
 
 /** Constancia de la cita reservada (o de la que ya tenía). */
 function Constancia({ act, now, titulo }) {

@@ -214,3 +214,7 @@ export function validatePrescription(meds) {
   });
   return errs;
 }
+
+/** Color de una tarjeta según la prioridad del triaje (sin triaje: gris). */
+export const prioColor = (prio) =>
+  ({ CRITICA: 'var(--crit)', PRIORITARIA: 'var(--warn)', NORMAL: 'var(--good)' })[prio] ?? 'var(--line-strong)';

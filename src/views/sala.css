@@ -1,12 +1,17 @@
-/* Pantalla de sala: siempre oscura (televisor en una sala iluminada), con los colores de las estaciones */
+/* Pantalla de sala: siempre oscura (televisor en una sala iluminada). Cada estación lleva el color del rol
+   que la atiende (Caja naranja, Triaje verde, Consulta azul) para que el paciente busque su color. */
 .sala {
   --s-bg: #061316; --s-panel: #0d2024; --s-line: #1c373d; --s-ink: #eaf3f1; --s-ink2: #9db4b6;
   --tri: #24c98d; --med: #5297ee;
-  color-scheme: dark; display: grid; grid-template-rows: auto 1fr auto; min-height: 640px;
+  position: relative; color-scheme: dark; display: grid; grid-template-rows: auto auto 1fr auto;
+  align-content: start; min-height: 640px;
   border-radius: var(--r-panel); background: var(--s-bg); color: var(--s-ink); overflow: hidden;
 }
 .sala.full { min-height: 100dvh; border-radius: 0; }
-.sala-h { display: flex; align-items: center; gap: 14px; padding: 18px clamp(16px, 3vw, 32px); border-bottom: 1px solid var(--s-line); }
+.z-enf { --c: var(--tri); }
+.z-med { --c: var(--med); }
+
+.sala-h { display: flex; align-items: center; gap: 14px; padding: 16px clamp(16px, 3vw, 32px); border-bottom: 1px solid var(--s-line); }
 .sala-h .brand-mark { width: 44px; height: 44px; --ink: #eaf3f1; --paper: #061316; }
 .sala-h b { display: block; font: 700 1.3rem / 1.1 var(--display); }
 .sala-h span { display: block; color: var(--s-ink2); font-size: var(--fs-sm); }
@@ -14,44 +19,72 @@
 .clock b { font: 700 clamp(1.6rem, 3vw, 2.8rem) / 1 var(--display); font-variant-numeric: tabular-nums; }
 .clock span { margin-top: 4px; }
 
-.sala-body { display: grid; grid-template-columns: minmax(0, 1.55fr) minmax(0, 1fr); gap: clamp(16px, 2.5vw, 32px); padding: clamp(16px, 3vw, 32px); }
-.sala h2 { font: 600 clamp(1rem, 1.5vw, 1.35rem) / 1.2 var(--font); color: var(--s-ink2); margin-bottom: 14px; }
-.call {
-  --c: var(--med);
-  position: relative; display: flex; flex-direction: column; gap: clamp(12px, 2vw, 24px); padding: clamp(20px, 3.5vw, 44px);
-  border-radius: 24px; border: 2px solid var(--c); background: radial-gradient(120% 140% at 0% 0%, color-mix(in oklab, var(--c) 22%, var(--s-panel)) 0%, var(--s-panel) 55%);
+/* Último llamado: una franja con el código y el destino, en el color de la estación */
+.sala-last { padding: clamp(12px, 2vw, 20px) clamp(16px, 3vw, 32px) 0; }
+.last {
+  display: flex; flex-wrap: wrap; align-items: center; gap: 6px clamp(12px, 2vw, 28px); padding: clamp(12px, 2vw, 20px) clamp(16px, 2.5vw, 28px);
+  border-radius: 20px; border: 2px solid var(--c); background: color-mix(in oklab, var(--c) 20%, var(--s-panel));
 }
-.call.tri { --c: var(--tri); }
-.call-code { font: 800 clamp(4rem, 13vw, 12rem) / 0.9 var(--display); letter-spacing: -0.045em; font-variant-numeric: tabular-nums; }
-.call-to { display: flex; align-items: center; gap: 18px; }
-.call-to small { display: block; font-size: clamp(1rem, 1.6vw, 1.5rem); color: var(--s-ink2); }
-.call-to b { display: block; font: 700 clamp(1.8rem, 4vw, 3.6rem) / 1 var(--display); color: var(--c); }
-.call .ring { position: absolute; inset: -2px; border-radius: inherit; pointer-events: none; animation: call-ring 1.8s ease-out 3; }
-@keyframes call-ring { 0% { box-shadow: 0 0 0 0 color-mix(in oklab, var(--c) 55%, transparent); } 100% { box-shadow: 0 0 0 26px transparent; } }
-.call.none { display: grid; place-items: center; min-height: 260px; border-color: var(--s-line); background: var(--s-panel); color: var(--s-ink2); font-size: 1.4rem; }
-.also { margin-top: 22px; }
-.also h3 { font-size: var(--fs-md); color: var(--s-ink2); font-weight: 600; }
-.also ul { list-style: none; margin: 10px 0 0; padding: 0; display: flex; flex-wrap: wrap; gap: 10px; }
-.also li { --c: var(--med); display: flex; align-items: baseline; gap: 10px; padding: 10px 16px; border-radius: 14px; background: var(--s-panel); border-left: 5px solid var(--c); }
-.also li.tri { --c: var(--tri); }
-.also b { font: 700 1.6rem / 1 var(--display); }
-.also span { color: var(--s-ink2); }
+.last small { width: 100%; color: var(--s-ink2); font-size: clamp(0.9rem, 1.3vw, 1.2rem); font-weight: 600; }
+.last-code { font: 800 clamp(2.4rem, 6vw, 5.5rem) / 1 var(--display); letter-spacing: -0.03em; font-variant-numeric: tabular-nums; }
+.last-arrow { font-size: clamp(1.8rem, 4vw, 3.6rem); color: var(--c); }
+.last-dest { font: 700 clamp(1.8rem, 4.5vw, 4.2rem) / 1 var(--display); color: var(--c); }
+.last.none { border: 1px dashed var(--s-line); background: var(--s-panel); color: var(--s-ink2); font-size: clamp(1rem, 1.6vw, 1.4rem); }
 
-.next-cols { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
-.next-col { --c: var(--med); }
-.next-col.tri { --c: var(--tri); }
-.next-col h3 { display: flex; justify-content: space-between; align-items: baseline; padding-bottom: 8px; border-bottom: 3px solid var(--c); font-size: var(--fs-lg); }
-.next-col h3 span { color: var(--s-ink2); font-variant-numeric: tabular-nums; }
-.next-col ul { list-style: none; margin: 12px 0 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
-.next-col li { padding: 8px 14px; border-radius: 12px; background: var(--s-panel); font: 700 clamp(1.4rem, 2.3vw, 2.2rem) / 1.1 var(--display); font-variant-numeric: tabular-nums; display: flex; align-items: baseline; justify-content: space-between; gap: 8px; flex-wrap: wrap; }
-.next-col li small { color: var(--s-ink2); font: 600 clamp(0.9rem, 1.2vw, 1.15rem) / 1.2 var(--font); white-space: nowrap; }
-.none-sm { margin-top: 10px; color: var(--s-ink2); font-size: var(--fs-sm); }
+/* Zonas: una columna por estación */
+.sala-zonas { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: clamp(12px, 1.8vw, 22px); padding: clamp(12px, 2vw, 20px) clamp(16px, 3vw, 32px) clamp(16px, 3vw, 32px); align-items: start; }
+.zona { display: flex; flex-direction: column; min-width: 0; border-radius: 20px; background: var(--s-panel); border: 1px solid var(--s-line); border-top: 8px solid var(--c); overflow: hidden; }
+.zona-h { display: flex; align-items: center; gap: 12px; padding: 14px 16px; background: color-mix(in oklab, var(--c) 18%, var(--s-panel)); }
+.zona-h > div { min-width: 0; }
+.zona-h h2 { font: 800 clamp(1.3rem, 2vw, 1.9rem) / 1.05 var(--display); color: var(--c); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.zona-h div > span { display: block; color: var(--s-ink2); font-size: var(--fs-sm); }
+.zona-num { display: grid; place-items: center; flex: none; width: 52px; height: 52px; border-radius: 14px; background: var(--c); color: var(--s-bg); font: 800 2rem / 1 var(--display); }
+.zona-count { color: var(--s-ink2); font-size: var(--fs-sm); white-space: nowrap; }
+.zona-count b { color: var(--s-ink); font: 800 clamp(1.2rem, 1.8vw, 1.6rem) / 1 var(--display); font-variant-numeric: tabular-nums; }
+.zona-now { display: flex; flex-direction: column; gap: 4px; margin: 14px 16px 0; padding: 12px 16px; border-radius: 14px; border: 2px solid color-mix(in oklab, var(--c) 60%, transparent); min-height: 96px; justify-content: center; }
+.zona-now small { color: var(--s-ink2); font-weight: 600; }
+.zona-called { display: flex; flex-wrap: wrap; gap: 4px 16px; }
+.zona-called b { font: 800 clamp(2rem, 3.6vw, 3.4rem) / 1 var(--display); color: var(--c); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.zona-free { font: 700 2rem / 1 var(--display); color: var(--s-line); }
+.zona h3 { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; margin: 16px 16px 0; color: var(--s-ink2); font-size: var(--fs-md); font-weight: 600; }
+.zona-list { list-style: none; margin: 8px 0 0; padding: 0 16px; display: flex; flex-direction: column; gap: 6px; }
+.zona-list li { display: flex; align-items: baseline; gap: 10px; padding: 7px 12px; border-radius: 12px; background: var(--s-bg); border-left: 4px solid var(--c); font: 700 clamp(1.3rem, 2vw, 1.9rem) / 1.1 var(--display); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.zona-list li i { flex: none; min-width: 1.6em; color: var(--s-ink2); font: 600 clamp(0.85rem, 1vw, 1rem) / 1 var(--font); font-style: normal; }
+.zona-list li small { margin-left: auto; color: var(--s-ink2); font: 600 clamp(0.85rem, 1.1vw, 1.1rem) / 1.2 var(--font); white-space: nowrap; }
+.zona .none-sm { margin: 8px 16px 0; color: var(--s-ink2); font-size: var(--fs-sm); }
+.zona > :last-child { margin-bottom: 16px; }
+
+/* Televisor de una sola estación: todo más grande y la cola en varias columnas */
+.sala.one { grid-template-rows: auto 1fr auto; }
+.sala.one .sala-zonas { grid-template-columns: minmax(0, 1fr); }
+.sala.one .zona-h h2 { font-size: clamp(2rem, 4vw, 3.6rem); }
+.sala.one .zona-num { width: 80px; height: 80px; font-size: 3rem; border-radius: 20px; }
+.sala.one .zona-called b { font-size: clamp(3.5rem, 9vw, 8rem); }
+.sala.one .zona-now { min-height: 160px; }
+.sala.one .zona-list { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 320px), 1fr)); }
+.sala.one .zona-count b { font-size: clamp(1.6rem, 2.6vw, 2.4rem); }
 
 .sala-f { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px; padding: 14px clamp(16px, 3vw, 32px); border-top: 1px solid var(--s-line); color: var(--s-ink2); }
 .sala-f > span { display: inline-flex; align-items: center; gap: 8px; }
 .sala-f .err { color: #ff8f87; }
-.sala-f svg { width: 16px; height: 16px; }
+.sala-f svg { width: 16px; height: 16px; flex: none; }
 .sala-ctl { display: flex; flex-wrap: wrap; gap: 8px; }
-.sala-ctl button { display: inline-flex; align-items: center; gap: 8px; height: 36px; padding: 0 14px; border: 1px solid var(--s-line); border-radius: 10px; background: var(--s-panel); color: var(--s-ink); font-weight: 600; font-size: var(--fs-sm); }
+.sala-ctl button, .sala-sel { display: inline-flex; align-items: center; gap: 8px; height: 36px; padding: 0 14px; border: 1px solid var(--s-line); border-radius: 10px; background: var(--s-panel); color: var(--s-ink); font-weight: 600; font-size: var(--fs-sm); }
+.sala-sel select { height: 100%; border: 0; background: transparent; color: inherit; font: inherit; }
+.sala-sel select option { background: var(--s-panel); }
 .sala-ctl button[aria-pressed='true'] { border-color: var(--tri); }
-@media (max-width: 900px) { .sala-body { grid-template-columns: minmax(0, 1fr); } }
+
+/* Llamado nuevo: ocupa toda la pantalla unos segundos (tocar para cerrar) */
+.sala-flash {
+  position: absolute; inset: 0; z-index: 5; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: clamp(8px, 1.5vw, 18px);
+  padding: 24px; text-align: center; cursor: pointer;
+  background: radial-gradient(90% 90% at 50% 40%, color-mix(in oklab, var(--c) 45%, var(--s-bg)) 0%, var(--s-bg) 100%);
+  box-shadow: inset 0 0 0 clamp(8px, 1.4vw, 18px) var(--c);
+}
+.sala-flash > small { color: var(--s-ink2); font: 700 clamp(1.2rem, 2.4vw, 2.2rem) / 1 var(--font); text-transform: uppercase; letter-spacing: 0.12em; }
+.flash-code { font: 800 clamp(4.5rem, 16vw, 15rem) / 0.9 var(--display); letter-spacing: -0.045em; font-variant-numeric: tabular-nums; }
+.flash-to small { display: block; color: var(--s-ink2); font-size: clamp(1.1rem, 2vw, 1.8rem); }
+.flash-to b { display: block; font: 800 clamp(2.4rem, 7vw, 6.5rem) / 1 var(--display); color: var(--c); }
+.flash-more { margin-top: 8px; padding: 6px 14px; border-radius: 999px; background: var(--s-panel); color: var(--s-ink2); font-weight: 600; }
+
+@media (max-width: 600px) { .sala-zonas { grid-template-columns: minmax(0, 1fr); } }

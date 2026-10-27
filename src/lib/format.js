@@ -8,7 +8,7 @@ const longDayFmt = new Intl.DateTimeFormat(LOCALE, { weekday: 'long', day: 'nume
 const numFmt = new Intl.NumberFormat(LOCALE);
 
 export const DOW_NAMES = ['domingo', 'lunes', 'martes', 'miércoles', 'jueves', 'viernes', 'sábado'];
-const cap = (s) => s[0].toUpperCase() + s.slice(1);
+export const cap = (s) => s.charAt(0).toUpperCase() + s.slice(1);
 /** Día de la semana: «Lunes» o, corto, «Lun». */
 export const dowName = (d, short = false) => cap(short ? DOW_NAMES[d].slice(0, 3) : DOW_NAMES[d]);
 
@@ -54,6 +54,12 @@ export const ageAt = (nac, t = Date.now()) => Math.floor((t - new Date(`${nac}T0
 export const age = (nac) => ageAt(nac);
 export const maskDni = (dni) => `${String(dni).slice(0, 3)}•••••`;
 export const fullName = (p) => (p ? `${p.nom} ${p.ape}` : '—');
+/** Iniciales de un paciente: primer nombre y primer apellido. */
+export const iniciales = (p) => `${p.nom.trim()[0] || ''}${p.ape.trim()[0] || ''}`.toUpperCase();
+export const saludo = (t) => {
+  const h = new Date(t).getHours();
+  return h < 12 ? 'Buenos días' : h < 19 ? 'Buenas tardes' : 'Buenas noches';
+};
 export const initials = (name = '') =>
   name.replace(/\(.*?\)|Dra?\.\s*/g, '').trim().split(/\s+/).slice(0, 2).map((w) => w[0]).join('').toUpperCase();
 

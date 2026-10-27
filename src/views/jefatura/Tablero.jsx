@@ -1,16 +1,18 @@
 import { useMemo, useState } from 'react';
 import { ArrowDownRight, ArrowUpRight, Download, Minus } from 'lucide-react';
 import { useStore } from '../../store/useStore.js';
-import { AREAS, DAY, HISTORY_DAYS, PRIO, WAIT_TARGET } from '../../lib/constants.js';
+import { ACTIVE_STATES, AREAS, DAY, HISTORY_DAYS, PRIO, WAIT_TARGET } from '../../lib/constants.js';
 import {
   RANGES, periodOf, slice, summarize, series, heatmap, topDx, destinos, perfil, cumplimiento, porConsultorio, porEspecialidad, delta, toCSV,
   afluenciaPrevista, HORAS_AFLUENCIA,
 } from '../../lib/analytics.js';
-import { DOW_NAMES, fmtDay, fmtLongDay, fmtMin, fmtNum, fmtPct, isoDay, startOfDay } from '../../lib/format.js';
+import { DOW_NAMES, cap, fmtDay, fmtLongDay, fmtMin, fmtNum, fmtPct, fmtT, isoDay, startOfDay } from '../../lib/format.js';
 import { downloadText } from '../../lib/download.js';
 import { useQuery } from '../../hooks/useQuery.js';
 import { useNow } from '../../hooks/useNow.js';
-import { WorkspaceHeader } from '../../components/WorkspaceHeader.jsx';
+import { Help } from '../../components/WorkspaceHeader.jsx';
+import { SectionHero } from '../../components/SectionHero.jsx';
+import { Icon3D } from '../../components/Icon3D.jsx';
 import { AnimatedNumber, Msg, Panel, Segmented } from '../../components/ui.jsx';
 import { ColumnChart, LineChart } from '../../components/charts/BandChart.jsx';
 import { Heatmap } from '../../components/charts/Heatmap.jsx';
@@ -28,6 +30,14 @@ const PRIO_SERIES = [
 ];
 const DEST_COLOR = { Alta: 'var(--cat-1)', 'Reposo médico': 'var(--cat-2)', 'Derivación a hospital': 'var(--cat-3)' };
 const minFmt = (v) => fmtNum(Math.round(v));
+/** Temas del tablero: [clave, nombre, ícono, qué responde]. */
+const TABS = [
+  ['resumen', 'Resumen', 'chartup', 'Cifras clave del periodo'],
+  ['tiempos', 'Tiempos de espera', 'stopwatch', 'Dónde se demora el paciente'],
+  ['demanda', 'Demanda y citas', 'people', 'Cuándo llegan y qué se prevé'],
+  ['pacientes', 'Pacientes', 'heart', 'Diagnósticos y perfil'],
+  ['consultorios', 'Consultorios y tablas', 'clipboard', 'Productividad y detalle'],
+];
 
 /** Cifra principal con variación frente al periodo anterior. `good` dice si subir es bueno. */
 function Kpi({ label, value, format, change, changeFmt, good, trend, note }) {
@@ -62,6 +72,7 @@ export default function Tablero() {
   const now = useNow(60_000);
   const [range, setRange] = useState('7d');
   const [area, setArea] = useState('');
+  const [tab, setTab] = useState('resumen');
   const p = periodOf(range, now);
   const from = isoDay(p.prevFrom);
   const to = isoDay(p.to);
@@ -103,12 +114,26 @@ export default function Tablero() {
     ? `Hoy hasta las ${new Date(now).getHours()}:${String(new Date(now).getMinutes()).padStart(2, '0')} h, comparado con el mismo día de la semana pasada`
     : `Del ${fmtLongDay(p.from)} a hoy, comparado con los ${p.range.days} días anteriores`;
 
+  // Pulso en vivo del centro (no depende del periodo elegido)
+  const today = startOfDay(now);
+  const enCentro = db.turns.filter((t) => ACTIVE_STATES.includes(t.state) && t.state !== 'CITADO');
+  const pulso = [
+    { k: 'centro', n: 'En el centro ahora', icon: 'hospital', c: 'jef', value: enCentro.length },
+    { k: 'crit', n: 'Críticos en espera', icon: 'warning', c: 'crit', value: enCentro.filter((t) => t.prio === 'CRITICA').length },
+    { k: 'hoy', n: 'Atendidos hoy', icon: 'check', c: 'good', value: db.turns.filter((t) => t.state === 'ATENDIDO' && t.tEnd >= today).length },
+    { k: 'citas', n: 'Citas de hoy', icon: 'calendar', c: 'adm', value: db.turns.filter((t) => t.cita && t.state !== 'CANCELADO' && startOfDay(t.cita.at) === today).length },
+  ];
+
   return (
     <>
-      <WorkspaceHeader
-        title="Tablero gerencial"
+      <SectionHero
         icon="barchart"
-        lead="Cómo fluyen los pacientes por el centro de salud: demanda, tiempos de espera, cumplimiento de metas y morbilidad. Los datos son anónimos."
+        kicker={`${cap(fmtLongDay(now))} · ${fmtT(now)} · datos anónimos`}
+        title="Tablero gerencial"
+        text="Cómo fluyen los pacientes por el centro. Arriba, el pulso de este momento; abajo, los indicadores del periodo que elija, por tema."
+        tiles={pulso}
+        label="Pulso del centro"
+        actions={<Help role="jef" />}
       />
 
       <div className="filters">
@@ -121,166 +146,190 @@ export default function Tablero() {
         <button className="btn sec sm" onClick={exportCSV} disabled={!v}><Download /> Exportar CSV</button>
       </div>
 
+      <div className="dash-tabs" role="tablist" aria-label="Temas del tablero">
+        {TABS.map(([k, n, icon, sub]) => (
+          <button key={k} type="button" role="tab" id={`tab-${k}`} aria-selected={tab === k} aria-controls="dash-panel" className="dash-tab" onClick={() => setTab(k)}>
+            <Icon3D name={icon} size={30} />
+            <span><b>{n}</b><small>{sub}</small></span>
+          </button>
+        ))}
+      </div>
+
       {q.error && <Msg tone="crit">No se pudieron cargar los indicadores: {q.error}</Msg>}
       {!v ? (
         <div className="kpis">{[0, 1, 2, 3].map((i) => <div key={i} className="kpi skeleton" style={{ height: 132 }} />)}</div>
       ) : (
-        <div className={`dash ${q.loading ? 'refetch' : ''}`} aria-busy={q.loading}>
-          <div className="kpis">
-            <Kpi label="Pacientes atendidos" value={v.S.atendidos} format={minFmt} change={v.P && delta(v.S.atendidos, v.P.atendidos)} changeFmt={relFmt} good trend={v.days.map((d) => d.atendidos)} />
-            <Kpi label="Tiempo total medio en el centro (sin contar la espera hasta la cita)" value={v.S.tiempoTotal} format={fmtMin} change={v.P && delta(v.S.tiempoTotal, v.P.tiempoTotal)} changeFmt={relFmt} good={false} trend={v.days.map((d) => d.tiempoTotal)} />
-            <Kpi label="Esperas dentro del tiempo objetivo" value={v.S.enObjetivo} format={fmtPct} change={v.P && v.S.enObjetivo != null && v.P.enObjetivo != null ? v.S.enObjetivo - v.P.enObjetivo : null} changeFmt={ppFmt} good trend={v.days.map((d) => d.enObjetivo)} />
-            <Kpi label="Abandono (no pagó, no se presentó, se retiró o faltó a su cita)" value={v.S.abandono} format={fmtPct} change={v.P && v.S.abandono != null && v.P.abandono != null ? v.S.abandono - v.P.abandono : null} changeFmt={ppFmt} good={false} trend={v.days.map((d) => d.abandono)} />
-          </div>
-
-          <Insights v={v} />
-
-          <div className="dash-grid">
-            <Panel title={v.byHour ? 'Llegadas por hora, según prioridad' : 'Turnos por día, según prioridad'} sub="Los cancelados no se incluyen" className="span-2">
-              <ColumnChart
-                data={v.days.map((d) => ({ label: d.label, title: d.title, values: d }))}
-                series={PRIO_SERIES}
-                format={minFmt}
-                ariaLabel="Turnos por día según prioridad"
-              />
-            </Panel>
-            <Panel title="La ruta: tiempo medio por etapa" sub="Gris: tiempo de espera. Color: tiempo de atención.">
-              <StackBar
-                ariaLabel="Composición del tiempo total por etapa"
-                legend={false}
-                height={34}
-                segments={v.S.stages.map((s) => ({ k: s.k, label: s.n, value: s.mean || 0, display: fmtMin(s.mean), color: s.wait ? 'var(--wait)' : `var(--st-${s.st})`, ink: s.wait ? 'var(--ink)' : '#fff' }))}
-              />
-              <ol className="stage-list">
-                {v.S.stages.map((s) => (
-                  <li key={s.k}>
-                    <i style={{ background: s.wait ? 'var(--wait)' : `var(--st-${s.st})` }} aria-hidden="true" />
-                    <span>{s.n}</span>
-                    <b>{fmtMin(s.mean)}</b>
-                  </li>
-                ))}
-              </ol>
-            </Panel>
-
-            <Panel title={v.byHour ? 'Espera media por hora' : 'Espera media por día'} sub="Minutos hasta el llamado de cada etapa" className="span-2">
-              <LineChart
-                data={v.days.map((d) => ({ label: d.label, title: d.title, values: d }))}
-                series={[
-                  { k: 'espPago', label: 'Espera de pago', short: 'pago', color: 'var(--st-caj)' },
-                  { k: 'espTri', label: 'Espera de triaje', short: 'triaje', color: 'var(--st-enf)' },
-                  { k: 'espMed', label: 'Espera de consulta', short: 'consulta', color: 'var(--st-med)' },
-                ]}
-                format={minFmt}
-                unit=" min"
-                ariaLabel="Minutos de espera por día"
-              />
-            </Panel>
-            <Panel title="Cumplimiento del tiempo objetivo" sub="Espera para consulta según prioridad de triaje">
-              <div className="meters">
-                {v.cumpl.map((c) => (
-                  <Meter key={c.prio} label={PRIO[c.prio][0]} sub={`Objetivo: ≤ ${WAIT_TARGET[c.prio]} min`} rate={c.rate} detail={`${c.ok} de ${c.n}`} />
-                ))}
+        <div id="dash-panel" role="tabpanel" aria-labelledby={`tab-${tab}`} className={`dash ${q.loading ? 'refetch' : ''}`} aria-busy={q.loading}>
+          {tab === 'resumen' && (
+            <>
+              <div className="kpis">
+                <Kpi label="Pacientes atendidos" value={v.S.atendidos} format={minFmt} change={v.P && delta(v.S.atendidos, v.P.atendidos)} changeFmt={relFmt} good trend={v.days.map((d) => d.atendidos)} />
+                <Kpi label="Tiempo total medio en el centro (sin contar la espera hasta la cita)" value={v.S.tiempoTotal} format={fmtMin} change={v.P && delta(v.S.tiempoTotal, v.P.tiempoTotal)} changeFmt={relFmt} good={false} trend={v.days.map((d) => d.tiempoTotal)} />
+                <Kpi label="Esperas dentro del tiempo objetivo" value={v.S.enObjetivo} format={fmtPct} change={v.P && v.S.enObjetivo != null && v.P.enObjetivo != null ? v.S.enObjetivo - v.P.enObjetivo : null} changeFmt={ppFmt} good trend={v.days.map((d) => d.enObjetivo)} />
+                <Kpi label="Abandono (no pagó, no se presentó, se retiró o faltó a su cita)" value={v.S.abandono} format={fmtPct} change={v.P && v.S.abandono != null && v.P.abandono != null ? v.S.abandono - v.P.abandono : null} changeFmt={ppFmt} good={false} trend={v.days.map((d) => d.abandono)} />
               </div>
-            </Panel>
-
-            <Panel title="Demanda: llegadas por hora" sub="Promedio por día de la semana en el periodo" className="span-2">
-              <Heatmap data={v.heat} ariaLabel="Llegadas promedio por día de la semana y hora" />
-            </Panel>
-            <Panel title="Destino de los pacientes">
-              <StackBar
-                ariaLabel="Destino de los pacientes atendidos"
-                segments={v.dest.map((d) => ({ k: d.k, label: d.k, value: d.n, color: DEST_COLOR[d.k], display: fmtNum(d.n), legendValue: `${fmtNum(d.n)} (${d.total ? Math.round((d.n / d.total) * 100) : 0} %)` }))}
-              />
-            </Panel>
-
-            <Panel title="Afluencia prevista para los próximos días" sub={`Promedio de llegadas del mismo día y hora en las últimas ${prevision?.semanas ?? 4} semanas, en todo el centro`} className="span-3">
-              <Prevision v={prevision} error={qa.error} />
-            </Panel>
-
-            <Panel title="Morbilidad: diagnósticos más frecuentes" sub="Códigos CIE-10 registrados en el periodo" className="span-2">
-              <BarList
-                color="var(--cat-1)"
-                total={v.dx.reduce((s, d) => s + d.n, 0)}
-                rows={v.dx.map((d) => ({ k: d.code, label: d.code, sub: d.desc, value: d.n }))}
-                format={fmtNum}
-              />
-            </Panel>
-            <Panel title="Perfil de los pacientes" sub={`${fmtNum(v.perfil.total)} turnos con datos del paciente`}>
-              <BarList
-                color="var(--st-adm)"
-                total={v.perfil.total}
-                rows={v.perfil.grupos.map((g) => ({ k: g.k, label: g.n, sub: g.range, value: g.count, display: v.perfil.total ? `${Math.round((g.count / v.perfil.total) * 100)} %` : '—' }))}
-              />
-              <dl className="mini-stats">
-                <div><dt>Mujeres</dt><dd>{fmtPct(v.perfil.total ? v.perfil.mujeres / v.perfil.total : null)}</dd></div>
-                <div><dt>Con SIS activo</dt><dd>{fmtPct(v.perfil.total ? v.perfil.sis / v.perfil.total : null)}</dd></div>
-              </dl>
-            </Panel>
-
-            <Panel title="Citas por especialidad" sub="Si la especialidad no atiende ese día o no tiene cupo, la cita se da para otro día" className="span-3">
-              <div className="tblw">
-                <table className="tbl">
-                  <thead><tr><th>Especialidad</th><th className="num">Citas</th><th className="num">Para otro día</th><th className="num">Atendidas</th><th>Citas para otro día</th></tr></thead>
-                  <tbody>
-                    {v.esp.map((e) => {
-                      const share = e.citas ? e.otroDia / e.citas : 0;
-                      return (
-                        <tr key={e.k}>
-                          <td>{e.n}</td><td className="num">{fmtNum(e.citas)}</td><td className="num">{fmtNum(e.otroDia)}</td><td className="num">{fmtNum(e.atendidos)}</td>
-                          <td><span className="share"><i style={{ width: `${share * 100}%` }} /></span> {fmtPct(e.citas ? share : null)}</td>
-                        </tr>
-                      );
-                    })}
-                  </tbody>
-                </table>
+              <Insights v={v} />
+              <div className="dash-grid">
+                <Panel title={v.byHour ? 'Llegadas por hora, según prioridad' : 'Turnos por día, según prioridad'} sub="Los cancelados no se incluyen" className="span-2">
+                  <ColumnChart
+                    data={v.days.map((d) => ({ label: d.label, title: d.title, values: d }))}
+                    series={PRIO_SERIES}
+                    format={minFmt}
+                    ariaLabel="Turnos por día según prioridad"
+                  />
+                </Panel>
+                <Panel title="Destino de los pacientes" sub="Al cerrar la atención médica">
+                  <StackBar
+                    ariaLabel="Destino de los pacientes atendidos"
+                    segments={v.dest.map((d) => ({ k: d.k, label: d.k, value: d.n, color: DEST_COLOR[d.k], display: fmtNum(d.n), legendValue: `${fmtNum(d.n)} (${d.total ? Math.round((d.n / d.total) * 100) : 0} %)` }))}
+                  />
+                </Panel>
               </div>
-            </Panel>
+            </>
+          )}
 
-            <Panel title="Productividad por consultorio" className="span-3">
-              <div className="tblw">
-                <table className="tbl">
-                  <thead><tr><th>Consultorio</th><th>Médico</th><th className="num">Atenciones</th><th className="num">Consulta media</th><th>Participación</th></tr></thead>
-                  <tbody>
-                    {v.cons.map((c) => {
-                      const share = v.S.atendidos ? c.n / v.S.atendidos : 0;
-                      return (
-                        <tr key={c.area}>
-                          <td>{c.area}</td>
-                          <td>{[...c.med.keys()].map((u) => db.users.find((x) => x.u === u)?.n ?? u).join(', ') || '—'}</td>
-                          <td className="num">{fmtNum(c.n)}</td>
-                          <td className="num">{fmtMin(c.consulta)}</td>
-                          <td><span className="share"><i style={{ width: `${share * 100}%` }} /></span> {fmtPct(share)}</td>
-                        </tr>
-                      );
-                    })}
-                  </tbody>
-                </table>
-              </div>
-            </Panel>
+          {tab === 'tiempos' && (
+            <div className="dash-grid">
+              <Panel title="La ruta: tiempo medio por etapa" sub="Gris: tiempo de espera. Color: tiempo de atención." className="span-3">
+                <StackBar
+                  ariaLabel="Composición del tiempo total por etapa"
+                  legend={false}
+                  height={34}
+                  segments={v.S.stages.map((s) => ({ k: s.k, label: s.n, value: s.mean || 0, display: fmtMin(s.mean), color: s.wait ? 'var(--wait)' : `var(--st-${s.st})`, ink: s.wait ? 'var(--ink)' : '#fff' }))}
+                />
+                <ol className="stage-list">
+                  {v.S.stages.map((s) => (
+                    <li key={s.k}>
+                      <i style={{ background: s.wait ? 'var(--wait)' : `var(--st-${s.st})` }} aria-hidden="true" />
+                      <span>{s.n}</span>
+                      <b>{fmtMin(s.mean)}</b>
+                    </li>
+                  ))}
+                </ol>
+              </Panel>
+              <Panel title={v.byHour ? 'Espera media por hora' : 'Espera media por día'} sub="Minutos hasta el llamado de cada etapa" className="span-2">
+                <LineChart
+                  data={v.days.map((d) => ({ label: d.label, title: d.title, values: d }))}
+                  series={[
+                    { k: 'espPago', label: 'Espera de pago', short: 'pago', color: 'var(--st-caj)' },
+                    { k: 'espTri', label: 'Espera de triaje', short: 'triaje', color: 'var(--st-enf)' },
+                    { k: 'espMed', label: 'Espera de consulta', short: 'consulta', color: 'var(--st-med)' },
+                  ]}
+                  format={minFmt}
+                  unit=" min"
+                  ariaLabel="Minutos de espera por día"
+                />
+              </Panel>
+              <Panel title="Cumplimiento del tiempo objetivo" sub="Espera para consulta según prioridad de triaje">
+                <div className="meters">
+                  {v.cumpl.map((c) => (
+                    <Meter key={c.prio} label={PRIO[c.prio][0]} sub={`Objetivo: ≤ ${WAIT_TARGET[c.prio]} min`} rate={c.rate} detail={`${c.ok} de ${c.n}`} />
+                  ))}
+                </div>
+              </Panel>
+            </div>
+          )}
 
-            <Panel title={v.byHour ? 'Resumen por hora' : 'Resumen por día'} sub="La misma información de los gráficos, en tabla" className="span-3">
-              <div className="tblw">
-                <table className="tbl">
-                  <thead>
-                    <tr>
-                      <th>{v.byHour ? 'Hora' : 'Día'}</th><th className="num">Turnos</th><th className="num">Atendidos</th><th className="num">Cancelados</th>
-                      <th className="num">Críticos</th><th className="num">Espera triaje</th><th className="num">Espera consulta</th>
-                      <th className="num">Tiempo total</th><th className="num">En objetivo</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {[...v.days].reverse().map((d) => (
-                      <tr key={d.t}>
-                        <td>{d.title}</td><td className="num">{d.total}</td><td className="num">{d.atendidos}</td><td className="num">{d.cancelados}</td>
-                        <td className="num">{d.CRITICA}</td><td className="num">{fmtMin(d.espTri)}</td><td className="num">{fmtMin(d.espMed)}</td>
-                        <td className="num">{fmtMin(d.tiempoTotal)}</td><td className="num">{fmtPct(d.enObjetivo)}</td>
+          {tab === 'demanda' && (
+            <div className="dash-grid">
+              <Panel title="Afluencia prevista para los próximos días" sub={`Promedio de llegadas del mismo día y hora en las últimas ${prevision?.semanas ?? 4} semanas, en todo el centro`} className="span-3">
+                <Prevision v={prevision} error={qa.error} />
+              </Panel>
+              <Panel title="Demanda: llegadas por hora" sub="Promedio por día de la semana en el periodo" className="span-3">
+                <Heatmap data={v.heat} ariaLabel="Llegadas promedio por día de la semana y hora" />
+              </Panel>
+              <Panel title="Citas por especialidad" sub="Si la especialidad no atiende ese día o no tiene cupo, la cita se da para otro día" className="span-3">
+                <div className="tblw">
+                  <table className="tbl">
+                    <thead><tr><th>Especialidad</th><th className="num">Citas</th><th className="num">Para otro día</th><th className="num">Atendidas</th><th>Citas para otro día</th></tr></thead>
+                    <tbody>
+                      {v.esp.map((e) => {
+                        const share = e.citas ? e.otroDia / e.citas : 0;
+                        return (
+                          <tr key={e.k}>
+                            <td>{e.n}</td><td className="num">{fmtNum(e.citas)}</td><td className="num">{fmtNum(e.otroDia)}</td><td className="num">{fmtNum(e.atendidos)}</td>
+                            <td><span className="share"><i style={{ width: `${share * 100}%` }} /></span> {fmtPct(e.citas ? share : null)}</td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              </Panel>
+            </div>
+          )}
+
+          {tab === 'pacientes' && (
+            <div className="dash-grid">
+              <Panel title="Morbilidad: diagnósticos más frecuentes" sub="Códigos CIE-10 registrados en el periodo" className="span-2">
+                <BarList
+                  color="var(--cat-1)"
+                  total={v.dx.reduce((s, d) => s + d.n, 0)}
+                  rows={v.dx.map((d) => ({ k: d.code, label: d.code, sub: d.desc, value: d.n }))}
+                  format={fmtNum}
+                />
+              </Panel>
+              <Panel title="Perfil de los pacientes" sub={`${fmtNum(v.perfil.total)} turnos con datos del paciente`}>
+                <BarList
+                  color="var(--st-adm)"
+                  total={v.perfil.total}
+                  rows={v.perfil.grupos.map((g) => ({ k: g.k, label: g.n, sub: g.range, value: g.count, display: v.perfil.total ? `${Math.round((g.count / v.perfil.total) * 100)} %` : '—' }))}
+                />
+                <dl className="mini-stats">
+                  <div><dt>Mujeres</dt><dd>{fmtPct(v.perfil.total ? v.perfil.mujeres / v.perfil.total : null)}</dd></div>
+                  <div><dt>Con SIS activo</dt><dd>{fmtPct(v.perfil.total ? v.perfil.sis / v.perfil.total : null)}</dd></div>
+                </dl>
+              </Panel>
+            </div>
+          )}
+
+          {tab === 'consultorios' && (
+            <div className="dash-grid">
+              <Panel title="Productividad por consultorio" className="span-3">
+                <div className="tblw">
+                  <table className="tbl">
+                    <thead><tr><th>Consultorio</th><th>Médico</th><th className="num">Atenciones</th><th className="num">Consulta media</th><th>Participación</th></tr></thead>
+                    <tbody>
+                      {v.cons.map((c) => {
+                        const share = v.S.atendidos ? c.n / v.S.atendidos : 0;
+                        return (
+                          <tr key={c.area}>
+                            <td>{c.area}</td>
+                            <td>{[...c.med.keys()].map((u) => db.users.find((x) => x.u === u)?.n ?? u).join(', ') || '—'}</td>
+                            <td className="num">{fmtNum(c.n)}</td>
+                            <td className="num">{fmtMin(c.consulta)}</td>
+                            <td><span className="share"><i style={{ width: `${share * 100}%` }} /></span> {fmtPct(share)}</td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              </Panel>
+              <Panel title={v.byHour ? 'Resumen por hora' : 'Resumen por día'} sub="La misma información de los gráficos, en tabla (es lo que exporta el CSV)" className="span-3">
+                <div className="tblw">
+                  <table className="tbl">
+                    <thead>
+                      <tr>
+                        <th>{v.byHour ? 'Hora' : 'Día'}</th><th className="num">Turnos</th><th className="num">Atendidos</th><th className="num">Cancelados</th>
+                        <th className="num">Críticos</th><th className="num">Espera triaje</th><th className="num">Espera consulta</th>
+                        <th className="num">Tiempo total</th><th className="num">En objetivo</th>
                       </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </Panel>
-          </div>
+                    </thead>
+                    <tbody>
+                      {[...v.days].reverse().map((d) => (
+                        <tr key={d.t}>
+                          <td>{d.title}</td><td className="num">{d.total}</td><td className="num">{d.atendidos}</td><td className="num">{d.cancelados}</td>
+                          <td className="num">{d.CRITICA}</td><td className="num">{fmtMin(d.espTri)}</td><td className="num">{fmtMin(d.espMed)}</td>
+                          <td className="num">{fmtMin(d.tiempoTotal)}</td><td className="num">{fmtPct(d.enObjetivo)}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </Panel>
+            </div>
+          )}
         </div>
       )}
     </>

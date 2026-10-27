@@ -137,10 +137,11 @@ export function createLocalRepo() {
     async reservarCita(dni, nac, cita) {
       const db = await ensure();
       const me = await this.getSession();
-      // Por teléfono la registra Admisión con su sesión; por la web, el usuario del sistema
-      const staff = me && db.users.find((u) => u.u === me.u && u.role === 'adm');
+      // Por teléfono la registra Admisión con su sesión; el control, el médico al cerrar la atención; por la web, el usuario del sistema
+      const staff = me && db.users.find((u) => u.u === me.u && ['adm', 'med'].includes(u.role));
       const user = staff || db.users.find((u) => u.u === 'a.citasweb') || { u: 'a.citasweb' };
-      const r = reservarCita(db, { user, now: Date.now(), ip: '' }, { dni, nac, cita, canal: staff ? 'teléfono' : 'web' });
+      const canal = !staff ? 'web' : staff.role === 'med' ? 'control médico' : 'teléfono';
+      const r = reservarCita(db, { user, now: Date.now(), ip: '' }, { dni, nac, cita, canal });
       const next = applyChanges(db, r.changes);
       write(next);
       return citaActivaDe(next, r.result.dni);

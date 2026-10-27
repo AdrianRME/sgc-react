@@ -6,7 +6,7 @@ import { createTurn, cancelTurn, checkIn, searchAudit, activeTurnOf, validatePat
 import { ACTIVE_STATES, CANCEL, ROUTE, SIS_EXONERADO, STATE, TARIFA_CONSULTA } from '../lib/constants.js';
 import { sameDay } from '../lib/agenda.js';
 import { byArrival, normalize } from '../lib/clinical.js';
-import { age, fmtCitaDia, fmtLongDay, fmtSoles, fmtT, fmtHora, fullName, isoDay } from '../lib/format.js';
+import { age, cap, fmtCitaDia, fmtLongDay, fmtSoles, fmtT, fmtHora, fullName, iniciales as initials, isoDay, saludo } from '../lib/format.js';
 import { listItem } from '../lib/motion.js';
 import { useNow } from '../hooks/useNow.js';
 import { Empty, Field, Msg, Panel, SisBadge, StateBadge, TurnCode, WaitTime } from '../components/ui.jsx';
@@ -49,7 +49,6 @@ function Pasos({ paso }) {
   );
 }
 
-const initials = (p) => `${p.nom.trim()[0] || ''}${p.ape.trim()[0] || ''}`.toUpperCase();
 const SEXO = { F: 'Mujer', M: 'Hombre' };
 // Casos de prueba de la demostración
 const EJEMPLOS = [['70000001', 'Con historia y alergia'], ['70000013', 'Nuevo con SIS'], ['70000027', 'Sin seguro']];
@@ -280,11 +279,6 @@ const SUB = {
 };
 const estacion = (state) => ROUTE.find((s) => s.states.includes(state));
 
-const cap = (s) => s.charAt(0).toUpperCase() + s.slice(1);
-const saludo = (now) => {
-  const h = new Date(now).getHours();
-  return h < 12 ? 'Buenos días' : h < 19 ? 'Buenas tardes' : 'Buenas noches';
-};
 
 /** Lista de pacientes del filtro elegido: tarjetas con el color de la estación donde está cada uno. */
 function Pacientes({ filter, lists }) {

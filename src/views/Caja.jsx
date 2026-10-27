@@ -5,13 +5,14 @@ import { useStore } from '../store/useStore.js';
 import { registerPayment, cancelTurn } from '../store/actions.js';
 import { byArrival } from '../lib/clinical.js';
 import { CANCEL, CONCEPTO_PAGO, METODOS_PAGO, QUEUE, TARIFA_CONSULTA } from '../lib/constants.js';
-import { age, fmtSoles, fmtT, fullName, startOfToday } from '../lib/format.js';
+import { age, cap, fmtLongDay, fmtSoles, fmtT, fullName, iniciales, saludo, startOfToday } from '../lib/format.js';
 import { listItem } from '../lib/motion.js';
 import { useNow } from '../hooks/useNow.js';
 import { useConfirm } from '../hooks/useConfirm.jsx';
 import { useDocuments } from '../hooks/useDocuments.jsx';
-import { WorkspaceHeader } from '../components/WorkspaceHeader.jsx';
-import { Badge, Empty, Field, Msg, Panel, Segmented, SisBadge, TurnCode, WaitTime } from '../components/ui.jsx';
+import { SectionHero } from '../components/SectionHero.jsx';
+import { Help } from '../components/WorkspaceHeader.jsx';
+import { Badge, Empty, Field, Msg, Panel, SisBadge, TurnCode, WaitTime } from '../components/ui.jsx';
 import './workspaces.css';
 
 const METODOS = [['EFECTIVO', Banknote], ['TARJETA', CreditCard], ['BILLETERA', Smartphone]];
@@ -78,7 +79,7 @@ function Cobro({ turn, patient, onPaid, onCancel }) {
 }
 
 export default function Caja() {
-  const { db, run, patient } = useStore();
+  const { db, run, patient, user } = useStore();
   const now = useNow();
   const docs = useDocuments();
   const [ask, dialog] = useConfirm();
@@ -91,6 +92,12 @@ export default function Caja() {
   const cobros = pagos.filter((t) => t.pago.metodo !== 'SIS');
   const sis = pagos.filter((t) => t.pago.metodo === 'SIS');
   const total = (list) => list.reduce((s, t) => s + t.pago.monto, 0);
+  const tiles = [
+    { k: 'cola', n: 'Por cobrar', icon: 'hourglass', c: 'caj', value: queue.length, pick: false },
+    { k: 'cobros', n: 'Cobrados hoy', icon: 'check', c: 'good', value: cobros.length },
+    { k: 'sis', n: 'Exonerados SIS', icon: 'shield', c: 'med', value: sis.length },
+    { k: 'total', n: 'Recaudado hoy', icon: 'chartup', c: 'jef', value: total(cobros), format: fmtSoles, pick: false },
+  ];
 
   const noPago = (t) =>
     ask({
@@ -103,29 +110,46 @@ export default function Caja() {
 
   return (
     <>
-      <WorkspaceHeader title="Cobros" route figs />
-      <div className="grid-2 wide-r">
-        <Panel title="Por cobrar" count={queue.length} icon="clipboard" sub="Pacientes sin seguro que deben pagar antes del triaje">
+      <SectionHero
+        icon="scroll"
+        kicker={`${cap(fmtLongDay(now))} · ${fmtT(now)}`}
+        title={`${saludo(now)}, ${user.n.split(' ')[0]}`}
+        text="Caja: cobre la consulta a los pacientes sin seguro y entrégueles su boleta para que pasen a triaje."
+        tiles={tiles}
+        active={ver}
+        onPick={setVer}
+        label="Resumen de Caja"
+        actions={<Help role="caj" />}
+      />
+      <div className="grid-2 caj-grid">
+        <Panel title="Por cobrar" count={queue.length} icon="hourglass" sub="Sin seguro: pagan antes del triaje, en orden de llegada" className="caj-panel" data-role="caj">
           {queue.length ? (
-            <ul className="queue">
+            <ul className="pacs">
               <AnimatePresence initial={false}>
-                {queue.map((t) => (
-                  <m.li key={t.id} {...listItem} layout className={`qrow ${sel?.id === t.id ? 'sel' : ''}`}>
-                    <TurnCode id={t.id} />
-                    <div className="qmain">
-                      <span className="who">{fullName(patient(t.dni))}</span>
-                      <span className="meta"><span>llegó {fmtT(t.t0)}</span><WaitTime turn={t} now={now} /></span>
-                    </div>
-                    <div className="acts">
-                      <button className="btn sec sm" onClick={() => setSelId(t.id)} disabled={sel?.id === t.id}>Cobrar</button>
-                    </div>
-                  </m.li>
-                ))}
+                {queue.map((t, i) => {
+                  const p = patient(t.dni);
+                  return (
+                    <m.li key={t.id} {...listItem} layout style={{ '--c': 'var(--st-caj)' }}>
+                      <button type="button" className="pac pick caj-pac" aria-pressed={sel?.id === t.id} onClick={() => setSelId(t.id)}>
+                        <span className="pac-av" aria-hidden="true">{p ? iniciales(p) : '?'}</span>
+                        <span className="pac-main">
+                          <b>{fullName(p)}</b>
+                          <span className="pac-meta">
+                            <TurnCode id={t.id} />
+                            <span>llegó {fmtT(t.t0)}</span>
+                            <WaitTime turn={t} now={now} />
+                            {i === 0 && <span className="pac-st">Siguiente</span>}
+                          </span>
+                        </span>
+                      </button>
+                    </m.li>
+                  );
+                })}
               </AnimatePresence>
             </ul>
           ) : <Empty icon="check" title="No hay pagos pendientes" />}
         </Panel>
-        <Panel title="Cobro de la consulta" icon="scroll">
+        <Panel title="Cobro de la consulta" icon="scroll" className="caj-panel" data-role="caj">
           <AnimatePresence mode="wait">
             {sel ? (
               <m.div key={sel.id} {...listItem}>
@@ -141,9 +165,12 @@ export default function Caja() {
       </div>
 
       <Panel
-        title="Pagos de hoy"
+        title={ver === 'cobros' ? 'Cobros de hoy' : 'Exonerados SIS de hoy'}
+        count={(ver === 'cobros' ? cobros : sis).length}
         icon="barchart"
-        actions={<Segmented label="Ver" value={ver} onChange={setVer} options={[['cobros', 'Cobros', cobros.length], ['sis', 'Exonerados SIS', sis.length]]} />}
+        sub="Elija «Cobrados hoy» o «Exonerados SIS» en el encabezado para cambiar la lista"
+        className="caj-panel"
+        data-role={ver === 'cobros' ? 'good' : 'med'}
       >
         <div className="figs cash-figs">
           {[['EFECTIVO'], ['TARJETA'], ['BILLETERA']].map(([k]) => {

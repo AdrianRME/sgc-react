@@ -119,5 +119,15 @@
 [data-role='warn'] { --role: var(--warn); --role-strong: var(--warn-text); }
 [data-role='good'] { --role: var(--good); --role-strong: var(--good-text); }
 
-/* Acentos de la app: azul médico en todos los espacios (las estaciones conservan su color en la ruta) */
-.app[data-role], .cw-page { --role: var(--brand); --role-strong: var(--brand-strong); }
+/* La página pública de citas usa el azul médico de la marca */
+.cw-page { --role: var(--brand); --role-strong: var(--brand-strong); }
+
+/* Color brillante de cada rol para fondos oscuros (monitor de la barra lateral y encabezados).
+   Jefatura, que en claro es tinta, aquí es gris acero. */
+:root { --role-glow: #5aa9f0; }
+[data-role='adm'] { --role-glow: #9d92f0; }
+[data-role='caj'] { --role-glow: #f0954f; }
+[data-role='enf'] { --role-glow: #34d39a; }
+[data-role='med'] { --role-glow: #5aa9f0; }
+[data-role='jef'] { --role-glow: #9fc2d6; }
+[data-role='jef'] { --role: light-dark(#2f5d73, #9fc2d6); --role-strong: light-dark(#2f5d73, #9fc2d6); }

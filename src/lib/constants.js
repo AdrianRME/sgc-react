@@ -72,7 +72,7 @@ export const GUIDE = {
   },
   med: {
     lead: 'Solo ve a los pacientes que tienen cita con usted y ya llegaron, ordenados por prioridad clínica y hora de la cita. Al cerrar la atención se emite la receta.',
-    steps: ['Revise su agenda de hoy', 'Llame al siguiente', 'Inicie la atención', 'Diagnóstico, receta y alta'],
+    steps: ['Revise su agenda de hoy', 'Llame al siguiente', 'Inicie la atención', 'Diagnóstico, receta y destino', 'Si hace falta, deje agendado su próximo control'],
   },
   jef: {
     lead: 'Supervise los tiempos de atención, administre las cuentas del personal, registre los umbrales clínicos y revise la auditoría.',

@@ -127,12 +127,14 @@ language sql stable set search_path = '' as $$
 create or replace function public.sgc_sala() returns jsonb
 language sql stable security definer set search_path = '' as $$
   -- Ya ordenado como se muestra: llamados (el último primero), consulta por prioridad y hora de la cita,
-  -- triaje por llegada. No expone la prioridad ni la hora de llegada; sí la espera aproximada (RF-14).
+  -- triaje y caja por llegada. No expone la prioridad ni la hora de llegada; sí la espera aproximada (RF-14)
+  -- y, para quien espera consulta, el consultorio de su cita (cada estación tiene su zona en la pantalla).
   select coalesce(jsonb_agg(jsonb_strip_nulls(jsonb_build_object(
            'id', t.codigo_turno,
            'state', sgc_interno.estado_app(t.estado, t.ts_fin_triaje),
            'calledAt', sgc_interno.ms(t.ts_ultimo_llamado),
            'dest', a.nombre,
+           'zona', case when t.estado = 'EN_ESPERA_CONSULTA' then ca.nombre end,
            'espera', es.espera))
          order by case t.estado when 'LLAMANDO' then 0 when 'EN_ESPERA_CONSULTA' then 1 else 2 end,
                   t.ts_ultimo_llamado desc nulls last,
@@ -144,8 +146,9 @@ language sql stable security definer set search_path = '' as $$
                   t.hora_llegada), '[]'::jsonb)
   from public.turno t left join public.area_atencion a on a.id_area = t.id_area_destino
   left join public.cita c on c.id_turno = t.id_turno
+  left join public.area_atencion ca on ca.id_area = c.id_area
   left join sgc_interno.esperas() es on es.id_turno = t.id_turno
-  where t.estado in ('EN_ESPERA_TRIAJE','LLAMANDO','EN_ESPERA_CONSULTA')
+  where t.estado in ('PENDIENTE_PAGO','EN_ESPERA_TRIAJE','LLAMANDO','EN_ESPERA_CONSULTA')
     -- turnos de hoy o de ayer, y los citados para hoy aunque hayan sacado la cita días antes
     and (t.fecha_turno >= (now() at time zone 'America/Lima')::date - 1
          or c.fecha_cita = (now() at time zone 'America/Lima')::date) $$;
@@ -256,8 +259,9 @@ begin
   end if;
 
   select * into yo from sgc_interno.usuario_actual();
-  if yo.id_usuario is not null and yo.rol = 'ADMISION' then
-    v_autor := yo.id_usuario; v_canal := 'teléfono';
+  -- Por teléfono la registra Admisión; el próximo control, el médico al cerrar la atención
+  if yo.id_usuario is not null and yo.rol in ('ADMISION','MEDICO') then
+    v_autor := yo.id_usuario; v_canal := case yo.rol when 'MEDICO' then 'control médico' else 'teléfono' end;
   else
     select id_usuario into v_autor from public.usuario where username = 'a.citasweb';
     v_canal := 'web';

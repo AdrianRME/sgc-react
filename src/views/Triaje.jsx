@@ -1,16 +1,18 @@
 import { useState } from 'react';
 import { AnimatePresence, m } from 'motion/react';
 import { Check, Megaphone, PhoneCall, Play, Repeat, Undo2, UserX } from 'lucide-react';
+import { SectionHero } from '../components/SectionHero.jsx';
+import { PacCard, Siguiente } from '../components/Cola.jsx';
 import { useStore } from '../store/useStore.js';
 import { callTurn, callNext, startTriage, saveTriage, returnToQueue, cancelTurn } from '../store/actions.js';
 import { evalTriage, validateVitals, imcCategory, byArrival, turnKey } from '../lib/clinical.js';
-import { age, fmtD, fullName } from '../lib/format.js';
+import { age, cap, fmtD, fmtLongDay, fmtT, fullName, saludo, startOfToday } from '../lib/format.js';
 import { listItem, spring } from '../lib/motion.js';
 import { CANCEL, QUEUE } from '../lib/constants.js';
 import { useNow } from '../hooks/useNow.js';
 import { usePatientHistory } from '../hooks/usePatientHistory.js';
-import { WorkspaceHeader } from '../components/WorkspaceHeader.jsx';
-import { Badge, Empty, Field, Msg, Panel, PrioBadge, StateBadge, TurnCode, WaitTime } from '../components/ui.jsx';
+import { Help } from '../components/WorkspaceHeader.jsx';
+import { Badge, Empty, Field, Msg, Panel, PrioBadge, TurnCode, WaitTime } from '../components/ui.jsx';
 import { noShowDialog, useConfirm } from '../hooks/useConfirm.jsx';
 import { Icon3D } from '../components/Icon3D.jsx';
 import { VitalTrends } from '../components/PatientTimeline.jsx';
@@ -138,7 +140,7 @@ function TriageForm({ turn, patient, onSaved }) {
 }
 
 export default function Triaje() {
-  const { db, run, patient } = useStore();
+  const { db, run, patient, user } = useStore();
   const now = useNow();
   const docs = useDocuments();
   const [ask, dialog] = useConfirm();
@@ -152,54 +154,83 @@ export default function Triaje() {
     setCitaFor(null);
     docs.openCita(t);
   };
+  const today = startOfToday();
+  const hechos = db.turns.filter((t) => t.tTriSave >= today);
+  const esperan = queue.filter((t) => t.state === 'EN_ESPERA_TRIAJE');
+  const llamados = queue.filter((t) => t.state === 'LLAMADO_TRIAJE');
+  const tiles = [
+    { k: 'espera', n: 'En espera', icon: 'hourglass', c: 'enf', value: esperan.length },
+    { k: 'llamados', n: 'Llamados', icon: 'megaphone', c: 'warn', value: llamados.length },
+    { k: 'hechos', n: 'Triajes hoy', icon: 'check', c: 'good', value: hechos.length },
+    { k: 'crit', n: 'Críticos hoy', icon: 'warning', c: 'crit', value: hechos.filter((t) => t.prio === 'CRITICA').length },
+  ];
 
   const noShow = (t) =>
     ask(noShowDialog(t, 'El turno se cerrará y el paciente deberá volver a admisión si regresa.', () => run(cancelTurn, t.id, CANCEL.noShow)));
+  const llamadoActs = (t, big = false) => (
+    <>
+      <button className={`btn ${big ? '' : 'sm'}`} onClick={() => run(startTriage, t.id)} disabled={!!current}><Play /> Iniciar triaje</button>
+      {big ? (
+        <>
+          <button type="button" className="btn sec sm" onClick={() => run(callTurn, t.id)}><Repeat /> Volver a llamar</button>
+          <button type="button" className="btn ghost sm dng-txt" onClick={() => noShow(t)}><UserX /> No se presentó</button>
+        </>
+      ) : <span className="row-icons">
+        <button type="button" className="icon-btn sm" onClick={() => run(callTurn, t.id)} aria-label={`Volver a llamar a ${t.id}`} title="Volver a llamar"><Repeat /></button>
+        <button type="button" className="icon-btn sm dng" onClick={() => noShow(t)} aria-label={`${t.id} no se presentó`} title="No se presentó"><UserX /></button>
+      </span>}
+    </>
+  );
+  const sigue = llamados[0] ?? esperan[0];
 
   return (
     <>
-      <WorkspaceHeader title="Lista de triaje" route figs />
-      <div className="grid-2 wide-r">
+      <SectionHero
+        icon="thermometer"
+        kicker={`${cap(fmtLongDay(now))} · ${fmtT(now)}`}
+        title={`${saludo(now)}, ${user.n.split(' ')[0]}`}
+        text="Triaje: llame al paciente, registre sus signos vitales y, al terminar, confirme su cita. De aquí va directo a su médico."
+        tiles={tiles}
+        label="Resumen de triaje"
+        actions={<Help role="enf" />}
+      />
+      <div className={`grid-2 ws-grid ${current ? 'focus' : ''}`}>
         <Panel
           title="Lista de espera"
           count={queue.length}
           icon="clipboard"
-          actions={queue.some((t) => t.state === 'EN_ESPERA_TRIAJE') && (
-            <button className="btn sm" onClick={() => run(callNext, 'tri', byArrival)}><Megaphone /> Llamar siguiente</button>
-          )}
+          sub="En orden de llegada. Ámbar: ya fue llamado."
+          className="ws-panel"
+          data-role="enf"
         >
           {queue.length ? (
-            <ul className="queue">
+            <ul className="pacs">
               <AnimatePresence initial={false}>
-                {queue.map((t) => (
-                  <m.li key={t.id} {...listItem} layout className={`qrow ${t.state === 'LLAMADO_TRIAJE' ? 'sel' : ''}`}>
-                    <TurnCode id={t.id} />
-                    <div className="qmain">
-                      <span className="who">{fullName(pat(t))}</span>
-                      <span className="meta">
-                        <span>{age(pat(t).nac)} años</span>
-                        <WaitTime turn={t} now={now} />
-                        {t.calls > 1 && <span>llamado {t.calls} veces</span>}
-                      </span>
-                    </div>
-                    <div className="qside"><StateBadge state={t.state} /></div>
-                    <div className="acts">
-                      {t.state === 'EN_ESPERA_TRIAJE' && <button className="btn sec sm" onClick={() => run(callTurn, t.id)}><PhoneCall /> Llamar</button>}
-                      {t.state === 'LLAMADO_TRIAJE' && (
-                        <>
-                          <button className="btn sm" onClick={() => run(startTriage, t.id)} disabled={!!current}><Play /> Iniciar triaje</button>
-                          <button className="btn sec sm" onClick={() => run(callTurn, t.id)}><Repeat /> Repetir</button>
-                          <button className="btn dng sm" onClick={() => noShow(t)}><UserX /> No se presentó</button>
-                        </>
-                      )}
-                    </div>
-                  </m.li>
-                ))}
+                {queue.map((t) => {
+                  const called = t.state === 'LLAMADO_TRIAJE';
+                  return (
+                    <PacCard
+                      key={t.id}
+                      turn={t}
+                      patient={pat(t)}
+                      c={called ? 'var(--warn)' : 'var(--st-enf)'}
+                      on={called}
+                      tag={called ? `Llamado${t.calls > 1 ? ` ${t.calls} veces` : ''}` : 'En espera'}
+                      meta={<><span>{age(pat(t).nac)} años</span><WaitTime turn={t} now={now} /></>}
+                      actions={called ? llamadoActs(t) : <button className="btn sec sm" onClick={() => run(callTurn, t.id)}><PhoneCall /> Llamar</button>}
+                    />
+                  );
+                })}
               </AnimatePresence>
             </ul>
-          ) : <Empty icon="check" title="No hay pacientes en espera de triaje" />}
+          ) : <Empty icon="check" title="No hay pacientes en espera de triaje">Los pacientes llegan aquí al pagar en Caja o, si tienen SIS, al registrarse en Admisión.</Empty>}
         </Panel>
-        <Panel title={!current && porCitar ? 'Último paso: su cita' : 'Registro de signos vitales'} icon={!current && porCitar ? 'calendar' : 'thermometer'}>
+        <Panel
+          title={current ? 'Registro de signos vitales' : porCitar ? 'Último paso: su cita' : 'Ahora'}
+          icon={!current && porCitar ? 'calendar' : 'thermometer'}
+          className="ws-panel"
+          data-role="enf"
+        >
           <AnimatePresence mode="wait">
             {current ? (
               <m.div key={current.id} {...listItem}>
@@ -213,9 +244,31 @@ export default function Triaje() {
                   <button type="button" className="btn ghost sm" onClick={() => setCitaFor(null)}>Dejar la cita para Admisión</button>
                 </div>
               </m.div>
+            ) : sigue ? (
+              <m.div key={`sigue-${sigue.id}-${sigue.state}`} {...listItem} className="ahora">
+                {sigue.state === 'LLAMADO_TRIAJE' ? (
+                  <Siguiente
+                    kicker="Llamado: espere a que se acerque"
+                    turn={sigue}
+                    patient={pat(sigue)}
+                    c="var(--warn)"
+                    detail={<><span>{age(pat(sigue).nac)} años</span><WaitTime turn={sigue} now={now} /></>}
+                    action={llamadoActs(sigue, true)}
+                  />
+                ) : (
+                  <Siguiente
+                    turn={sigue}
+                    patient={pat(sigue)}
+                    c="var(--st-enf)"
+                    detail={<><span>{age(pat(sigue).nac)} años</span><WaitTime turn={sigue} now={now} /></>}
+                    action={<button className="btn lg" onClick={() => run(callNext, 'tri', byArrival)}><Megaphone /> Llamar siguiente</button>}
+                  />
+                )}
+                <p className="ahora-note">Al llamarlo, su turno aparece en la pantalla de la sala. Cuando se acerque, pulse «Iniciar triaje» y se abre aquí el registro de signos vitales.</p>
+              </m.div>
             ) : (
               <m.div key="none" {...listItem}>
-                <Empty icon="thermometer" title="Ningún paciente en triaje">Llame a un paciente y pulse «Iniciar triaje».</Empty>
+                <Empty icon="thermometer" title="Nadie esperando triaje">Cuando llegue un paciente aparecerá aquí, listo para llamarlo.</Empty>
               </m.div>
             )}
           </AnimatePresence>

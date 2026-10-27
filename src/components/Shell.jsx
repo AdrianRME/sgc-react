@@ -4,7 +4,7 @@ import {
   ChevronRight, ExternalLink, KeyRound, LogOut, Menu, Moon, PhoneCall, RotateCcw, Search, Sun, Tv, LayoutGrid,
 } from 'lucide-react';
 import { useStore } from '../store/useStore.js';
-import { QUEUE, ROLES } from '../lib/constants.js';
+import { ACTIVE_STATES, QUEUE, ROLES } from '../lib/constants.js';
 import { byArrival, byConsulta } from '../lib/clinical.js';
 import { callNext } from '../store/actions.js';
 import { fade } from '../lib/motion.js';
@@ -29,6 +29,34 @@ const isMac = typeof navigator !== 'undefined' && /Mac|iPhone|iPad/.test(navigat
  */
 const waitingFor = (user, turns) =>
   QUEUE[user.role] ? turns.filter((t) => QUEUE[user.role].includes(t.state) && (user.role !== 'med' || !t.cita || t.cita.med === user.u)).length : 0;
+
+/** Un latido del trazo de ECG (60 de ancho): línea base, onda P, complejo QRS y onda T. */
+const LATIDO = 'l14 0 q3 -4 6 0 l4 0 l2 3 l3 -16 l3 20 l2 -7 l5 0 q4 -6 8 0 l13 0';
+
+/**
+ * «Pulso del centro»: el espacio del rol como la pantalla de un monitor, con un trazo de ECG y las cifras vivas
+ * del centro (pacientes en el centro y críticos). Es la misma identidad del inicio de sesión.
+ */
+function Pulso({ role, turns }) {
+  const enCentro = turns.filter((t) => ACTIVE_STATES.includes(t.state) && t.state !== 'CITADO');
+  const criticos = enCentro.filter((t) => t.prio === 'CRITICA').length;
+  return (
+    <div className="pulso">
+      <div className="pulso-h">
+        <Icon3D name={role.icon} size={38} />
+        <div><small>Su espacio</small><b>{role.n}</b></div>
+      </div>
+      <svg className={`pulso-ecg ${criticos ? 'crit' : ''}`} viewBox="0 0 240 34" preserveAspectRatio="none" aria-hidden="true">
+        <path className="base" d={`M0 22 ${LATIDO} ${LATIDO} ${LATIDO} ${LATIDO}`} />
+        <path className="trazo" d={`M0 22 ${LATIDO} ${LATIDO} ${LATIDO} ${LATIDO}`} pathLength="1000" />
+      </svg>
+      <dl className="pulso-st" aria-label="Pulso del centro">
+        <div><dt>Pacientes</dt><dd>{enCentro.length}</dd></div>
+        <div className={criticos ? 'crit' : ''}><dt>Críticos</dt><dd>{criticos}</dd></div>
+      </dl>
+    </div>
+  );
+}
 
 /** Marco del espacio de trabajo de cada rol: identidad, navegación, búsqueda, avisos y sesión. */
 export function Shell({ section, children }) {
@@ -95,10 +123,7 @@ export function Shell({ section, children }) {
           <BrandMark />
           <div><b>SGC</b><span>Gestión clínica · Centro de Salud</span></div>
         </div>
-        <div className="space">
-          <Icon3D name={role.icon} size={44} />
-          <div><small>Su espacio</small><b>{role.n}</b><span>{role.tag}</span></div>
-        </div>
+        <Pulso role={role} turns={db.turns} />
         <nav className="line-nav" aria-label="Secciones">
           {sections.map((s) => navItem(s, s[0] === queueSection ? waiting : 0))}
           <span className="ln-sep" aria-hidden="true" />

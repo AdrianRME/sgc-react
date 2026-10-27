@@ -1,6 +1,6 @@
 import { Printer } from 'lucide-react';
 import { useStore } from '../store/useStore.js';
-import { fmtDT, fmtHora, fmtLongDay, fmtSoles, age, maskDni, fullName } from '../lib/format.js';
+import { cap, fmtDT, fmtHora, fmtLongDay, fmtSoles, age, maskDni, fullName } from '../lib/format.js';
 import { CONCEPTO_PAGO, METODOS_PAGO, TARIFA_CONSULTA } from '../lib/constants.js';
 import { especialidad, sameDay } from '../lib/agenda.js';
 import { esperaDe, rangoEspera } from '../lib/espera.js';
@@ -33,9 +33,11 @@ const DocActions = ({ onClose }) => (
 );
 
 export function Recipe({ turn: t, onClose }) {
-  const { patient } = useStore();
+  const { db, patient } = useStore();
   const p = patient(t.dni);
   const c = t.consult;
+  // Próximo control: la cita pendiente que el mismo médico le dejó agendada al cerrar esta atención
+  const control = db.turns.find((x) => x.dni === t.dni && x.state === 'CITADO' && x.cita?.by === c.medico?.u && x.cita.t >= c.t);
   return (
     <Modal label="Receta" onClose={onClose} className="doc">
       <DocHead title="Prescripción farmacológica" code={c.rec} />
@@ -63,6 +65,7 @@ export function Recipe({ turn: t, onClose }) {
       </div>
       <dl className="doc-meta">
         <div><dt>Destino</dt><dd>{c.dest}{c.destx ? ` (${c.dest === 'Reposo médico' ? `${c.destx} días` : c.destx})` : ''}</dd></div>
+        {control && <div><dt>Próximo control</dt><dd>{cap(fmtLongDay(control.cita.at))}, {fmtHora(control.cita.at)} ({control.cita.area}). Preséntese en Admisión con su DNI.</dd></div>}
         <div><dt>Firma</dt><dd>{c.medico?.n}, {c.medico?.col} (ficticio), {c.area}</dd></div>
       </dl>
       <p className="wm">Documento de demostración sin validez clínica ni legal.</p>

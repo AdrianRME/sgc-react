@@ -257,3 +257,8 @@ export function validarHorario(db, h) {
   }
   return { cupos: Math.floor((toMin(h.fin) - toMin(h.ini)) / e.dur), esp: e };
 }
+
+/** La agenda pública de una especialidad (sgc_cupos) como una base mínima, para calcular sus cupos libres. */
+export const agendaPublica = (c) => ({
+  users: c.users, horarios: c.horarios, turns: c.ocupadas.map((o) => ({ state: 'CITADO', cita: { ...o, sobre: false } })),
+});

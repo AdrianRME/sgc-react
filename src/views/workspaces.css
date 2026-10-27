@@ -77,6 +77,29 @@
 .cash-row { align-items: end; }
 .quick-cash { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; min-height: 40px; }
 .cash-figs { margin-bottom: 8px; }
+/* Colas en tarjetas (Caja, Triaje, Consulta) y el bloque «siguiente paciente» */
+.panel.ws-panel { border-top: 4px solid var(--role); }
+.pac.on { box-shadow: 0 0 0 2px var(--c); background: color-mix(in oklab, var(--c) 12%, var(--surface)); }
+.pac-acts .btn { white-space: nowrap; }
+.next-up {
+  display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: 16px;
+  padding: 18px 20px; border-radius: 18px; border: 2px solid color-mix(in oklab, var(--c) 55%, transparent);
+  background: linear-gradient(120deg, color-mix(in oklab, var(--c) 14%, var(--surface)), var(--surface) 70%);
+}
+.next-up .pac-av { width: 60px; height: 60px; font-size: var(--fs-lg); background: var(--c); }
+.next-main { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+.next-main small { font-size: var(--fs-xs); font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); }
+.next-main > b { font: 700 var(--fs-xl) / 1.15 var(--display); }
+.next-act { display: flex; flex-direction: column; gap: 6px; align-items: stretch; }
+.ahora { display: flex; flex-direction: column; gap: 14px; }
+.ahora-note { font-size: var(--fs-sm); color: var(--muted); }
+@media (max-width: 640px) { .next-up { grid-template-columns: auto minmax(0, 1fr); } .next-act { grid-column: 1 / -1; } }
+.grid-2.ws-grid { grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.1fr); margin-bottom: 20px; }
+@media (max-width: 1100px) { .grid-2.ws-grid { grid-template-columns: minmax(0, 1fr); } }
+.grid-2.caj-grid { grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.1fr); margin-bottom: 20px; }
+.panel.caj-panel { border-top: 4px solid var(--role); }
+.pac.caj-pac { align-items: center; }
+@media (max-width: 1100px) { .grid-2.caj-grid { grid-template-columns: minmax(0, 1fr); } }
 
 /* ---------- Citas ---------- */
 .suggest { display: flex; align-items: center; gap: 12px; padding: 12px 14px; border-radius: var(--r-panel); border: 1.5px dashed var(--role-line); background: var(--surface); }
@@ -186,7 +209,6 @@
 .pac-st { padding: 1px 8px; border-radius: 999px; background: color-mix(in oklab, var(--c) 14%, var(--surface)); color: var(--ink); font-weight: 600; }
 .pac-acts { display: flex; gap: 2px; }
 .pac-acts .dng:hover { color: var(--crit-text); background: var(--crit-bg); }
-@media (max-width: 640px) { .pac { grid-template-columns: auto minmax(0, 1fr) auto; } .pac > .badge { display: none; } }
 
 /* ---------- Tarjetas de cita (ventanilla y agenda) ---------- */
 .cita-list { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(330px, 1fr)); gap: 10px; }
@@ -268,3 +290,39 @@
 .grid-2.citas-grid { grid-template-columns: minmax(250px, 0.55fr) minmax(0, 1.6fr); }
 @media (max-width: 1100px) { .grid-2.citas-grid { grid-template-columns: minmax(0, 1fr); } }
 .pick-sum[style] > svg { color: var(--e); }
+.row-icons { display: inline-flex; gap: 2px; }
+.row-icons .dng:hover { color: var(--crit-text); background: var(--crit-bg); }
+.next-act .row-icons { justify-content: center; }
+.btn.dng-txt { color: var(--crit-text); }
+/* Con un paciente en atención, el formulario toma casi todo el ancho */
+.grid-2.ws-grid.focus { grid-template-columns: minmax(260px, 0.5fr) minmax(0, 1.5fr); }
+.ws-grid.focus .vtiles { grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); }
+.ws-grid.focus .vtile { flex-direction: column; gap: 4px; }
+.ws-grid.focus .vtile .i3d { margin-top: 0; position: absolute; right: 10px; top: 10px; }
+.ws-grid.focus .vtile .field { width: 100%; }
+@media (max-width: 1100px) { .grid-2.ws-grid.focus { grid-template-columns: minmax(0, 1fr); } }
+/* Tarjetas de una cola angosta: las acciones bajan a su propia fila */
+.pacs { container-type: inline-size; }
+@container (max-width: 560px) {
+  .pac { grid-template-columns: auto minmax(0, 1fr) auto; row-gap: 8px; }
+  .pac-main { grid-column: 2 / -1; }
+  .pac > .badge { grid-column: 2; grid-row: 2; justify-self: start; align-self: center; }
+  .pac > span:empty { display: none; }
+  .pac-acts { grid-column: 3; grid-row: 2; justify-content: flex-end; }
+}
+.ws-grid.focus .vtile:has(.vstate) .i3d { display: none; }
+.ws-grid.focus .vstate { padding: 2px 8px; border-radius: 999px; background: var(--surface); border: 1px solid currentColor; }
+/* Próximo control agendado por el médico */
+.dest.control { padding: 14px; border-radius: var(--r-panel); border: 1px dashed var(--role-line); background: var(--role-soft); display: flex; flex-direction: column; gap: 10px; }
+.dest.control legend { float: left; width: 100%; font-weight: 700; margin-bottom: 4px; }
+button.chip { cursor: pointer; padding: 6px 14px; font: inherit; font-size: var(--fs-sm); font-weight: 600; color: var(--ink-2); }
+button.chip[aria-pressed='true'] { border-color: var(--role); background: var(--role); color: #fff; }
+.ctl-slots { display: grid; grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)); gap: 8px; }
+.ctl-slot { display: flex; flex-direction: column; align-items: flex-start; gap: 2px; padding: 10px 12px; border-radius: 12px; border: 1.5px solid var(--line); background: var(--surface); font: inherit; text-align: left; cursor: pointer; transition: border-color 0.15s, transform 0.15s; }
+.ctl-slot:hover { border-color: var(--role); transform: translateY(-1px); }
+.ctl-slot b { font: 700 var(--fs-lg) / 1 var(--display); color: var(--role-strong); }
+.ctl-slot span { font-size: var(--fs-sm); font-weight: 600; }
+.ctl-slot small { font-size: var(--fs-xs); color: var(--muted); }
+.ctl-slot[aria-checked='true'] { border-color: var(--role); box-shadow: 0 0 0 3px color-mix(in oklab, var(--role) 25%, transparent); background: color-mix(in oklab, var(--role) 8%, var(--surface)); }
+.pac-note { font-size: var(--fs-xs); color: var(--ink-2); line-height: 1.35; }
+.pac-meta > span { white-space: nowrap; }

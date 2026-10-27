@@ -3,72 +3,12 @@ import { AnimatePresence, m } from 'motion/react';
 import { CircleHelp } from 'lucide-react';
 import { useStore } from '../store/useStore.js';
 import { GUIDE, ROLES } from '../lib/constants.js';
-import { minutesBetween } from '../lib/clinical.js';
-import { mean } from '../lib/analytics.js';
-import { startOfToday, fmtMin, fmtSoles } from '../lib/format.js';
-import { sameDay } from '../lib/agenda.js';
 import { pop } from '../lib/motion.js';
-import { AnimatedNumber } from './ui.jsx';
-import { Icon3D } from './Icon3D.jsx';
-import { RouteStrip } from './RouteStrip.jsx';
+import { SectionHero } from './SectionHero.jsx';
 import { useDismiss } from '../hooks/useDismiss.js';
 
-/** Qué hace cada rol y en qué orden (se consulta desde el botón de ayuda). */
-
-/** Estación de la ruta que se resalta en cada espacio (Admisión registra y también da las citas). */
-const HERE = { adm: 'adm', caj: 'caj', enf: 'enf', med: 'med' };
-
-/** Promedio en minutos entre dos marcas de los turnos dados (null si no hay datos). */
-const meanMin = (turns, a, b) => mean(turns.map((t) => minutesBetween(t, a, b)).filter((v) => v != null));
-const asMin = (v) => fmtMin(v);
-
-/**
- * Cifras del día de cada rol: [valor, etiqueta, alerta si > 0, formato]. Complementan la ruta en vivo
- * (que ya muestra cuántos esperan en cada etapa), no la repiten.
- */
-function figures(db, user, area) {
-  const today = startOfToday();
-  const hoy = db.turns.filter((t) => t.t0 >= today);
-  switch (user.role) {
-    case 'adm': {
-      const citasHoy = db.turns.filter((t) => t.cita && sameDay(t.cita.at, today));
-      return [
-        [db.turns.filter((t) => t.state === 'PENDIENTE_CITA' && t.prio === 'CRITICA').length, 'Críticos sin cita', true],
-        [db.turns.filter((t) => t.tCita >= today).length, 'Citas asignadas hoy'],
-        [citasHoy.filter((t) => t.state === 'CITADO').length, 'Citados de hoy por llegar'],
-        [db.turns.filter((t) => t.state === 'CITADO' && !sameDay(t.cita.at, today) && t.cita.at > today).length, 'Citados para otros días'],
-      ];
-    }
-    case 'caj': {
-      const pagos = db.turns.filter((t) => t.pago && t.pago.t >= today);
-      return [
-        [pagos.filter((t) => t.pago.metodo !== 'SIS').length, 'Cobros de hoy'],
-        [pagos.reduce((sum, t) => sum + t.pago.monto, 0), 'Recaudado hoy', false, fmtSoles],
-        [pagos.filter((t) => t.pago.metodo === 'SIS').length, 'Exonerados por SIS hoy'],
-        [meanMin(hoy.filter((t) => t.pago?.metodo !== 'SIS'), 't0', 'tPago'), 'Espera media hasta pagar', false, asMin],
-      ];
-    }
-    case 'enf':
-      return [
-        [db.turns.filter((t) => t.tTriSave >= today).length, 'Triajes registrados hoy'],
-        [db.turns.filter((t) => t.tTriSave >= today && t.prio === 'CRITICA').length, 'Críticos detectados hoy', true],
-        [meanMin(hoy, 'tTriCall', 'tTriSave'), 'Duración media del triaje', false, asMin],
-        [db.turns.filter((t) => t.state === 'LLAMADO_TRIAJE' && (t.calls || 0) > 1).length, 'Llamados repetidos sin presentarse', true],
-      ];
-    default: {
-      const mine = db.turns.filter((t) => t.consult?.medico?.u === user.u && t.consult.t >= today);
-      const citas = db.turns.filter((t) => t.cita?.med === user.u && sameDay(t.cita.at, today));
-      return [
-        [db.turns.filter((t) => t.state === 'EN_ESPERA_CONSULTA' && t.cita?.med === user.u && t.prio !== 'NORMAL').length, 'Críticos o prioritarios en espera', true],
-        [`${mine.length} de ${citas.filter((t) => t.state !== 'CANCELADO').length}`, 'Atendidos de sus citas de hoy'],
-        [meanMin(mine, 'tMedCall', 'tEnd'), 'Su consulta media hoy', false, asMin],
-        [area, 'Su consultorio'],
-      ];
-    }
-  }
-}
-
-function Help({ role }) {
+/** Botón «Cómo trabajar aquí»: los pasos de trabajo del rol, en orden. */
+export function Help({ role }) {
   const [open, setOpen] = useState(false);
   const ref = useRef(null);
   const close = useCallback(() => setOpen(false), []);
@@ -91,43 +31,20 @@ function Help({ role }) {
 }
 
 /**
- * Encabezado de cada sección: título, propósito y, según la sección, la ruta en vivo y las cifras del día.
+ * Encabezado de las secciones de apoyo (historias, usuarios, horarios, auditoría, umbrales): el mismo encabezado
+ * de color que las estaciones de la ruta, con el área como antetítulo y la ayuda del rol.
  */
-export function WorkspaceHeader({ title, icon, lead, route = false, figs = false }) {
-  const { db, user, area } = useStore();
-  const role = user.role;
+export function WorkspaceHeader({ title, icon, lead, tiles }) {
+  const { user } = useStore();
+  const role = ROLES[user.role];
   return (
-    <header className="ws">
-      <div className="ws-title">
-        <Icon3D name={icon || ROLES[role].icon} size={56} />
-        <div className="t">
-          <h1>{title}</h1>
-          <p>{lead || GUIDE[role].lead}</p>
-        </div>
-        <Help role={role} />
-      </div>
-      {route && (
-        <>
-          <RouteStrip here={HERE[role]} />
-          <div className="route-legend" aria-hidden="true">
-            <span><i className="pdot" style={{ background: 'var(--crit)' }} />Crítica</span>
-            <span><i className="pdot" style={{ background: 'var(--warn)' }} />Prioritaria</span>
-            <span><i className="pdot" style={{ background: 'var(--good)' }} />Normal</span>
-            <span><i className="pdot" style={{ background: 'var(--line-strong)' }} />Sin triaje</span>
-            <span>Borde rojo: supera el tiempo objetivo de espera</span>
-          </div>
-        </>
-      )}
-      {figs && (
-        <div className="figs">
-          {figures(db, user, area).map(([v, l, alert, format]) => (
-            <div className={`fig ${alert && v > 0 ? 'alert' : ''}`} key={l}>
-              <span>{l}</span>
-              <b><AnimatedNumber value={v} format={format} /></b>
-            </div>
-          ))}
-        </div>
-      )}
-    </header>
+    <SectionHero
+      icon={icon || role.icon}
+      kicker={role.space}
+      title={title}
+      text={lead || GUIDE[user.role].lead}
+      tiles={tiles}
+      actions={<Help role={user.role} />}
+    />
   );
 }
