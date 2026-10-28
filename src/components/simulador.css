@@ -1,0 +1,92 @@
+/* Simulador del ciclo del paciente */
+.dialog.sim { width: min(1180px, 100%); padding: 22px; }
+.sim-h { display: flex; align-items: center; gap: 14px; padding-right: 36px; margin-bottom: 16px; }
+.sim-h h3 { margin: 0 0 2px; }
+.sim-h p { margin: 0; color: var(--ink-2); font-size: var(--fs-sm); }
+
+.sim-body { display: grid; grid-template-columns: 270px minmax(0, 1fr); gap: 18px; }
+
+/* Casos */
+.sim-esc { display: flex; flex-direction: column; gap: 6px; }
+.sim-esc-b {
+  display: flex; align-items: flex-start; gap: 10px; width: 100%; padding: 10px; text-align: left;
+  border: 1px solid var(--line); border-radius: 12px; background: var(--surface); color: var(--ink); cursor: pointer;
+  transition: background 0.15s, border-color 0.15s;
+}
+.sim-esc-b:hover { background: var(--surface-2); }
+.sim-esc-b[aria-pressed='true'] { border-color: var(--brand, var(--st-med)); background: color-mix(in oklab, var(--brand, var(--st-med)) 9%, var(--surface)); box-shadow: inset 3px 0 0 var(--brand, var(--st-med)); }
+.sim-esc-b span { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.sim-esc-b b { font-size: var(--fs-sm); }
+.sim-esc-b small { font-size: var(--fs-xs); color: var(--ink-2); line-height: 1.35; }
+
+.sim-main { display: flex; flex-direction: column; gap: 14px; min-width: 0; }
+
+/* Ruta y conexión */
+.sim-top { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+.sim-route { display: flex; gap: 4px; margin: 0; padding: 0; list-style: none; flex: 1; min-width: 0; }
+.sim-route li { flex: 1; display: flex; flex-direction: column; gap: 6px; min-width: 0; font-size: var(--fs-xs); font-weight: 600; color: var(--ink-2); }
+.sim-route li i { height: 6px; border-radius: var(--r-pill); background: var(--sunken); transition: background 0.3s; }
+.sim-route li span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.sim-route li.done i { background: color-mix(in oklab, var(--c) 55%, var(--sunken)); }
+.sim-route li.now i { background: var(--c); box-shadow: 0 0 0 3px color-mix(in oklab, var(--c) 25%, transparent); }
+.sim-route li.now { color: var(--ink); }
+.sim-route li.off i { background: color-mix(in oklab, var(--crit) 35%, var(--sunken)); }
+.sim-con { display: inline-flex; align-items: center; gap: 6px; height: 30px; padding: 0 10px; border-radius: var(--r-pill); font-size: var(--fs-xs); font-weight: 650; white-space: nowrap; }
+.sim-con svg { width: 15px; height: 15px; }
+.sim-con.good { background: var(--good-bg); color: var(--good-text); }
+.sim-con.crit { background: var(--crit-bg); color: var(--crit-text); }
+.sim-con.warn { background: var(--warn-bg); color: var(--warn-text); }
+
+/* Paso */
+.sim-step { border: 1px solid var(--role-line); border-radius: var(--r-panel); background: var(--role-soft); overflow: hidden; }
+.sim-step-h { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; padding: 10px 14px; font-size: var(--fs-xs); font-weight: 600; color: var(--ink-2); border-bottom: 1px solid var(--role-line); }
+.sim-tag { padding: 3px 10px; border-radius: var(--r-pill); background: var(--role); color: #fff; font-weight: 700; }
+[data-role='jef'] .sim-tag { color: var(--surface); }
+[data-role='warn'] .sim-tag { color: #1a1300; }
+.sim-clock { margin-left: auto; display: inline-flex; align-items: center; gap: 5px; font-variant-numeric: tabular-nums; }
+.sim-clock svg { width: 14px; height: 14px; }
+.sim-step-c { display: flex; flex-direction: column; gap: 10px; padding: 14px 16px 16px; min-height: 168px; }
+.sim-step-c h4 { margin: 0; font: 650 var(--fs-xl) / 1.2 var(--display); color: var(--ink); }
+.sim-step-c p { margin: 0; color: var(--ink-2); line-height: 1.5; }
+
+/* Ficha y registro */
+.sim-grid { display: grid; grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr); gap: 14px; }
+.sim-ficha, .sim-log { border: 1px solid var(--line); border-radius: var(--r-panel); padding: 14px; background: var(--surface); min-width: 0; }
+.sim-ficha.empty { display: flex; align-items: center; gap: 12px; color: var(--ink-2); font-size: var(--fs-sm); }
+.sim-ficha.empty p { margin: 0; }
+.sim-ficha-h { display: flex; align-items: center; gap: 12px; }
+.sim-ficha-h div { display: flex; flex-direction: column; min-width: 0; }
+.sim-ficha-h small { color: var(--ink-2); font-size: var(--fs-xs); }
+.sim-badges { display: flex; flex-wrap: wrap; gap: 6px; margin: 10px 0; }
+.sim-datos { display: grid; gap: 6px; margin: 0; font-size: var(--fs-sm); }
+.sim-datos div { display: grid; grid-template-columns: 74px minmax(0, 1fr); gap: 8px; }
+.sim-datos dt { color: var(--ink-2); font-weight: 600; }
+.sim-datos dd { margin: 0; overflow-wrap: anywhere; }
+.sim-log h5 { margin: 0 0 8px; font-size: var(--fs-sm); }
+.sim-log ul { margin: 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 6px; font-size: var(--fs-xs); }
+.sim-log li { color: var(--ink-2); overflow-wrap: anywhere; }
+.sim-log li b { color: var(--ink); }
+.sim-sala { display: flex; align-items: center; gap: 6px; margin: 0 0 8px; font-size: var(--fs-sm); }
+.sim-sala svg { width: 16px; height: 16px; }
+
+/* Controles */
+.sim-ctl { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+.sim-dots { display: flex; flex-wrap: wrap; gap: 5px; }
+.sim-dots button { width: 22px; height: 8px; padding: 0; border: 0; border-radius: var(--r-pill); background: color-mix(in oklab, var(--c) 30%, var(--sunken)); cursor: pointer; transition: width 0.2s, background 0.2s; }
+.sim-dots button.on { width: 36px; background: var(--c); }
+.sim-dots button.bad { outline: 2px solid var(--crit); outline-offset: 1px; }
+.sim-btns { display: flex; gap: 8px; flex-wrap: wrap; }
+
+@media (max-width: 900px) {
+  .sim-body { grid-template-columns: 1fr; }
+  .sim-esc { flex-direction: row; overflow-x: auto; padding-bottom: 4px; }
+  .sim-esc-b { min-width: 220px; }
+  .sim-grid { grid-template-columns: 1fr; }
+}
+@media (max-width: 560px) {
+  .dialog.sim { padding: 16px; }
+  .sim-route li span { display: none; }
+  .sim-step-c { min-height: 0; }
+  .sim-btns { width: 100%; }
+  .sim-btns .btn { flex: 1; }
+}

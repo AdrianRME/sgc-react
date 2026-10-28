@@ -144,6 +144,8 @@
   .topbar { padding: 8px 16px; }
   .top-search { min-width: 0; width: 40px; padding: 0; justify-content: center; }
   .top-search .txt, .top-search .keys { display: none; }
+  .sim-btn { width: 36px; padding: 0; justify-content: center; }
+  .sim-btn .txt { display: none; }
   .page { padding: 18px 16px 48px; }
   .idle { margin: 12px 16px 0; }
 }

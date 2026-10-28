@@ -24,6 +24,12 @@ Comunes a todos los espacios:
   `e.` Enfermería, `m.` Médico y `j.` Jefatura. Al escribirlo, la pantalla muestra solo el ícono, el espacio y los
   pasos de esa área. Lo reconoce por el prefijo, sin consultar al servidor, así que no revela si la cuenta existe.
 - **La ruta en vivo**, de Admisión a Alta, con los turnos que avanzan entre etapas.
+- **Simulador del ciclo del paciente** (botón «Simulación», también en el inicio de sesión): recorre paso a paso
+  ocho casos (nuevo con SIS, nuevo sin seguro, con historial y alergia, crítico, caída del SIS, caída del servidor,
+  sin conexión y paciente que no se presenta). Ejecuta las mismas reglas del sistema sobre una copia de prueba de los
+  datos: muestra estados, prioridad, cita, boleta, receta y rechazos reales sin tocar la base.
+- **Sin conexión**: si el equipo pierde internet lo avisa de inmediato; un cambio que no se pudo guardar se deshace
+  en pantalla, y al volver la red los datos se recargan solos.
 - **Paleta de comandos** con <kbd>Ctrl</kbd> + <kbd>K</kbd>, para ir a cualquier sección o llamar al siguiente.
 - **Centro de avisos** con lo que hacen las otras estaciones. Los casos críticos además aparecen como aviso emergente.
 - **Tema claro u oscuro** y diseño adaptable a celular.
@@ -151,7 +157,7 @@ Seguridad, despliegue y verificación: [`DESPLIEGUE.md`](DESPLIEGUE.md).
 ```bash
 npm install
 npm run dev        # http://localhost:5173
-npm test           # 57 pruebas: lógica clínica, pago, agenda de citas, espera, afluencia, flujo, indicadores, avisos y seguridad
+npm test           # 73 pruebas: lógica clínica, pago, agenda de citas, espera, afluencia, flujo, indicadores, avisos y seguridad
 npm run lint       # oxlint, sin advertencias
 npm run build      # versión de producción en /dist
 ```
@@ -172,6 +178,7 @@ src/
     ids.js · format.js  correlativos por día (TR-), por año (REC-), boletas (B001-) y HC; formatos es-PE
     seed.js · seedHistory.js  demostración: 5 semanas de atenciones generadas con semilla fija
     motion.js           animaciones compartidas
+    simulacion.js       casos del simulador: pasos que ejecutan las acciones reales sobre una copia de prueba
   store/              StoreProvider (sesión, carga, inactividad, avisos) · actions.js (reglas de negocio)
   data/               supabaseRepo (Auth + funciones sgc_*) · localRepo (desarrollo) · merge.js
   hooks/              consulta asíncrona, historia del paciente, tema, atajos, avisos, confirmación, documentos
@@ -181,6 +188,7 @@ src/
   styles/             tokens (claro y oscuro), base, componentes y marco
   assets/icons3d/     íconos 3D Fluent Emoji (Microsoft, licencia MIT)
 supabase/schema.sql   17 tablas, cuentas y horarios demo, RLS por rol, funciones sgc_* y tiempo real
+supabase/datos-demo.sql  más personal y médicos con horario, y 18 pacientes por tipo de caso con su historia
 erwin/                el mismo modelo en SQL Server 2005 para el diagrama en CA ERwin r7
 vercel.json           cabeceras de seguridad (CSP, HSTS, X-Frame-Options…)
 ```

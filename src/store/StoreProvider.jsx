@@ -81,6 +81,26 @@ export function StoreProvider({ children }) {
     return repo.subscribe(reload);
   }, [authed, repo, reload]);
 
+  // Sin internet: se avisa de inmediato (sin esperar a que falle un guardado); al volver, se recargan los datos
+  useEffect(() => {
+    if (!authed) return undefined;
+    const off = () => {
+      setStatus({ ok: false, msg: 'El equipo no tiene conexión a internet.' });
+      toast('crit', 'Sin conexión a internet: los cambios no se guardarán hasta que vuelva la red.');
+    };
+    const on = () => {
+      toast('ok', 'Conexión restablecida. Datos actualizados.');
+      reload();
+    };
+    window.addEventListener('offline', off);
+    window.addEventListener('online', on);
+    if (navigator.onLine === false) off();
+    return () => {
+      window.removeEventListener('offline', off);
+      window.removeEventListener('online', on);
+    };
+  }, [authed, reload, toast]);
+
   useEffect(() => {
     try {
       sessionStorage.setItem(PREFS_KEY, JSON.stringify(prefs));
@@ -115,12 +135,19 @@ export function StoreProvider({ children }) {
         throw e;
       }
       loadSeq.current++; // una carga en curso ya no refleja este cambio
-      dbRef.current = applyChanges(cur, res.changes);
-      setDb(dbRef.current);
+      const applied = applyChanges(cur, res.changes);
+      dbRef.current = applied;
+      setDb(applied);
       try {
         await repo.save(res.changes);
         setStatus({ ok: true, msg: '' });
       } catch (e) {
+        // La pantalla vuelve a lo que estaba guardado: si tampoco se puede recargar (sin conexión),
+        // no debe quedar mostrando un cambio que el servidor no recibió.
+        if (dbRef.current === applied) {
+          dbRef.current = cur;
+          setDb(cur);
+        }
         setStatus({ ok: false, msg: e.message });
         toast('crit', `No se guardó: ${e.message}`);
         reload();

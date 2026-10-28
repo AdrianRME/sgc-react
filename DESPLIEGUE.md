@@ -85,6 +85,18 @@ Ejecutarlo otra vez **borra todos los datos** y restablece esas contraseñas.
 > Si aparece un error de permisos sobre `auth.users`, Supabase no dejó crear las cuentas desde SQL.
 > Copie el mensaje exacto: la alternativa es crear las cuentas con una Edge Function.
 
+**Datos de demostración ampliados (opcional).** `supabase/datos-demo.sql` agrega, sin borrar nada y sin duplicar
+si se ejecuta otra vez:
+- 11 cuentas más (contraseña `SgcDemo2026`): `a.admision4`, `a.admision5`, `c.caja4`, `e.triaje4`, `e.triaje5`,
+  `j.direccion` y los médicos `m.general5`, `m.general6` (Medicina General), `m.pediatria3` (Pediatría),
+  `m.cardio2` (Cardiología) y `m.gineco2` (Ginecología), con horario en los turnos libres de los consultorios;
+- 18 pacientes (DNI 46000101 a 46000118) por tipo de caso: niños, adolescente, gestante, adultos mayores, alérgicos,
+  crónicos (hipertensión, diabetes, EPOC), no asegurados, SIS pendiente de validación y un paciente frecuente, con
+  19 atenciones anteriores completas (pago, triaje, cita, consulta, diagnóstico y receta).
+
+Para probar un paciente nuevo use un DNI que no exista, por ejemplo del 46000201 al 46000299. **Restablecer datos
+demo** borra los pacientes (no el personal ni los horarios): después vuelva a ejecutar este archivo.
+
 ## 3. Configurar Supabase Auth
 
 En **Authentication → Sign In / Providers**, desactive **Allow new users to sign up**.

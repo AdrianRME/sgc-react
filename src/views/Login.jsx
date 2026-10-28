@@ -1,6 +1,6 @@
-import { useRef, useState } from 'react';
+import { lazy, Suspense, useRef, useState } from 'react';
 import { AnimatePresence, m } from 'motion/react';
-import { CalendarPlus, Eye, EyeOff, Lock, LogIn, Tv } from 'lucide-react';
+import { CalendarPlus, CirclePlay, Eye, EyeOff, Lock, LogIn, Tv } from 'lucide-react';
 import { useStore } from '../store/useStore.js';
 import { DEMO_PASSWORD, MAX_LOGIN_ATTEMPTS, LOCK_MS, ROLES, roleFromUsername } from '../lib/constants.js';
 import { Field, Msg } from '../components/ui.jsx';
@@ -8,6 +8,9 @@ import { Icon3D } from '../components/Icon3D.jsx';
 import { BrandMark } from '../components/BrandMark.jsx';
 import { useNow } from '../hooks/useNow.js';
 import './login.css';
+
+// El simulador no necesita sesión: corre sobre una copia de prueba de los datos
+const Simulador = lazy(() => import('../components/Simulador.jsx'));
 
 // Cuentas de demostración (solo se muestran en modo local de desarrollo)
 const DEV_USERS = [['a.admision', 'adm'], ['c.caja', 'caj'], ['e.triaje', 'enf'], ['m.consulta', 'med'], ['m.cardio', 'med'], ['j.jefatura', 'jef']];
@@ -76,6 +79,7 @@ export function Login() {
   const [u, setU] = useState('');
   const [p, setP] = useState('');
   const [show, setShow] = useState(false);
+  const [sim, setSim] = useState(false);
   const [err, setErr] = useState('');
   const [busy, setBusy] = useState(false);
   const [fails, setFails] = useState(0);
@@ -133,8 +137,10 @@ export function Login() {
         <nav className="top-links">
           <a className="sala-link cita" href="#/cita"><CalendarPlus aria-hidden="true" /> Sacar cita</a>
           <a className="sala-link" href="#/sala"><Tv aria-hidden="true" /> Pantalla de sala</a>
+          <button type="button" className="sala-link" onClick={() => setSim(true)}><CirclePlay aria-hidden="true" /> Simulación</button>
         </nav>
       </header>
+      {sim && <Suspense fallback={null}><Simulador onClose={() => setSim(false)} /></Suspense>}
 
       <main className="login-main">
         <m.div className="login-card" initial={{ opacity: 0, y: 18, scale: 0.98 }} animate={{ opacity: 1, y: 0, scale: 1 }} transition={{ type: 'spring', stiffness: 260, damping: 26 }}>

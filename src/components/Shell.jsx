@@ -1,7 +1,7 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { lazy, Suspense, useCallback, useEffect, useMemo, useState } from 'react';
 import { AnimatePresence, m } from 'motion/react';
 import {
-  ChevronRight, ExternalLink, KeyRound, LogOut, Menu, Moon, PhoneCall, RotateCcw, Search, Sun, Tv, LayoutGrid,
+  ChevronRight, CirclePlay, ExternalLink, KeyRound, LogOut, Menu, Moon, PhoneCall, RotateCcw, Search, Sun, Tv, LayoutGrid,
 } from 'lucide-react';
 import { useStore } from '../store/useStore.js';
 import { ACTIVE_STATES, QUEUE, ROLES } from '../lib/constants.js';
@@ -19,6 +19,9 @@ import { BrandMark } from './BrandMark.jsx';
 import { ChangePassword } from './ChangePassword.jsx';
 import { CommandPalette } from './CommandPalette.jsx';
 import { Notifications } from './Notifications.jsx';
+
+// El simulador (y los datos de prueba que usa) se descargan recién al abrirlo
+const Simulador = lazy(() => import('./Simulador.jsx'));
 
 const SALA = ['sala', 'Pantalla de sala', 'tv'];
 const isMac = typeof navigator !== 'undefined' && /Mac|iPhone|iPad/.test(navigator.platform);
@@ -65,6 +68,7 @@ export function Shell({ section, children }) {
   const [pwd, setPwd] = useState(false);
   const [palette, setPalette] = useState(false);
   const [navOpen, setNavOpen] = useState(false);
+  const [sim, setSim] = useState(false);
   const { effective, toggle } = useTheme();
   const onCritical = useCallback((text) => toast('crit', text), [toast]);
   const feed = useActivity(db, user, onCritical);
@@ -99,6 +103,7 @@ export function Shell({ section, children }) {
     if (user.role === 'med') acts.push({ id: 'next-med', group: 'Acciones', label: `Llamar al siguiente paciente a ${area}`, icon: PhoneCall, run: () => run(callNext, 'med', byConsulta) });
     acts.push(
       { id: 'sala-ext', group: 'Acciones', label: 'Abrir la pantalla de sala en otra ventana', icon: ExternalLink, run: () => window.open('#/sala', '_blank', 'noopener') },
+      { id: 'sim', group: 'Acciones', label: 'Simular el ciclo del paciente', icon: CirclePlay, keywords: 'simulación prueba demo escenario', run: () => setSim(true) },
       { id: 'theme', group: 'Preferencias', label: effective === 'dark' ? 'Usar tema claro' : 'Usar tema oscuro', icon: effective === 'dark' ? Sun : Moon, keywords: 'tema modo oscuro claro', run: toggle },
       { id: 'pwd', group: 'Cuenta', label: 'Cambiar mi contraseña', icon: KeyRound, run: () => setPwd(true) },
     );
@@ -160,6 +165,9 @@ export function Shell({ section, children }) {
             <span className="txt">Buscar o ir a…</span>
             <span className="keys" aria-hidden="true"><Kbd>{isMac ? '⌘' : 'Ctrl'}</Kbd><Kbd>K</Kbd></span>
           </button>
+          <button className="btn sec sm sim-btn" onClick={() => setSim(true)} title="Simular paso a paso el ciclo de un paciente (no cambia datos reales)">
+            <CirclePlay aria-hidden="true" /> <span className="txt">Simulación</span>
+          </button>
           <Notifications feed={feed} />
           <button className="icon-btn" onClick={toggle} aria-label={effective === 'dark' ? 'Usar tema claro' : 'Usar tema oscuro'}>
             {effective === 'dark' ? <Sun /> : <Moon />}
@@ -169,6 +177,13 @@ export function Shell({ section, children }) {
             <span className="txt">{status.ok ? (repo.kind === 'supabase' ? 'En línea' : 'Local') : 'Sin conexión'}</span>
           </span>
         </header>
+        {!status.ok && (
+          <div className="idle">
+            <Msg tone="crit" role="alert">
+              <b>Sin conexión con el servidor.</b> {status.msg} Los cambios no se guardan hasta que vuelva la conexión; la pantalla se actualizará sola.
+            </Msg>
+          </div>
+        )}
         {idleLeft != null && (
           <div className="idle">
             <Msg tone="warn" role="alert">
@@ -181,6 +196,7 @@ export function Shell({ section, children }) {
 
       <AnimatePresence>{palette && <CommandPalette key="palette" commands={commands} onClose={() => setPalette(false)} />}</AnimatePresence>
       <AnimatePresence>{pwd && <ChangePassword key="pwd" onClose={() => setPwd(false)} />}</AnimatePresence>
+      {sim && <Suspense fallback={null}><Simulador onClose={() => setSim(false)} /></Suspense>}
       {dialog}
     </div>
   );
