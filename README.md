@@ -176,7 +176,7 @@ npm run build      # versión de producción en /dist
 ```
 
 Sin las variables de `.env`, la app arranca en **modo local de desarrollo**: guarda los datos en el navegador
-y todas las cuentas usan la contraseña `SgcDemo2026`. El sistema publicado usa siempre Supabase.
+y todas las cuentas usan la contraseña `Demo2026`. El sistema publicado usa siempre Supabase.
 
 ## Estructura
 

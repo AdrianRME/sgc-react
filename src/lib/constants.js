@@ -2,7 +2,7 @@ export const MIN = 60_000;
 export const DAY = 86_400_000;
 
 /** Contraseña del modo local (sin Supabase), solo para desarrollo. Con Supabase se usa Supabase Auth. */
-export const DEMO_PASSWORD = 'SgcDemo2026';
+export const DEMO_PASSWORD = 'Demo2026';
 export const MAX_LOGIN_ATTEMPTS = 3;
 export const LOCK_MS = 30_000;
 /** Dominio de las cuentas de Supabase Auth: el usuario a.admision ingresa como a.admision@sgc.example.org. */

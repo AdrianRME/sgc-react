@@ -1188,8 +1188,8 @@ join public.usuario u on u.username = x.usr
 join public.area_atencion a on a.nombre = x.area
 cross join lateral unnest(x.dias) as d(dia);
 
--- Contraseña de las cuentas de demostración: SgcDemo2026 (cámbiela desde la app)
-select sgc_interno.fijar_credencial(username, 'SgcDemo2026', false) from public.usuario;
+-- Contraseña de las cuentas de demostración: Demo2026 (cámbiela desde la app)
+select sgc_interno.fijar_credencial(username, 'Demo2026', false) from public.usuario;
 
 -- Autor de las citas que el paciente reserva por la web. No tiene cuenta en Supabase Auth: no puede iniciar sesión.
 insert into public.usuario (username, password_hash, rol, nombre_completo, activo)

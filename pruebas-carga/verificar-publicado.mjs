@@ -24,7 +24,7 @@ const env = Object.fromEntries(readFileSync(new URL('../.env', import.meta.url),
   .split(/\r?\n/).filter((l) => /^\w+=/.test(l)).map((l) => [l.slice(0, l.indexOf('=')), l.slice(l.indexOf('=') + 1).trim()]));
 const URL_SB = env.VITE_SUPABASE_URL;
 const KEY = env.VITE_SUPABASE_ANON_KEY;
-const CLAVE = 'SgcDemo2026';
+const CLAVE = 'Demo2026';
 
 const results = [];
 const times = [];

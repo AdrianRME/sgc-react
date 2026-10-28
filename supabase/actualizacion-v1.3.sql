@@ -11,7 +11,7 @@
 -- No cambia tablas ni columnas (el modelo de ERwin sigue igual): solo agrega filas a los catálogos.
 -- No borra ni cambia datos y se puede volver a ejecutar. Supabase → SQL Editor → pegar este archivo → Run.
 -- EJECÚTELO ANTES de publicar la versión de la app que trae estas especialidades.
--- Contraseña de las cuentas nuevas: SgcDemo2026.
+-- Contraseña de las cuentas nuevas: Demo2026.
 -- =====================================================================
 
 insert into public.especialidad (codigo, nombre, duracion_cita_min) values
@@ -61,7 +61,7 @@ from (values
 join public.especialidad e on e.codigo = x.esp
 on conflict (username) do nothing;
 
-select sgc_interno.fijar_credencial(u.username, 'SgcDemo2026', false)
+select sgc_interno.fijar_credencial(u.username, 'Demo2026', false)
 from public.usuario u
 where u.username in ('m.familiar', 'm.interna', 'm.obstetra', 'm.cred', 'm.odonto', 'm.odonto2', 'm.psicologia', 'm.nutricion')
   and not exists (select 1 from auth.users a where lower(a.email) = lower(u.username || '@' || sgc_interno.dominio()));

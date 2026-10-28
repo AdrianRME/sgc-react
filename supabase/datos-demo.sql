@@ -10,7 +10,7 @@
 -- Supabase → SQL Editor → pegar este archivo → Run.
 -- Se puede volver a ejecutar: no duplica nada. Si Jefatura restablece los datos de demostración desde la app,
 -- los pacientes se borran (el personal y los horarios se conservan): vuelva a ejecutar este archivo.
--- Contraseña de las cuentas nuevas: SgcDemo2026.
+-- Contraseña de las cuentas nuevas: Demo2026.
 -- Todos los datos son ficticios.
 -- =====================================================================
 
@@ -35,7 +35,7 @@ from (values
 left join public.especialidad e on e.codigo = x.esp
 on conflict (username) do nothing;
 
-select sgc_interno.fijar_credencial(u.username, 'SgcDemo2026', false)
+select sgc_interno.fijar_credencial(u.username, 'Demo2026', false)
 from public.usuario u
 where u.username in ('a.admision4', 'a.admision5', 'c.caja4', 'e.triaje4', 'e.triaje5', 'j.direccion',
                      'm.general5', 'm.general6', 'm.pediatria3', 'm.cardio2', 'm.gineco2')

@@ -55,7 +55,7 @@ El script crea:
   - Medicina General: Dra. Ríos de lunes a sábado de 07:00 a 13:00, y Dr. Paz de lunes a viernes de 13:00 a 19:00.
   - Pediatría: lunes, miércoles y viernes.
   - Cardiología: solo martes y jueves.
-- Las **cuentas de demostración en Supabase Auth**, con contraseña `SgcDemo2026`:
+- Las **cuentas de demostración en Supabase Auth**, con contraseña `Demo2026`:
 
   | Usuario | Rol |
   |---|---|
@@ -93,7 +93,7 @@ los datos de demostración ampliados. En un proyecto que ya tiene la versión 1.
 versión de la app que la usa. Solo agrega filas (no cambia tablas, el modelo de ERwin sigue igual) y se puede repetir:
 - 7 especialidades más (Medicina Familiar e Interna, CRED, Obstetricia, Odontología, Psicología y Nutrición), con
   los consultorios 5 a 8 y 12 diagnósticos CIE-10 de primer nivel;
-- 8 profesionales con horario (contraseña `SgcDemo2026`): `m.familiar`, `m.interna`, `m.obstetra`, `m.cred`,
+- 8 profesionales con horario (contraseña `Demo2026`): `m.familiar`, `m.interna`, `m.obstetra`, `m.cred`,
   `m.odonto`, `m.odonto2`, `m.psicologia` y `m.nutricion`. Usan el espacio de Consulta (prefijo `m.`) con la
   colegiatura de su colegio: CMP, CEP, COP, CPsP o CNP.
 
@@ -102,7 +102,7 @@ profesionales.
 
 **Datos de demostración ampliados (opcional).** `supabase/datos-demo.sql` agrega, sin borrar nada y sin duplicar
 si se ejecuta otra vez:
-- 11 cuentas más (contraseña `SgcDemo2026`): `a.admision4`, `a.admision5`, `c.caja4`, `e.triaje4`, `e.triaje5`,
+- 11 cuentas más (contraseña `Demo2026`): `a.admision4`, `a.admision5`, `c.caja4`, `e.triaje4`, `e.triaje5`,
   `j.direccion` y los médicos `m.general5`, `m.general6` (Medicina General), `m.pediatria3` (Pediatría),
   `m.cardio2` (Cardiología) y `m.gineco2` (Ginecología), con horario en los turnos libres de los consultorios;
 - 18 pacientes (DNI 46000101 a 46000118) por tipo de caso: niños, adolescente, gestante, adultos mayores, alérgicos,

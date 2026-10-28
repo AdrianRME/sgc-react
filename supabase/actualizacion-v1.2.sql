@@ -623,8 +623,8 @@ join public.area_atencion a on a.nombre = x.area
 cross join lateral unnest(x.dias) as d(dia)
 where not exists (select 1 from public.horario_medico h where h.id_usuario_medico = u.id_usuario and h.dia_semana = d.dia);
 
--- Contraseña de las cuentas nuevas: SgcDemo2026 (la misma de las demás cuentas de demostración)
-select sgc_interno.fijar_credencial(username, 'SgcDemo2026', false)
+-- Contraseña de las cuentas nuevas: Demo2026 (la misma de las demás cuentas de demostración)
+select sgc_interno.fijar_credencial(username, 'Demo2026', false)
 from public.usuario where username in ('m.general3', 'm.pediatria2', 'a.admision2', 'c.caja2', 'e.triaje2',
                                        'm.gineco', 'm.general4', 'a.admision3', 'c.caja3', 'e.triaje3', 'j.calidad')
   and not exists (select 1 from auth.users a where lower(a.email) = lower(username || '@' || sgc_interno.dominio()));

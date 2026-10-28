@@ -7,9 +7,11 @@
 --   2. Versión 1.3: cartera completa de primer nivel (11 especialidades en 4 ramas, consultorios 5 a 8,
 --      8 profesionales con horario y diagnósticos CIE-10 de primer nivel).
 --   3. Datos de demostración: 11 cuentas más y 18 pacientes por tipo de caso con 26 atenciones anteriores.
+--   4. Contraseña más simple: todas las cuentas de demostración pasan a usar Demo2026.
 --
 -- No borra datos, no cambia tablas (el modelo de ERwin sigue igual) y se puede volver a ejecutar sin duplicar nada.
--- Contraseña de todas las cuentas nuevas: SgcDemo2026.
+-- Contraseña de todas las cuentas de demostración (las de antes y las nuevas): Demo2026.
+-- Al cambiarla se cierran las sesiones abiertas: vuelva a iniciar sesión con la nueva contraseña.
 -- Si después usa «Restablecer datos demo», los pacientes de la parte 3 se borran: vuelva a ejecutar este archivo.
 -- =====================================================================
 
@@ -77,7 +79,7 @@ from (values
 join public.especialidad e on e.codigo = x.esp
 on conflict (username) do nothing;
 
-select sgc_interno.fijar_credencial(u.username, 'SgcDemo2026', false)
+select sgc_interno.fijar_credencial(u.username, 'Demo2026', false)
 from public.usuario u
 where u.username in ('m.familiar', 'm.interna', 'm.obstetra', 'm.cred', 'm.odonto', 'm.odonto2', 'm.psicologia', 'm.nutricion')
   and not exists (select 1 from auth.users a where lower(a.email) = lower(u.username || '@' || sgc_interno.dominio()));
@@ -129,7 +131,7 @@ end $$;
 -- Supabase → SQL Editor → pegar este archivo → Run.
 -- Se puede volver a ejecutar: no duplica nada. Si Jefatura restablece los datos de demostración desde la app,
 -- los pacientes se borran (el personal y los horarios se conservan): vuelva a ejecutar este archivo.
--- Contraseña de las cuentas nuevas: SgcDemo2026.
+-- Contraseña de las cuentas nuevas: Demo2026.
 -- Todos los datos son ficticios.
 -- =====================================================================
 
@@ -154,7 +156,7 @@ from (values
 left join public.especialidad e on e.codigo = x.esp
 on conflict (username) do nothing;
 
-select sgc_interno.fijar_credencial(u.username, 'SgcDemo2026', false)
+select sgc_interno.fijar_credencial(u.username, 'Demo2026', false)
 from public.usuario u
 where u.username in ('a.admision4', 'a.admision5', 'c.caja4', 'e.triaje4', 'e.triaje5', 'j.direccion',
                      'm.general5', 'm.general6', 'm.pediatria3', 'm.cardio2', 'm.gineco2')
@@ -441,3 +443,14 @@ select pg_temp.visita('46000105', 13, 'm.interna', 'e.triaje2', null, '150/90', 
 select pg_temp.visita('46000107', 20, 'm.familiar', 'e.triaje', 'c.caja2', '124/80', 72, 16, 36.5, 98, 80.0, 1.75,
   'Chequeo preventivo anual', 'Examen físico normal. Se solicitan glucosa, perfil lipídico y examen de orina.',
   array['Z00.0'], '[]'::jsonb);
+
+
+-- =====================================================================
+-- 4. CONTRASEÑA MÁS SIMPLE PARA LAS CUENTAS DE DEMOSTRACIÓN
+-- =====================================================================
+-- Todas las cuentas «(demo)» que ya tienen acceso pasan a Demo2026 (antes SgcDemo2026). Las cuentas que
+-- Jefatura creó desde la app con otro nombre no se tocan. Cumple la regla: 8 caracteres, con letras y números.
+select sgc_interno.fijar_credencial(u.username, 'Demo2026', false)
+from public.usuario u
+where u.nombre_completo like '%(demo)'
+  and exists (select 1 from auth.users a where lower(a.email) = lower(u.username || '@' || sgc_interno.dominio()));
