@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { CalendarPlus } from 'lucide-react';
 import { useStore } from '../../store/useStore.js';
 import { saveHorario, removeHorario } from '../../store/actions.js';
-import { AREAS, DIAS_SEMANA } from '../../lib/constants.js';
+import { AREAS, DIAS_SEMANA, ESPECIALIDADES, RAMAS } from '../../lib/constants.js';
 import { especialidad, toMin } from '../../lib/agenda.js';
 import { WorkspaceHeader } from '../../components/WorkspaceHeader.jsx';
 import { Field, Msg, Panel } from '../../components/ui.jsx';
@@ -47,11 +47,15 @@ export default function Horarios() {
         lead="Defina qué días y a qué hora atiende cada médico. Con este horario el sistema calcula los cupos de cita y sabe, por ejemplo, que un especialista que no atiende los martes no puede recibir citas ese día." />
       <Panel title="Agregar bloque" icon="sparkles" className="horario-form">
         <form onSubmit={submit} noValidate className="horario-grid">
-          <Field label="Médico" hint={e ? `${e.n}: citas de ${e.dur} min` : 'Solo médicos activos con especialidad'}>
+          <Field label="Profesional" hint={e ? `${e.n}: citas de ${e.dur} min` : 'Médicos y demás profesionales de consulta activos'}>
             {(a) => (
               <select {...a} value={f.med} onChange={set('med')}>
-                <option value="">Elija un médico</option>
-                {meds.map((u) => <option key={u.u} value={u.u}>{u.n} ({especialidad(u.esp)?.n ?? 'sin especialidad'})</option>)}
+                <option value="">Elija un profesional</option>
+                {ESPECIALIDADES.filter((x) => meds.some((u) => u.esp === x.k)).map((x) => (
+                  <optgroup key={x.k} label={`${RAMAS.find((r) => r.k === x.rama).n} · ${x.n}`}>
+                    {meds.filter((u) => u.esp === x.k).map((u) => <option key={u.u} value={u.u}>{u.n}</option>)}
+                  </optgroup>
+                ))}
               </select>
             )}
           </Field>

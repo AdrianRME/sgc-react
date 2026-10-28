@@ -3,7 +3,7 @@ import { AnimatePresence, m } from 'motion/react';
 import { PhoneCall } from 'lucide-react';
 import { useStore } from '../store/useStore.js';
 import { byPriority, turnKey } from '../lib/clinical.js';
-import { ESPECIALIDADES, QUEUE } from '../lib/constants.js';
+import { QUEUE } from '../lib/constants.js';
 import { citasDelDia, porDia, sameDay } from '../lib/agenda.js';
 import { fmtCitaDia, fullName, initials, startOfDay } from '../lib/format.js';
 import { listItem } from '../lib/motion.js';
@@ -12,7 +12,7 @@ import { useDocuments } from '../hooks/useDocuments.jsx';
 import { useCitaAcciones } from '../hooks/useCitaAcciones.jsx';
 import { SectionHero } from '../components/SectionHero.jsx';
 import { CitaForm, CitaRow } from '../components/CitaForm.jsx';
-import { Empty, Panel, PrioBadge, Segmented, TurnCode, WaitTime } from '../components/ui.jsx';
+import { Empty, EspOptions, Panel, PrioBadge, TurnCode, WaitTime } from '../components/ui.jsx';
 import { HorarioSemanal } from '../components/HorarioSemanal.jsx';
 import { Modal } from '../components/Modal.jsx';
 import { ReservaCita } from './CitaWeb.jsx';
@@ -194,7 +194,12 @@ export function Agenda() {
         title="Horario de atención"
         icon="calendar"
         sub="Días y horas en que atiende cada médico. Con este horario el sistema calcula los cupos."
-        actions={<Segmented label="Especialidad" value={esp} onChange={setEsp} options={[['', 'Todas'], ...ESPECIALIDADES.map((e) => [e.k, e.n])]} />}
+        actions={(
+          <select className="input sm-select" aria-label="Especialidad" value={esp} onChange={(e) => setEsp(e.target.value)}>
+            <option value="">Todas las especialidades</option>
+            <EspOptions />
+          </select>
+        )}
         className="agenda-horario"
       >
         <HorarioSemanal esp={esp || null} />

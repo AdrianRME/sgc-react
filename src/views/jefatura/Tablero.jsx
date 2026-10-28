@@ -1,7 +1,7 @@
-import { useMemo, useState } from 'react';
+import { Fragment, useMemo, useState } from 'react';
 import { ArrowDownRight, ArrowUpRight, Download, Minus } from 'lucide-react';
 import { useStore } from '../../store/useStore.js';
-import { ACTIVE_STATES, AREAS, DAY, HISTORY_DAYS, PRIO, WAIT_TARGET } from '../../lib/constants.js';
+import { ACTIVE_STATES, AREAS, DAY, HISTORY_DAYS, PRIO, RAMAS, WAIT_TARGET } from '../../lib/constants.js';
 import {
   RANGES, periodOf, slice, summarize, series, heatmap, topDx, destinos, perfil, cumplimiento, porConsultorio, porEspecialidad, delta, toCSV,
   afluenciaPrevista, HORAS_AFLUENCIA,
@@ -243,13 +243,17 @@ export default function Tablero() {
                   <table className="tbl">
                     <thead><tr><th>Especialidad</th><th className="num">Citas</th><th className="num">Para otro día</th><th className="num">Atendidas</th><th>Citas para otro día</th></tr></thead>
                     <tbody>
-                      {v.esp.map((e) => {
+                      {v.esp.map((e, i) => {
                         const share = e.citas ? e.otroDia / e.citas : 0;
+                        const rama = (i === 0 || v.esp[i - 1].rama !== e.rama) && RAMAS.find((r) => r.k === e.rama);
                         return (
-                          <tr key={e.k}>
+                          <Fragment key={e.k}>
+                          {rama && <tr className="rama-row"><th colSpan={5} scope="rowgroup">{rama.n}</th></tr>}
+                          <tr>
                             <td>{e.n}</td><td className="num">{fmtNum(e.citas)}</td><td className="num">{fmtNum(e.otroDia)}</td><td className="num">{fmtNum(e.atendidos)}</td>
                             <td><span className="share"><i style={{ width: `${share * 100}%` }} /></span> {fmtPct(e.citas ? share : null)}</td>
                           </tr>
+                          </Fragment>
                         );
                       })}
                     </tbody>

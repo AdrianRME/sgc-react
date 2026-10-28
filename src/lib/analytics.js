@@ -232,7 +232,7 @@ export function cumplimiento(facts) {
 export function porEspecialidad(facts) {
   return ESPECIALIDADES.map((e) => {
     const fs = facts.filter((f) => f.esp === e.k);
-    return { k: e.k, n: e.n, citas: fs.length, otroDia: fs.filter((f) => f.otroDia).length, atendidos: fs.filter((f) => f.state === 'ATENDIDO').length };
+    return { k: e.k, n: e.n, rama: e.rama, citas: fs.length, otroDia: fs.filter((f) => f.otroDia).length, atendidos: fs.filter((f) => f.state === 'ATENDIDO').length };
   });
 }
 

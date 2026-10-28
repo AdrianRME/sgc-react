@@ -4,7 +4,7 @@ import { CalendarCheck, Sparkles } from 'lucide-react';
 import { useStore } from '../store/useStore.js';
 import { assignCita } from '../store/actions.js';
 import { turnKey } from '../lib/clinical.js';
-import { ESPECIALIDADES, MIN } from '../lib/constants.js';
+import { ESP_POR_RAMA, MIN } from '../lib/constants.js';
 import {
   cuposLibres, deTurnoHoy, diaNombre, diasDeAtencion, especialidad, especialidadSugerida,
   isoDow, listaDias, porDia, sameDay, sobrecupo, sugerirCita,
@@ -97,12 +97,19 @@ export function CitaForm({ turn, patient, onDone, preselect = false }) {
       </div>
       {turn.cita && <p className="note">Cita actual: <CitaLine c={turn.cita} now={now} /></p>}
 
-      <div className="esp-pills" role="group" aria-label="Especialidad">
-        {ESPECIALIDADES.map((x) => (
-          <button key={x.k} type="button" className="esp-pill" style={{ '--e': `var(--esp-${x.k})` }} aria-pressed={esp === x.k} onClick={() => cambiarEsp(x.k)}>
-            <b>{x.n}</b>
-            <small>{x.k === suggested ? '✦ Sugerida' : listaDias(diasDeAtencion(db, x.k))}</small>
-          </button>
+      <div className="esp-ramas" role="group" aria-label="Especialidad">
+        {ESP_POR_RAMA.map((r) => (
+          <div key={r.k} className="esp-rama">
+            <span className="esp-rama-h">{r.n}</span>
+            <div className="esp-pills">
+              {r.esps.map((x) => (
+                <button key={x.k} type="button" className="esp-pill" style={{ '--e': `var(--esp-${x.k})` }} aria-pressed={esp === x.k} onClick={() => cambiarEsp(x.k)}>
+                  <b>{x.n}</b>
+                  <small>{x.k === suggested ? '✦ Sugerida' : listaDias(diasDeAtencion(db, x.k))}</small>
+                </button>
+              ))}
+            </div>
+          </div>
         ))}
       </div>
 

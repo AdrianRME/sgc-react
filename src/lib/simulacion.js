@@ -48,6 +48,7 @@ export function crearSandbox(reloj) {
 
 const NUEVA = { dni: '46000250', nom: 'Elena', ape: 'Vargas Ruiz', nac: '1990-03-15', sexo: 'F', tel: '987 654 321' };
 const NUEVO_SIN_SIS = { dni: '46000257', nom: 'Marco', ape: 'Ríos Delgado', nac: '1987-08-02', sexo: 'M', tel: '987 222 333' };
+const GESTANTE = { dni: '46000262', nom: 'Lucía', ape: 'Mendoza Aguirre', nac: '1997-06-20', sexo: 'F', tel: '987 444 555' };
 const NORMAL = { pa: '118/76', fc: '78', fr: '16', t: '36.8', spo2: '98', peso: '64', talla: '1.62' };
 
 const buscar = (dni, texto) => ({
@@ -81,7 +82,7 @@ const triaje = ({ vitals = NORMAL, motivo, falla, titulo, texto } = {}) => [
 
 const cita = (texto) => ({
   st: 'cita', quien: 'e.triaje', min: 1, titulo: 'Se asigna la cita',
-  texto: texto || 'Al terminar el triaje se le da la cita sin volver a Admisión. El sistema propone la especialidad (niños a Pediatría, presión o pecho a Cardiología) y el primer cupo libre del horario de los médicos.',
+  texto: texto || 'Al terminar el triaje se le da la cita sin volver a Admisión. El sistema propone la especialidad según el motivo y la edad (control prenatal a Obstetricia, dolor de muela a Odontología, niños a Pediatría, presión o pecho a Cardiología…) y el primer cupo libre del horario de los profesionales.',
   accion: (db, ctx, mem) => {
     const t = turnoDe(db, mem, ctx.now);
     const esp = especialidadSugerida(pacienteDe(db, t.dni), t.tri, ctx.now);
@@ -186,6 +187,23 @@ export const ESCENARIOS = [
         }],
       }),
       alta('El médico cambió a azitromicina. La historia de la paciente suma esta atención a las anteriores.'),
+    ],
+  },
+  {
+    k: 'prenatal', icon: 'bed', titulo: 'Gestante: control prenatal',
+    resumen: 'El motivo lleva la cita a Obstetricia, en la rama materno-infantil.',
+    pasos: [
+      buscar(GESTANTE.dni, 'Gestante sin historia en el centro: se toman sus datos.'),
+      { st: 'sis', quien: 'a.admision', min: 1, titulo: 'Verifica el seguro', texto: 'SIS activo: la gestante no paga.' },
+      registrar(GESTANTE.dni, GESTANTE, 'ACTIVO', 'Turno generado. Con SIS pasa directo a triaje.'),
+      ...triaje({ motivo: 'Control prenatal', vitals: { ...NORMAL, pa: '110/70', peso: '66' } }),
+      cita('Por el motivo «Control prenatal», el sistema propone Obstetricia (rama materno-infantil) y el primer cupo libre de la obstetra en el consultorio 6. No pasa por Medicina General.'),
+      ...consulta({
+        notas: 'Gestación de 20 semanas, altura uterina acorde, latidos fetales presentes. Se indica suplemento.',
+        dx: ['Z34.9'],
+        meds: [med('Ácido fólico 0.5 mg', '1 tableta', 'cada 24 h', 30), med('Sulfato ferroso 300 mg', '1 tableta', 'cada 24 h', 30)],
+      }),
+      alta('Sale con su receta de suplementos. En el tablero cuenta en la especialidad Obstetricia; el resto de la cartera (CRED, Odontología, Psicología, Nutrición…) funciona igual.'),
     ],
   },
   {

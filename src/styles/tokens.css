@@ -96,12 +96,21 @@
   --ease: cubic-bezier(0.2, 0.8, 0.2, 1);
 }
 
-/* Especialidades: color de la hora en las tarjetas de cita */
+/* Especialidades: color de la hora en las tarjetas de cita. Cada rama tiene su familia de tonos:
+   atención médica en azules y rojos, materno-infantil en verdes azulados y ocres, salud bucal en cian,
+   salud mental y nutrición en violeta y oliva. */
 :root {
   --esp-MG: var(--st-med);
-  --esp-PED: light-dark(#0f9d8f, #22b8a8);
+  --esp-MF: light-dark(#3b5bdb, #7b93f0);
+  --esp-MI: light-dark(#1d4e89, #6ea2dc);
   --esp-CAR: light-dark(#c2366b, #e0588a);
+  --esp-PED: light-dark(#0f9d8f, #22b8a8);
+  --esp-CRED: light-dark(#2f8f46, #4cc068);
   --esp-GIN: light-dark(#b4530f, #e08a3c);
+  --esp-OBS: light-dark(#a8326e, #e06aa6);
+  --esp-ODO: light-dark(#0b7fa3, #35b5dc);
+  --esp-PSI: light-dark(#7048c4, #a68ae8);
+  --esp-NUT: light-dark(#6b7a12, #a8bb35);
 }
 
 /* Cada espacio toma el color de su estación */

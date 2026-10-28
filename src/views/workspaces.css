@@ -355,3 +355,9 @@ button.chip[aria-pressed='true'] { border-color: var(--role); background: var(--
 .day-chips .chip[data-dia='hoy'] { border-color: var(--role-strong); }
 .slots:has(.slot.on) .slot:not(.on) { opacity: 0.35; }
 .slots:has(.slot.on) .slot:not(.on):is(:hover, :focus-visible) { opacity: 1; }
+
+/* Especialidades agrupadas por rama de la cartera de servicios */
+.esp-ramas { display: flex; flex-direction: column; gap: 10px; }
+.esp-rama { display: flex; flex-direction: column; gap: 6px; }
+.esp-rama-h { font-size: var(--fs-xs); font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase; color: var(--muted); }
+.esp-rama .esp-pills { grid-template-columns: repeat(auto-fill, minmax(170px, 1fr)); }

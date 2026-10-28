@@ -5,6 +5,8 @@
 --      en los turnos que los consultorios tenían libres.
 --   3. Pacientes con distintos tipos de caso, con su historia clínica y atenciones anteriores completas
 --      (pago, triaje, cita, consulta, diagnóstico y receta).
+--   4. Atenciones en toda la cartera de primer nivel (Obstetricia, CRED, Odontología, Psicología, Nutrición,
+--      Medicina Familiar e Interna): requieren haber ejecutado antes actualizacion-v1.3.sql; si no, se omiten.
 -- Supabase → SQL Editor → pegar este archivo → Run.
 -- Se puede volver a ejecutar: no duplica nada. Si Jefatura restablece los datos de demostración desde la app,
 -- los pacientes se borran (el personal y los horarios se conservan): vuelva a ejecutar este archivo.
@@ -135,8 +137,12 @@ begin
    where p.tipo_documento = 'DNI' and p.numero_documento = p_dni;
   select u.id_usuario, u.username, e.codigo esp, e.duracion_cita_min dur into v_med
     from public.usuario u join public.especialidad e on e.id_especialidad = u.id_especialidad where u.username = p_med;
-  if v_pac is null or v_med.id_usuario is null then
-    raise exception 'Falta el paciente % o el médico %', p_dni, p_med;
+  if v_pac is null then
+    raise exception 'Falta el paciente %', p_dni;
+  end if;
+  if v_med.id_usuario is null then
+    raise notice 'Atención omitida: falta el profesional % (ejecute actualizacion-v1.3.sql)', p_med;
+    return;
   end if;
 
   -- Último día en que el médico atiende
@@ -284,3 +290,35 @@ select pg_temp.visita('46000116', 2, 'm.general3', 'e.triaje3', null, '122/78', 
 select pg_temp.visita('46000117', 5, 'm.pediatria2', 'e.triaje2', null, '94/58', 128, 26, 39.0, 96, 15.0, 0.98,
   'Fiebre de 39 °C desde la noche', 'Otoscopia normal, faringe congestiva. Cuadro viral.',
   array['B34.9', 'R50.9'], jsonb_build_array(pg_temp.m('Paracetamol 500 mg', '1/4 de tableta', 'cada 6 h', 3)));
+
+-- ---------------------------------------------------------------------
+-- Resto de la cartera de primer nivel (actualizacion-v1.3.sql)
+-- ---------------------------------------------------------------------
+-- Gestante (SIS): control prenatal con la obstetra
+select pg_temp.visita('46000104', 7, 'm.obstetra', 'e.triaje', null, '108/68', 84, 16, 36.7, 99, 65.0, 1.57,
+  'Control prenatal', 'Gestación de 24 semanas, altura uterina acorde, latidos fetales 144 lpm. Urocultivo de control negativo.',
+  array['Z34.9'], jsonb_build_array(pg_temp.m('Ácido fólico 0.5 mg', '1 tableta', 'cada 24 h', 30), pg_temp.m('Sulfato ferroso 300 mg', '1 tableta', 'cada 24 h', 30)));
+-- Lactante (SIS): control de crecimiento y desarrollo con enfermería CRED
+select pg_temp.visita('46000102', 16, 'm.cred', 'e.triaje2', null, '90/55', 118, 30, 36.8, 98, 11.2, 0.82,
+  'Control de crecimiento y desarrollo', 'Peso y talla en percentil 50. Hemoglobina 10.8 g/dL: anemia leve, se indica hierro.',
+  array['Z00.1', 'D50.9'], jsonb_build_array(pg_temp.m('Sulfato ferroso 300 mg', '1/4 de tableta triturada', 'cada 24 h', 30)));
+-- Paciente frecuente (SIS): odontología por dolor de muela
+select pg_temp.visita('46000110', 11, 'm.odonto', 'e.triaje', null, '108/70', 80, 16, 36.6, 99, 55.0, 1.62,
+  'Dolor de muela', 'Caries profunda en pieza 36 con sensibilidad al frío. Se realiza restauración provisional.',
+  array['K02.9'], jsonb_build_array(pg_temp.m('Paracetamol 500 mg', '1 tableta', 'cada 8 h', 3), pg_temp.m('Clorhexidina 0.12 % enjuague', '15 ml', 'cada 12 h', 7)));
+-- SIS pendiente de validación: primera sesión de psicología
+select pg_temp.visita('46000118', 3, 'm.psicologia', 'e.triaje3', null, '122/78', 88, 18, 36.6, 98, 74.0, 1.73,
+  'Ansiedad y problemas para dormir', 'Entrevista inicial: ansiedad por carga laboral e insomnio de conciliación. Pautas de higiene del sueño; seguimiento en 2 semanas.',
+  array['F41.1'], '[]'::jsonb);
+-- Diabético (SIS): plan de alimentación con nutrición
+select pg_temp.visita('46000116', 9, 'm.nutricion', 'e.triaje2', null, '126/80', 78, 16, 36.5, 98, 91.0, 1.71,
+  'Control de peso y alimentación', 'IMC 31.1. Plan de alimentación hipocalórico y conteo de carbohidratos.',
+  array['E66.9', 'E11.9'], '[]'::jsonb);
+-- Adulto mayor diabético (SIS): control en Medicina Interna
+select pg_temp.visita('46000105', 13, 'm.interna', 'e.triaje2', null, '150/90', 82, 18, 36.6, 96, 78.0, 1.66,
+  'Control de glucosa y colesterol', 'Glucosa en ayunas 156 mg/dL, LDL 168 mg/dL. Se agrega estatina.',
+  array['E11.9', 'E78.5'], jsonb_build_array(pg_temp.m('Atorvastatina 20 mg', '1 tableta', 'cada 24 h', 30)));
+-- No asegurado (pagó en Caja): chequeo preventivo con Medicina Familiar
+select pg_temp.visita('46000107', 20, 'm.familiar', 'e.triaje', 'c.caja2', '124/80', 72, 16, 36.5, 98, 80.0, 1.75,
+  'Chequeo preventivo anual', 'Examen físico normal. Se solicitan glucosa, perfil lipídico y examen de orina.',
+  array['Z00.0'], '[]'::jsonb);

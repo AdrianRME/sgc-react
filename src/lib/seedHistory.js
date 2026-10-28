@@ -37,6 +37,15 @@ export const DEMO_USERS = [
   { u: 'e.triaje3', n: 'Luis Vargas (demo)', role: 'enf', col: 'CEP-00003', on: true },
   { u: 'j.calidad', n: 'Silvia Torres (demo)', role: 'jef', col: '', on: true },
   { u: 'j.jefatura', n: 'Marco Soto (demo)', role: 'jef', col: '', on: true },
+  // Resto de la cartera de primer nivel: medicina familiar e interna, materno-infantil, salud bucal, mental y nutrición
+  { u: 'm.familiar', n: 'Dr. Ernesto Llanos (demo)', role: 'med', col: 'CMP-00013', on: true, esp: 'MF' },
+  { u: 'm.interna', n: 'Dra. Liliana Pacheco (demo)', role: 'med', col: 'CMP-00014', on: true, esp: 'MI' },
+  { u: 'm.obstetra', n: 'Obst. Milagros Cárdenas (demo)', role: 'med', col: 'COP-00001', on: true, esp: 'OBS' },
+  { u: 'm.cred', n: 'Lic. Enf. Judith Arce (demo)', role: 'med', col: 'CEP-00006', on: true, esp: 'CRED' },
+  { u: 'm.odonto', n: 'C.D. Renato Valdivia (demo)', role: 'med', col: 'COP-10001', on: true, esp: 'ODO' },
+  { u: 'm.odonto2', n: 'C.D. Andrea Monzón (demo)', role: 'med', col: 'COP-10002', on: true, esp: 'ODO' },
+  { u: 'm.psicologia', n: 'Ps. Diana Ugaz (demo)', role: 'med', col: 'CPsP-00001', on: true, esp: 'PSI' },
+  { u: 'm.nutricion', n: 'Lic. Nut. Pablo Herrera (demo)', role: 'med', col: 'CNP-00001', on: true, esp: 'NUT' },
   { u: 'e.turno2', n: 'Iris Campos (demo)', role: 'enf', col: 'CEP-00001', on: false },
   // Autor de las citas que el paciente reserva por la web (no inicia sesión)
   { u: 'a.citasweb', n: 'Citas por web (sistema)', role: 'adm', col: '', on: false },
@@ -46,8 +55,10 @@ const bloque = (med, dows, ini, fin, area) => dows.map((dow) => ({ id: `hor-${me
 
 /**
  * Horario semanal de la demostración (el mismo que inserta schema.sql): Medicina General de mañana (dos
- * médicos) y de tarde, Pediatría lunes, miércoles y viernes (mañana y tarde), Cardiología solo martes y jueves y
- * Ginecología y Obstetricia lunes, miércoles y viernes por la mañana.
+ * médicos) y de tarde, Pediatría lunes, miércoles y viernes (mañana y tarde), Cardiología solo martes y jueves,
+ * Ginecología y Obstetricia lunes, miércoles y viernes por la mañana, y en los consultorios 5 a 8 el resto de la
+ * cartera: Medicina Familiar (mañana) e Interna (tarde), Obstetricia (mañana) y CRED (tarde), Odontología (mañana y
+ * tarde), y Psicología (mañana) y Nutrición (tarde).
  */
 export const DEMO_HORARIOS = [
   ...bloque('m.consulta', [1, 2, 3, 4, 5, 6], '07:00', '13:00', 'Consultorio 1'),
@@ -59,6 +70,14 @@ export const DEMO_HORARIOS = [
   ...bloque('m.gineco', [1, 3, 5], '08:00', '13:00', 'Consultorio 4'),
   ...bloque('m.general4', [2, 4], '13:00', '19:00', 'Consultorio 4'),
   ...bloque('m.general4', [6], '08:00', '13:00', 'Consultorio 4'),
+  ...bloque('m.familiar', [1, 2, 3, 4, 5], '07:00', '13:00', 'Consultorio 5'),
+  ...bloque('m.interna', [1, 2, 3, 4, 5], '13:00', '19:00', 'Consultorio 5'),
+  ...bloque('m.obstetra', [1, 2, 3, 4, 5, 6], '07:00', '13:00', 'Consultorio 6'),
+  ...bloque('m.cred', [1, 2, 3, 4, 5], '13:00', '18:00', 'Consultorio 6'),
+  ...bloque('m.odonto', [1, 2, 3, 4, 5, 6], '07:00', '13:00', 'Consultorio 7'),
+  ...bloque('m.odonto2', [1, 2, 3, 4, 5], '13:00', '19:00', 'Consultorio 7'),
+  ...bloque('m.psicologia', [1, 2, 3, 4, 5], '08:00', '14:00', 'Consultorio 8'),
+  ...bloque('m.nutricion', [1, 2, 3, 4, 5], '14:00', '19:00', 'Consultorio 8'),
 ];
 
 /** Datos del médico tal como firma la atención. */
@@ -113,7 +132,8 @@ const PARACETAMOL = med('Paracetamol 500 mg', '1 tableta', 'cada 8 h', 3);
 
 /**
  * Perfiles clínicos frecuentes en primer nivel: motivo, diagnósticos, examen, receta y cómo alteran
- * los signos. `ages` limita el perfil a ciertas edades; `chronic` lo liga a un antecedente.
+ * los signos. `ages` limita el perfil a ciertas edades, `sexo` a mujeres u hombres; `chronic` lo liga a un antecedente.
+ * El motivo decide la especialidad de la cita (agenda.especialidadSugerida), igual que en el triaje real.
  */
 const PROFILES = [
   { w: 26, motivo: ['Dolor de garganta y tos', 'Congestión nasal y malestar general', 'Tos y fiebre de 2 días'],
@@ -141,6 +161,25 @@ const PROFILES = [
     meds: [med('Metformina 850 mg', '1 tableta', 'cada 12 h', 30)], chronic: 'Diabetes mellitus tipo 2' },
   { w: 5, motivo: ['Fiebre sin causa aparente'], dx: ['R50.9', 'B34.9'], notas: 'Sin foco evidente al examen. Control en 48 horas.',
     meds: [PARACETAMOL], fever: 0.9, hyper: 0.12 },
+  // Resto de la cartera de primer nivel
+  { w: 3, motivo: ['Chequeo preventivo anual'], dx: ['Z00.0'], notas: 'Examen físico general sin alteraciones. Se solicitan análisis de rutina.',
+    meds: [], ages: [18, 99] },
+  { w: 2, motivo: ['Control de colesterol'], dx: ['E78.5'], notas: 'Perfil lipídico elevado. Dieta baja en grasas y actividad física.',
+    meds: [med('Atorvastatina 20 mg', '1 tableta', 'cada 24 h', 30)], ages: [35, 99] },
+  { w: 14, motivo: ['Control de crecimiento y desarrollo'], dx: ['Z00.1', 'D50.9'], notas: 'Peso y talla en curva adecuada. Desarrollo psicomotor acorde a la edad.',
+    meds: [], ages: [0, 4] },
+  { w: 10, motivo: ['Control prenatal'], dx: ['Z34.9'], notas: 'Gestación de evolución normal. Altura uterina acorde, latidos fetales presentes.',
+    meds: [med('Ácido fólico 0.5 mg', '1 tableta', 'cada 24 h', 30), med('Sulfato ferroso 300 mg', '1 tableta', 'cada 24 h', 30)], ages: [18, 40], sexo: 'F' },
+  { w: 6, motivo: ['Planificación familiar'], dx: ['Z30.0'], notas: 'Consejería en métodos anticonceptivos. Elige método de barrera y control en 3 meses.',
+    meds: [], ages: [16, 48], sexo: 'F' },
+  { w: 4, motivo: ['Flujo vaginal con picazón'], dx: ['N76.0'], notas: 'Flujo blanquecino grumoso. Vaginitis candidiásica probable.',
+    meds: [med('Clotrimazol óvulo 100 mg', '1 óvulo', 'cada noche', 6)], ages: [16, 60], sexo: 'F' },
+  { w: 4, motivo: ['Dolor de muela', 'Sangrado de encías al cepillarse'], dx: ['K02.9', 'K05.1'], notas: 'Caries en molar inferior y encías inflamadas. Se programa restauración e higiene oral.',
+    meds: [med('Clorhexidina 0.12 % enjuague', '15 ml', 'cada 12 h', 7), PARACETAMOL], ages: [4, 99] },
+  { w: 3, motivo: ['Ansiedad y problemas para dormir', 'Tristeza y desánimo persistente'], dx: ['F41.1', 'F32.9'],
+    notas: 'Entrevista psicológica inicial. Se acuerdan sesiones de seguimiento y pautas de higiene del sueño.', meds: [], ages: [12, 99] },
+  { w: 3, motivo: ['Control de peso y alimentación'], dx: ['E66.9'], notas: 'IMC elevado. Plan de alimentación y actividad física; control en 4 semanas.',
+    meds: [], ages: [8, 99] },
 ];
 
 /** Alternativas cuando la receta del perfil choca con una alergia registrada. */
@@ -243,7 +282,7 @@ export function generateHistory({ now, days, todayUntil, seed = 2026, firstHc = 
   const chooseProfile = (p, ageYears) => {
     const chronic = PROFILES.find((x) => x.chronic && x.chronic === p.ant);
     if (chronic && r.chance(0.45)) return chronic;
-    const fit = PROFILES.filter((x) => !x.chronic && (!x.ages || (ageYears >= x.ages[0] && ageYears <= x.ages[1])));
+    const fit = PROFILES.filter((x) => !x.chronic && (!x.ages || (ageYears >= x.ages[0] && ageYears <= x.ages[1])) && (!x.sexo || x.sexo === p.sexo));
     return r.weighted(fit.map((x) => [x, x.w]));
   };
 

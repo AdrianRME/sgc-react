@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { AnimatePresence, m } from 'motion/react';
 import { ArrowLeft, CalendarCheck, Check, LogIn, Printer, Search } from 'lucide-react';
 import { useStore } from '../store/useStore.js';
-import { ESPECIALIDADES } from '../lib/constants.js';
+import { ESPECIALIDADES, ESP_POR_RAMA } from '../lib/constants.js';
 import { agendaPublica as agendaDe, cuposLibres, diasDeAtencion, listaDias, porDia } from '../lib/agenda.js';
 import { fmtCitaDia, fmtHora, fmtLongDay, isoDay, tonoDia } from '../lib/format.js';
 import { listItem } from '../lib/motion.js';
@@ -12,7 +12,6 @@ import { Icon3D } from '../components/Icon3D.jsx';
 import { BrandMark } from '../components/BrandMark.jsx';
 import './citaweb.css';
 
-const ESP_ICON = { MG: 'stethoscope', PED: 'nurse', CAR: 'heart' };
 const DAYS_SHOWN = 10;
 const PASOS = ['Identifíquese', 'Especialidad', 'Día y hora', 'Listo'];
 const cap = (s) => s.charAt(0).toUpperCase() + s.slice(1);
@@ -139,15 +138,20 @@ export function ReservaCita({ telefono = false, onDone }) {
         {paso === 1 && (
           <m.div key="esp" {...listItem} className="stack">
             <p className="cw-lead">Hola, <b>{pac.nom}</b>. ¿Con qué especialidad desea su cita?</p>
-            <div className="cw-esps">
-              {ESPECIALIDADES.map((e) => (
-                <button key={e.k} type="button" className="cw-esp" style={{ '--e': `var(--esp-${e.k})` }} onClick={() => elegirEsp(e.k)} disabled={busy}>
-                  <Icon3D name={ESP_ICON[e.k] || 'stethoscope'} size={44} />
-                  <b>{e.n}</b>
-                  <small>Citas de {e.dur} min</small>
-                </button>
-              ))}
-            </div>
+            {ESP_POR_RAMA.map((r) => (
+              <section key={r.k} className="cw-rama" aria-label={r.n}>
+                <h3 className="cw-rama-h"><Icon3D name={r.icon} size={22} /> {r.n}</h3>
+                <div className="cw-esps">
+                  {r.esps.map((e) => (
+                    <button key={e.k} type="button" className="cw-esp" style={{ '--e': `var(--esp-${e.k})` }} onClick={() => elegirEsp(e.k)} disabled={busy}>
+                      <Icon3D name={e.icon} size={40} />
+                      <b>{e.n}</b>
+                      <small>Citas de {e.dur} min</small>
+                    </button>
+                  ))}
+                </div>
+              </section>
+            ))}
           </m.div>
         )}
 

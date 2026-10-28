@@ -13,10 +13,23 @@ Hecho con **React 19 + Vite**, publicado en **Vercel**, con **Supabase** (Postgr
 | Admisión (`#/admision`) | **Ventanilla**: registro por DNI o apellido en tres pasos (identificar, verificar SIS, turno) y llegada de los citados, con tarjetas por etapa que filtran a los pacientes del día. **Asignar citas** (respaldo, si Enfermería no la dio), **Agenda de citas** y flujo en vivo |
 | Caja (`#/caja`) | Cobro de la consulta al no asegurado (efectivo con vuelto, tarjeta o billetera), boleta y caja del día. Con SIS no se cobra |
 | Enfermería (`#/triaje`) | Cola de triaje; signos vitales con estado por signo, prioridad en vivo, IMC y tendencia de visitas anteriores; **al terminar, la cita** con la sugerencia del sistema y su constancia |
-| Médico (`#/consulta`) | Solo sus pacientes con cita que ya llegaron, por prioridad y hora de la cita; agenda del día; ficha, CIE-10, receta con control de alergias y destino; historias clínicas |
+| Consulta (`#/consulta`) | Médicos y demás profesionales de consulta. Solo sus pacientes con cita que ya llegaron, por prioridad y hora de la cita; agenda del día; ficha, CIE-10, receta con control de alergias y destino; historias clínicas |
 | Jefatura (`#/jefatura`) | Tablero gerencial, flujo en vivo (solo códigos), usuarios, **horarios médicos**, auditoría y umbrales clínicos |
 | Sacar cita (`#/cita`, pública) | El paciente con historia reserva su cita con su DNI y su fecha de nacimiento: especialidad, día y hora según el horario del médico. Una cita activa a la vez; tras 5 intentos fallidos el DNI se bloquea 15 min. Admisión usa la misma pantalla para las citas por teléfono |
 | Sala (`#/sala`, pública) | Llamado actual con tono y voz, próximos turnos con su **espera aproximada**; nunca muestra nombres ni DNI |
+
+**Cartera de servicios de primer nivel (I-3/I-4)**, agrupada por ramas, con 8 consultorios y su color en la sala:
+
+| Rama | Especialidades y servicios |
+|---|---|
+| Atención médica | Medicina General, Medicina Familiar, Medicina Interna, Cardiología |
+| Materno-infantil | Pediatría, Crecimiento y Desarrollo (CRED), Ginecología y Obstetricia, Obstetricia |
+| Salud bucal | Odontología |
+| Salud mental y nutrición | Psicología, Nutrición |
+
+El triaje propone la especialidad según el motivo y la edad (control prenatal a Obstetricia, dolor de muela a
+Odontología, menores de 5 años en control a CRED, etc.), para que el paciente vaya directo al servicio que necesita
+sin pasar antes por Medicina General: es parte del objetivo de reducir los tiempos de atención.
 
 Comunes a todos los espacios:
 
@@ -157,7 +170,7 @@ Seguridad, despliegue y verificación: [`DESPLIEGUE.md`](DESPLIEGUE.md).
 ```bash
 npm install
 npm run dev        # http://localhost:5173
-npm test           # 73 pruebas: lógica clínica, pago, agenda de citas, espera, afluencia, flujo, indicadores, avisos y seguridad
+npm test           # 77 pruebas: lógica clínica, pago, agenda de citas, espera, afluencia, flujo, indicadores, avisos y seguridad
 npm run lint       # oxlint, sin advertencias
 npm run build      # versión de producción en /dist
 ```
@@ -188,6 +201,7 @@ src/
   styles/             tokens (claro y oscuro), base, componentes y marco
   assets/icons3d/     íconos 3D Fluent Emoji (Microsoft, licencia MIT)
 supabase/schema.sql   17 tablas, cuentas y horarios demo, RLS por rol, funciones sgc_* y tiempo real
+supabase/actualizacion-v1.3.sql  cartera de primer nivel: 11 especialidades, 8 consultorios y sus profesionales
 supabase/datos-demo.sql  más personal y médicos con horario, y 18 pacientes por tipo de caso con su historia
 erwin/                el mismo modelo en SQL Server 2005 para el diagrama en CA ERwin r7
 vercel.json           cabeceras de seguridad (CSP, HSTS, X-Frame-Options…)

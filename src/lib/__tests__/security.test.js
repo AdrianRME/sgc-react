@@ -29,6 +29,16 @@ describe('seguridad', () => {
     expect(roleFromUsername('x.otro')).toBeNull();
   });
 
+  it('la colegiatura corresponde a la profesión de la especialidad', () => {
+    const db = buildSeed();
+    const nuevo = (esp, col) => createUser(db, ctx(db), { u: 'm.nuevo', n: 'Ana Gil', role: 'med', col, esp });
+    expect(() => nuevo('ODO', 'CMP-12345')).toThrow(/COP-00000/);
+    expect(nuevo('ODO', 'COP-12345').result.u).toBe('m.nuevo');
+    expect(nuevo('PSI', 'CPsP-12345').result.u).toBe('m.nuevo');
+    expect(nuevo('CRED', 'CEP-12345').result.u).toBe('m.nuevo');
+    expect(() => nuevo('MG', 'CNP-12345')).toThrow(/CMP-00000/);
+  });
+
   it('las contraseñas temporales nunca quedan en el estado local', () => {
     const db = buildSeed();
     const r = createUser(db, ctx(db), { u: 'm.nuevo', n: 'Dra. Ana Gil', role: 'med', col: 'CMP-12345', esp: 'MG' });

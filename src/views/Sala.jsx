@@ -66,9 +66,9 @@ function zonaDe(t) {
 function infoZona(name) {
   if (name === TRIAGE_STATION) return { name, kind: 'enf', icon: 'thermometer', title: 'Triaje', sub: name };
   const num = name.match(/(\d+)\s*$/)?.[1];
-  // Cada consultorio con su propio color (se repiten de cuatro en cuatro) para que no se confundan en la sala
-  const kind = num ? `med c${((num - 1) % 4) + 1}` : 'med';
-  return { name, kind, icon: 'stethoscope', title: name, num, sub: name === CONSULTA ? 'Consultorio por confirmar' : 'Consulta médica' };
+  // Cada consultorio con su propio color (ocho tonos) para que no se confundan en la sala
+  const kind = num ? `med c${((num - 1) % 8) + 1}` : 'med';
+  return { name, kind, icon: 'stethoscope', title: name, num, sub: name === CONSULTA ? 'Consultorio por confirmar' : 'Consulta' };
 }
 
 const orden = (z) => (z === TRIAGE_STATION ? 0 : 1);

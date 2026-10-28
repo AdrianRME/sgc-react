@@ -43,5 +43,6 @@ describe('simulador del ciclo del paciente', () => {
     expect(fin('historial').consult.meds.map((m) => m.n)).not.toContain('Amoxicilina 500 mg');
     expect(fin('no-se-presenta').cancel.motivo).toBe('No se presentó al llamado');
     expect(fin('sin-conexion').pago.metodo).toBe('TARJETA');
+    expect(fin('prenatal').cita).toMatchObject({ esp: 'OBS', med: 'm.obstetra', area: 'Consultorio 6' });
   });
 });

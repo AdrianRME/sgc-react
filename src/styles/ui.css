@@ -268,6 +268,9 @@ button.hero-kpi:hover { transform: translateY(-2px); }
 .hs-head span.today { color: var(--role-strong); }
 .hs-head small { margin-left: 6px; padding: 1px 6px; border-radius: 999px; background: var(--role-strong); color: var(--on-strong); letter-spacing: 0; text-transform: none; }
 .hs-esp { display: flex; flex-direction: column; gap: 6px; }
+/* Primera especialidad de cada rama: lleva el nombre de la rama encima */
+.hs-esp[data-rama]::before { content: attr(data-rama); margin-top: 6px; padding-top: 10px; border-top: 1px solid var(--line); font-size: var(--fs-xs); font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase; color: var(--muted); }
+.hs-esp[data-rama]:first-of-type::before { border-top: 0; padding-top: 0; margin-top: 0; }
 .hs-esp h4 { display: flex; align-items: center; gap: 8px; min-width: 820px; font: 650 var(--fs-md) / 1.2 var(--display); }
 .hs-esp h4 i { width: 12px; height: 12px; border-radius: 4px; background: var(--e); }
 .hs-esp h4 small { font: 500 var(--fs-xs) / 1 var(--font); color: var(--muted); }

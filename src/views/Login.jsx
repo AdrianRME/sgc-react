@@ -29,7 +29,7 @@ const TRAZOS = [
   { k: 'resp', label: 'Resp', d: `M0 500 q150 -38 300 0 ${times('t300 0', 3)}`, y: 500 },
 ];
 /** Áreas que se pueden elegir para no escribir el prefijo (no revelan ninguna cuenta: las áreas son públicas). */
-const AREAS_LOGIN = [['adm', 'Admisión'], ['caj', 'Caja'], ['enf', 'Triaje'], ['med', 'Médico'], ['jef', 'Jefatura']];
+const AREAS_LOGIN = [['adm', 'Admisión'], ['caj', 'Caja'], ['enf', 'Triaje'], ['med', 'Consulta'], ['jef', 'Jefatura']];
 
 const VITALES = [
   ['fc', 'FC', '72', 'lpm'],

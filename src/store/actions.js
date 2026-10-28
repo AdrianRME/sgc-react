@@ -409,9 +409,13 @@ export function createUser(db, ctx, f) {
   if (!u.startsWith(prefix) || u.length <= prefix.length) {
     throw new DomainError(`El usuario de ${ROLES[f.role].n} empieza con «${prefix}», por ejemplo ${prefix}apellido.`);
   }
-  if (f.role === 'med' && !/^CMP-\d{5}$/.test(f.col.trim())) throw new DomainError('La colegiatura del médico debe tener el formato CMP-00000.');
+  // Cada profesión tiene su colegio: CMP médicos, COP obstetras y odontólogos, CPsP psicólogos, CNP nutricionistas…
+  const esp = f.role === 'med' && ESPECIALIDADES.find((e) => e.k === f.esp);
+  if (f.role === 'med' && !esp) throw new DomainError('Elija la especialidad o el servicio del profesional.');
+  if (esp && !new RegExp(`^${esp.col}-\\d{5}$`).test(f.col.trim())) {
+    throw new DomainError(`La colegiatura de ${esp.n} debe tener el formato ${esp.col}-00000.`);
+  }
   if (f.role === 'enf' && f.col.trim() && !/^CEP-\d{5}$/.test(f.col.trim())) throw new DomainError('La colegiatura de enfermería debe tener el formato CEP-00000.');
-  if (f.role === 'med' && !ESPECIALIDADES.some((e) => e.k === f.esp)) throw new DomainError('Elija la especialidad del médico.');
   const clave = tempPassword();
   const user = {
     u, n: f.n.trim(), role: f.role, col: f.col.trim(), on: true, clave_temporal: clave, ...(f.role === 'med' && { esp: f.esp }),

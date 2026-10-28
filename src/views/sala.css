@@ -4,6 +4,7 @@
 .sala {
   --s-bg: #eef4f9; --s-panel: #ffffff; --s-line: #d5e0ea; --s-ink: #0b1a2b; --s-ink2: #4a5d70; --s-soft: #f3f7fb;
   --tri: #059669; --c1: #2563eb; --c2: #7c3aed; --c3: #db2777; --c4: #ea580c;
+  --c5: #0891b2; --c6: #a16207; --c7: #c026d3; --c8: #475569;
   --c: var(--c1);
   position: relative; color-scheme: light; display: grid; grid-template-rows: auto auto 1fr auto;
   align-content: start; min-height: 640px;
@@ -15,6 +16,10 @@
 .z-med.c2 { --c: var(--c2); }
 .z-med.c3 { --c: var(--c3); }
 .z-med.c4 { --c: var(--c4); }
+.z-med.c5 { --c: var(--c5); }
+.z-med.c6 { --c: var(--c6); }
+.z-med.c7 { --c: var(--c7); }
+.z-med.c8 { --c: var(--c8); }
 
 .sala-h {
   display: flex; align-items: center; gap: 14px; padding: 14px clamp(16px, 3vw, 32px);
@@ -53,7 +58,9 @@
 }
 .zona-h { display: flex; align-items: center; gap: 12px; padding: 14px 16px; background: var(--c); color: #fff; }
 .zona-h > div { min-width: 0; }
-.zona-h h2 { font: 800 clamp(1.3rem, 2vw, 1.9rem) / 1.05 var(--display); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+/* El título se ajusta al ancho de la zona: con los ocho consultorios en pantalla, «Consultorio 8» entra completo */
+.zona { container-type: inline-size; }
+.zona-h h2 { font: 800 clamp(1.05rem, 7.4cqi, 1.9rem) / 1.05 var(--display); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .zona-h div > span { display: block; color: rgb(255 255 255 / 0.88); font-size: var(--fs-sm); font-weight: 600; }
 .zona-num { display: grid; place-items: center; flex: none; width: 52px; height: 52px; border-radius: 14px; background: #fff; color: var(--c); font: 800 2rem / 1 var(--display); }
 .zona-h .i3d { flex: none; padding: 4px; border-radius: 14px; background: #fff; }

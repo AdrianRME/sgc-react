@@ -85,6 +85,17 @@ Ejecutarlo otra vez **borra todos los datos** y restablece esas contraseñas.
 > Si aparece un error de permisos sobre `auth.users`, Supabase no dejó crear las cuentas desde SQL.
 > Copie el mensaje exacto: la alternativa es crear las cuentas con una Edge Function.
 
+**Versión 1.3: cartera completa de primer nivel.** Ejecute `supabase/actualizacion-v1.3.sql` **antes** de publicar la
+versión de la app que la usa. Solo agrega filas (no cambia tablas, el modelo de ERwin sigue igual) y se puede repetir:
+- 7 especialidades más (Medicina Familiar e Interna, CRED, Obstetricia, Odontología, Psicología y Nutrición), con
+  los consultorios 5 a 8 y 12 diagnósticos CIE-10 de primer nivel;
+- 8 profesionales con horario (contraseña `SgcDemo2026`): `m.familiar`, `m.interna`, `m.obstetra`, `m.cred`,
+  `m.odonto`, `m.odonto2`, `m.psicologia` y `m.nutricion`. Usan el espacio de Consulta (prefijo `m.`) con la
+  colegiatura de su colegio: CMP, CEP, COP, CPsP o CNP.
+
+Si «Restablecer datos demo» se usa sin esta actualización, falla: la historia de demostración tiene citas con estos
+profesionales.
+
 **Datos de demostración ampliados (opcional).** `supabase/datos-demo.sql` agrega, sin borrar nada y sin duplicar
 si se ejecuta otra vez:
 - 11 cuentas más (contraseña `SgcDemo2026`): `a.admision4`, `a.admision5`, `c.caja4`, `e.triaje4`, `e.triaje5`,
@@ -92,7 +103,8 @@ si se ejecuta otra vez:
   `m.cardio2` (Cardiología) y `m.gineco2` (Ginecología), con horario en los turnos libres de los consultorios;
 - 18 pacientes (DNI 46000101 a 46000118) por tipo de caso: niños, adolescente, gestante, adultos mayores, alérgicos,
   crónicos (hipertensión, diabetes, EPOC), no asegurados, SIS pendiente de validación y un paciente frecuente, con
-  19 atenciones anteriores completas (pago, triaje, cita, consulta, diagnóstico y receta).
+  26 atenciones anteriores completas (pago, triaje, cita, consulta, diagnóstico y receta) en todas las ramas. Las 7 de
+  los servicios nuevos requieren la versión 1.3; sin ella se omiten con un aviso.
 
 Para probar un paciente nuevo use un DNI que no exista, por ejemplo del 46000201 al 46000299. **Restablecer datos
 demo** borra los pacientes (no el personal ni los horarios): después vuelva a ejecutar este archivo.

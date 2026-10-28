@@ -34,8 +34,9 @@ export const ROLES = {
     n: 'Enfermería', slug: 'triaje', icon: 'thermometer', prefix: 'e.', space: 'Espacio de Triaje', tag: 'Signos vitales y prioridad',
     sections: [['lista', 'Lista de triaje', 'clipboard']],
   },
+  // Consulta externa: médicos y demás profesionales que atienden en consultorio (obstetra, odontólogo, psicólogo…)
   med: {
-    n: 'Médico', slug: 'consulta', icon: 'stethoscope', prefix: 'm.', space: 'Espacio del Médico', tag: 'Consulta, diagnóstico y receta',
+    n: 'Consulta', slug: 'consulta', icon: 'stethoscope', prefix: 'm.', space: 'Espacio de Consulta', tag: 'Consulta, diagnóstico y receta',
     sections: [['atencion', 'Mis pacientes', 'stethoscope'], ['historias', 'Historias clínicas', 'folder']],
   },
   jef: {
@@ -173,7 +174,8 @@ export const SIS = {
 };
 
 export const TRIAGE_STATION = 'Módulo de Triaje 1';
-export const AREAS = ['Consultorio 1', 'Consultorio 2', 'Consultorio 3', 'Consultorio 4'];
+/** Consultorios del centro (1 a 4: medicina y especialidades; 5 a 8: familiar e interna, materno, bucal, mental y nutrición). */
+export const AREAS = Array.from({ length: 8 }, (_, i) => `Consultorio ${i + 1}`);
 
 /* ---------- Caja ---------- */
 
@@ -207,15 +209,36 @@ export const VIGENCIA_RECETA_DIAS = 7;
 /* ---------- Citas ---------- */
 
 /**
- * Especialidades del centro. `dur` es la duración de cada cita (min): el horario de cada médico se
- * divide en cupos de esa duración.
+ * Ramas de la cartera de servicios de un establecimiento de primer nivel (categoría I-3/I-4 del MINSA).
+ * Agrupan las especialidades en pantalla; no cambian las reglas.
+ */
+export const RAMAS = [
+  { k: 'medica', n: 'Atención médica', icon: 'stethoscope' },
+  { k: 'materno', n: 'Materno-infantil', icon: 'nurse' },
+  { k: 'bucal', n: 'Salud bucal', icon: 'sparkles' },
+  { k: 'mental', n: 'Salud mental y nutrición', icon: 'bulb' },
+];
+
+/**
+ * Especialidades y servicios del centro. `dur` es la duración de cada cita (min): el horario de cada profesional
+ * se divide en cupos de esa duración. `col` es el colegio profesional de quien atiende (formato COL-00000):
+ * CMP médicos, CEP enfermería (CRED), COP obstetras y odontólogos, CPsP psicólogos y CNP nutricionistas.
  */
 export const ESPECIALIDADES = [
-  { k: 'MG', n: 'Medicina General', dur: 20 },
-  { k: 'PED', n: 'Pediatría', dur: 20 },
-  { k: 'CAR', n: 'Cardiología', dur: 30 },
-  { k: 'GIN', n: 'Ginecología y Obstetricia', dur: 20 },
+  { k: 'MG', n: 'Medicina General', dur: 20, rama: 'medica', col: 'CMP', icon: 'stethoscope' },
+  { k: 'MF', n: 'Medicina Familiar', dur: 20, rama: 'medica', col: 'CMP', icon: 'house' },
+  { k: 'MI', n: 'Medicina Interna', dur: 30, rama: 'medica', col: 'CMP', icon: 'hospital' },
+  { k: 'CAR', n: 'Cardiología', dur: 30, rama: 'medica', col: 'CMP', icon: 'heart' },
+  { k: 'PED', n: 'Pediatría', dur: 20, rama: 'materno', col: 'CMP', icon: 'nurse' },
+  { k: 'CRED', n: 'Crecimiento y Desarrollo', dur: 30, rama: 'materno', col: 'CEP', icon: 'chartup' },
+  { k: 'GIN', n: 'Ginecología y Obstetricia', dur: 20, rama: 'materno', col: 'CMP', icon: 'clipboard' },
+  { k: 'OBS', n: 'Obstetricia', dur: 30, rama: 'materno', col: 'COP', icon: 'bed' },
+  { k: 'ODO', n: 'Odontología', dur: 30, rama: 'bucal', col: 'COP', icon: 'sparkles' },
+  { k: 'PSI', n: 'Psicología', dur: 40, rama: 'mental', col: 'CPsP', icon: 'bulb' },
+  { k: 'NUT', n: 'Nutrición', dur: 30, rama: 'mental', col: 'CNP', icon: 'barchart' },
 ];
+/** Especialidades agrupadas por rama, en el orden de RAMAS: [{ ...rama, esps }]. */
+export const ESP_POR_RAMA = RAMAS.map((r) => ({ ...r, esps: ESPECIALIDADES.filter((e) => e.rama === r.k) }));
 /** Hasta cuántos días adelante se pueden dar citas. */
 export const CITA_DIAS_MAX = 30;
 /** Días de la semana con numeración ISO (1 = lunes … 7 = domingo), igual que en la base. */
@@ -237,6 +260,18 @@ export const CIE = [
   ['M54.5', 'Lumbago (dolor lumbar bajo)'],
   ['B34.9', 'Infección viral, no especificada'],
   ['R50.9', 'Fiebre, no especificada'],
+  ['Z00.0', 'Examen médico general'],
+  ['E78.5', 'Hiperlipidemia, no especificada'],
+  ['Z00.1', 'Control de salud de rutina del niño'],
+  ['D50.9', 'Anemia por deficiencia de hierro, sin otra especificación'],
+  ['Z34.9', 'Supervisión de embarazo normal, no especificado'],
+  ['Z30.0', 'Consejo y asesoramiento general sobre la anticoncepción'],
+  ['N76.0', 'Vaginitis aguda'],
+  ['K02.9', 'Caries dental, no especificada'],
+  ['K05.1', 'Gingivitis crónica'],
+  ['F41.1', 'Trastorno de ansiedad generalizada'],
+  ['F32.9', 'Episodio depresivo, no especificado'],
+  ['E66.9', 'Obesidad, no especificada'],
 ];
 
 /** Catálogo de medicamentos con grupos para el cruce con alergias. */
@@ -253,6 +288,11 @@ export const MEDS = [
   { n: 'Enalapril 10 mg', g: ['enalapril', 'ieca'] },
   { n: 'Metformina 850 mg', g: ['metformina'] },
   { n: 'Nitrofurantoína 100 mg', g: ['nitrofurantoina'] },
+  { n: 'Atorvastatina 20 mg', g: ['atorvastatina', 'estatina'] },
+  { n: 'Sulfato ferroso 300 mg', g: ['sulfato ferroso', 'hierro'] },
+  { n: 'Ácido fólico 0.5 mg', g: ['acido folico'] },
+  { n: 'Clotrimazol óvulo 100 mg', g: ['clotrimazol', 'azol'] },
+  { n: 'Clorhexidina 0.12 % enjuague', g: ['clorhexidina'] },
 ];
 
 export const DESTINOS = ['Alta', 'Reposo médico', 'Derivación a hospital'];
@@ -289,4 +329,6 @@ export const FAKE_IPS = {
   'm.general3': '192.168.1.24', 'm.pediatria2': '192.168.1.25', 'm.gineco': '192.168.1.26', 'm.general4': '192.168.1.27',
   'a.admision3': '192.168.1.17', 'c.caja3': '192.168.1.18', 'e.triaje3': '192.168.1.19', 'j.calidad': '192.168.1.31',
   'j.jefatura': '192.168.1.30',
+  'm.familiar': '192.168.1.40', 'm.interna': '192.168.1.41', 'm.obstetra': '192.168.1.42', 'm.cred': '192.168.1.43',
+  'm.odonto': '192.168.1.44', 'm.odonto2': '192.168.1.45', 'm.psicologia': '192.168.1.46', 'm.nutricion': '192.168.1.47',
 };

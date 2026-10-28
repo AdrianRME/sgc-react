@@ -1,6 +1,6 @@
 import { X } from 'lucide-react';
 import { useStore } from '../store/useStore.js';
-import { DIAS_SEMANA, ESPECIALIDADES } from '../lib/constants.js';
+import { DIAS_SEMANA, ESPECIALIDADES, RAMAS } from '../lib/constants.js';
 import { horariosDe, isoDow, especialidad, toMin } from '../lib/agenda.js';
 import { initials } from '../lib/format.js';
 import { useNow } from '../hooks/useNow.js';
@@ -38,8 +38,8 @@ export function HorarioSemanal({ esp = null, onRemove }) {
           <span key={d} className={dia(d)}>{n.slice(0, 3)}{d === today && <small>Hoy</small>}</span>
         ))}
       </div>
-      {groups.map(({ e, meds }) => (
-        <section key={e.k} className="hs-esp" style={{ '--e': `var(--esp-${e.k})` }} aria-label={e.n}>
+      {groups.map(({ e, meds }, i) => (
+        <section key={e.k} className="hs-esp" data-rama={i === 0 || groups[i - 1].e.rama !== e.rama ? RAMAS.find((r) => r.k === e.rama)?.n : undefined} style={{ '--e': `var(--esp-${e.k})` }} aria-label={e.n}>
           <h4><i aria-hidden="true" />{e.n}<small>citas de {especialidad(e.k).dur} min</small></h4>
           {meds.map((u) => {
             const total = days.reduce((s, [d]) => s + horariosDe(db.horarios, u.u, d).reduce((a, h) => a + horas(h), 0), 0);

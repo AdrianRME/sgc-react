@@ -3,7 +3,7 @@ import { buildSeed } from '../seed.js';
 import {
   cuposLibres, deTurnoHoy, diasDeAtencion, especialidad, especialidadSugerida, isoDow, listaDias, toMin, validarCita,
 } from '../agenda.js';
-import { ACTIVE_STATES, SIS_EXONERADO } from '../constants.js';
+import { ACTIVE_STATES, ESPECIALIDADES, SIS_EXONERADO } from '../constants.js';
 import { removeHorario, saveHorario } from '../../store/actions.js';
 import { applyChanges } from '../../data/merge.js';
 
@@ -64,6 +64,26 @@ describe('horario y cupos', () => {
     expect(especialidadSugerida(p('2020-01-01'), { motivo: 'Fiebre' }, NOW)).toBe('PED');
     expect(especialidadSugerida(p('1960-01-01'), { motivo: 'Palpitaciones' }, NOW)).toBe('CAR');
     expect(especialidadSugerida(p('1960-01-01'), { motivo: 'Dolor de garganta' }, NOW)).toBe('MG');
+  });
+
+  it('cada servicio de la cartera de primer nivel recibe sus motivos', () => {
+    const p = (nac, sexo = 'F') => ({ nac, sexo });
+    const esp = (pac, motivo) => especialidadSugerida(pac, { motivo }, NOW);
+    expect(esp(p('2024-05-01'), 'Control de crecimiento y desarrollo')).toBe('CRED');
+    expect(esp(p('2018-05-01'), 'Control de crecimiento y desarrollo')).toBe('PED'); // CRED es para menores de 5 años
+    expect(esp(p('2018-05-01'), 'Dolor de muela')).toBe('ODO');
+    expect(esp(p('1990-05-01'), 'Ansiedad y problemas para dormir')).toBe('PSI');
+    expect(esp(p('1990-05-01'), 'Control de peso y alimentación')).toBe('NUT');
+    expect(esp(p('1990-05-01', 'M'), 'Dolor lumbar al cargar peso')).toBe('MG');
+    expect(esp(p('1996-05-01'), 'Control prenatal')).toBe('OBS');
+    expect(esp(p('1996-05-01'), 'Planificación familiar')).toBe('GIN');
+    expect(esp(p('1996-05-01', 'M'), 'Planificación familiar')).toBe('MG');
+    expect(esp(p('1960-01-01'), 'Control de glucosa')).toBe('MI');
+    expect(esp(p('1980-01-01'), 'Chequeo preventivo anual')).toBe('MF');
+  });
+
+  it('cada especialidad tiene profesionales con horario en la demostración', () => {
+    ESPECIALIDADES.forEach((e) => expect(diasDeAtencion(seed, e.k).length, e.n).toBeGreaterThan(0));
   });
 });
 

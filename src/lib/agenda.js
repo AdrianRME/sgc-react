@@ -148,10 +148,36 @@ export const sobrecupo = (d, now) => ({ esp: d.esp, med: d.med, area: d.area, at
 
 const CARDIO = /presi[oó]n|hipertensi|palpitaci|taquicardia|dolor (de|en el) pecho/i;
 
-/** Especialidad que propone el sistema: niños a Pediatría, motivos cardiovasculares a Cardiología. */
+/**
+ * Reglas de derivación por motivo de consulta, en orden: la primera que coincide decide la especialidad.
+ * [especialidad, motivo, condición del paciente (edad en años, sexo)]
+ */
+const DERIVACION = [
+  ['CRED', /crecimiento|desarrollo|control del? ni[ñn]o|vacuna/i, (a) => a < 5],
+  ['ODO', /muela|diente|dental|enc[ií]as?|caries/i],
+  ['PSI', /ansiedad|triste|des[aá]nimo|depresi|estr[eé]s|insomnio|dormir|angustia|p[aá]nico/i],
+  ['NUT', /control de peso|sobrepeso|obesidad|dieta|desnutri|alimentaci[oó]n/i],
+  ['OBS', /embaraz|gestan|prenatal/i, (a, s) => s !== 'M'],
+  ['GIN', /planificaci[oó]n|anticoncep|flujo vaginal|menstrua|papanicolau/i, (a, s) => s !== 'M'],
+];
+const INTERNA = /glucosa|diabetes|colesterol/i;
+const PREVENTIVA = /chequeo|preventiv|salud familiar/i;
+
+/**
+ * Especialidad que propone el sistema: los motivos propios de un servicio (CRED, dental, salud mental, nutrición,
+ * control prenatal, planificación familiar) van a ese servicio; los niños, a Pediatría; los motivos
+ * cardiovasculares, a Cardiología; los crónicos metabólicos, a Medicina Interna; los chequeos, a Medicina Familiar;
+ * lo demás, a Medicina General.
+ */
 export function especialidadSugerida(patient, tri, now = Date.now()) {
-  if (patient && ageAt(patient.nac, now) < 12) return 'PED';
-  if (tri?.motivo && CARDIO.test(tri.motivo)) return 'CAR';
+  const motivo = tri?.motivo || '';
+  const edad = patient ? ageAt(patient.nac, now) : 30;
+  const regla = DERIVACION.find(([, re, ok]) => re.test(motivo) && (!ok || ok(edad, patient?.sexo)));
+  if (regla) return regla[0];
+  if (edad < 12) return 'PED';
+  if (CARDIO.test(motivo)) return 'CAR';
+  if (INTERNA.test(motivo)) return 'MI';
+  if (PREVENTIVA.test(motivo)) return 'MF';
   return 'MG';
 }
 

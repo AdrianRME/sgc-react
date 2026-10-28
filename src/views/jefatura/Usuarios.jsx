@@ -4,11 +4,11 @@ import { KeyRound, Power, UserPlus } from 'lucide-react';
 import { useStore } from '../../store/useStore.js';
 import { createUser, toggleUser, resetPassword } from '../../store/actions.js';
 import { normalize } from '../../lib/clinical.js';
-import { ESPECIALIDADES, ROLES, roleFromUsername } from '../../lib/constants.js';
+import { ROLES, roleFromUsername } from '../../lib/constants.js';
 import { especialidad } from '../../lib/agenda.js';
 import { listItem } from '../../lib/motion.js';
 import { WorkspaceHeader } from '../../components/WorkspaceHeader.jsx';
-import { Avatar, Badge, Empty, Field, Panel, Segmented } from '../../components/ui.jsx';
+import { Avatar, Badge, Empty, EspOptions, Field, Panel, Segmented } from '../../components/ui.jsx';
 import { Modal } from '../../components/Modal.jsx';
 import { useConfirm } from '../../hooks/useConfirm.jsx';
 import { Icon3D } from '../../components/Icon3D.jsx';
@@ -126,17 +126,17 @@ export default function Usuarios() {
                 )}
               </Field>
               <Field label={`Colegiatura${f.role === 'med' ? ' (obligatoria)' : ''}`}>
-                {(a) => <input {...a} value={f.col} onChange={set('col')} placeholder={f.role === 'enf' ? 'CEP-00000' : 'CMP-00000'} disabled={!['med', 'enf'].includes(f.role)} />}
+                {(a) => <input {...a} value={f.col} onChange={set('col')} placeholder={f.role === 'enf' ? 'CEP-00000' : `${especialidad(f.esp)?.col ?? 'CMP'}-00000`} disabled={!['med', 'enf'].includes(f.role)} />}
               </Field>
             </div>
             <Field label="Usuario" hint={`Empieza con «${ROLES[f.role].prefix}» para que el inicio de sesión reconozca el área. De 4 a 20 caracteres: minúsculas, números, punto o guion bajo.`}>
               {(a) => <input {...a} value={f.u} onChange={set('u')} placeholder={`${ROLES[f.role].prefix}apellido`} autoComplete="off" />}
             </Field>
             {f.role === 'med' && (
-              <Field label="Especialidad" hint="Define a qué pacientes se le dan citas. Su horario se registra en «Horarios médicos».">
+              <Field label="Especialidad o servicio" hint={`Define a qué pacientes se le dan citas y su colegiatura (${especialidad(f.esp)?.col}-00000). Su horario se registra en «Horarios médicos».`}>
                 {(a) => (
                   <select {...a} value={f.esp} onChange={set('esp')}>
-                    {ESPECIALIDADES.map((e) => <option key={e.k} value={e.k}>{e.n}</option>)}
+                    <EspOptions />
                   </select>
                 )}
               </Field>

@@ -480,18 +480,31 @@ create index ix_auditoria_fecha on public.auditoria (fecha_hora desc);
 -- ---------------------------------------------------------------------
 -- Catálogos iniciales
 -- ---------------------------------------------------------------------
+-- Cartera de servicios de un establecimiento de primer nivel (I-3/I-4): atención médica, materno-infantil,
+-- salud bucal, y salud mental y nutrición (las ramas solo agrupan en pantalla: src/lib/constants.js)
 insert into public.especialidad (codigo, nombre, duracion_cita_min) values
-  ('MG',  'Medicina General', 20),
-  ('PED', 'Pediatría',        20),
-  ('CAR', 'Cardiología',      30),
-  ('GIN', 'Ginecología y Obstetricia', 20);
+  ('MG',   'Medicina General', 20),
+  ('MF',   'Medicina Familiar', 20),
+  ('MI',   'Medicina Interna', 30),
+  ('CAR',  'Cardiología',      30),
+  ('PED',  'Pediatría',        20),
+  ('CRED', 'Crecimiento y Desarrollo', 30),
+  ('GIN',  'Ginecología y Obstetricia', 20),
+  ('OBS',  'Obstetricia',      30),
+  ('ODO',  'Odontología',      30),
+  ('PSI',  'Psicología',       40),
+  ('NUT',  'Nutrición',        30);
 
 insert into public.area_atencion (nombre, tipo) values
   ('Módulo de Triaje 1', 'TRIAJE'),
   ('Consultorio 1', 'CONSULTORIO'),
   ('Consultorio 2', 'CONSULTORIO'),
   ('Consultorio 3', 'CONSULTORIO'),
-  ('Consultorio 4', 'CONSULTORIO');
+  ('Consultorio 4', 'CONSULTORIO'),
+  ('Consultorio 5', 'CONSULTORIO'),
+  ('Consultorio 6', 'CONSULTORIO'),
+  ('Consultorio 7', 'CONSULTORIO'),
+  ('Consultorio 8', 'CONSULTORIO');
 
 insert into public.diagnostico_cie10 (codigo_cie10, descripcion) values
   ('J00',   'Rinofaringitis aguda (resfriado común)'),
@@ -508,7 +521,19 @@ insert into public.diagnostico_cie10 (codigo_cie10, descripcion) values
   ('R51',   'Cefalea'),
   ('M54.5', 'Lumbago (dolor lumbar bajo)'),
   ('B34.9', 'Infección viral, no especificada'),
-  ('R50.9', 'Fiebre, no especificada');
+  ('R50.9', 'Fiebre, no especificada'),
+  ('Z00.0', 'Examen médico general'),
+  ('E78.5', 'Hiperlipidemia, no especificada'),
+  ('Z00.1', 'Control de salud de rutina del niño'),
+  ('D50.9', 'Anemia por deficiencia de hierro, sin otra especificación'),
+  ('Z34.9', 'Supervisión de embarazo normal, no especificado'),
+  ('Z30.0', 'Consejo y asesoramiento general sobre la anticoncepción'),
+  ('N76.0', 'Vaginitis aguda'),
+  ('K02.9', 'Caries dental, no especificada'),
+  ('K05.1', 'Gingivitis crónica'),
+  ('F41.1', 'Trastorno de ansiedad generalizada'),
+  ('F32.9', 'Episodio depresivo, no especificado'),
+  ('E66.9', 'Obesidad, no especificada');
 
 
 -- =====================================================================
@@ -1123,6 +1148,14 @@ from (values
   ('e.triaje3',   'ENFERMERIA', 'Luis Vargas (demo)',     'CEP-00003', true,  null),
   ('j.calidad',   'JEFATURA',   'Silvia Torres (demo)',   null,        true,  null),
   ('j.jefatura',  'JEFATURA',   'Marco Soto (demo)',      null,        true,  null),
+  ('m.familiar',  'MEDICO',     'Dr. Ernesto Llanos (demo)', 'CMP-00013', true, 'MF'),
+  ('m.interna',   'MEDICO',     'Dra. Liliana Pacheco (demo)', 'CMP-00014', true, 'MI'),
+  ('m.obstetra',  'MEDICO',     'Obst. Milagros Cárdenas (demo)', 'COP-00001', true, 'OBS'),
+  ('m.cred',      'MEDICO',     'Lic. Enf. Judith Arce (demo)', 'CEP-00006', true, 'CRED'),
+  ('m.odonto',    'MEDICO',     'C.D. Renato Valdivia (demo)', 'COP-10001', true, 'ODO'),
+  ('m.odonto2',   'MEDICO',     'C.D. Andrea Monzón (demo)', 'COP-10002', true, 'ODO'),
+  ('m.psicologia','MEDICO',     'Ps. Diana Ugaz (demo)',  'CPsP-00001', true, 'PSI'),
+  ('m.nutricion', 'MEDICO',     'Lic. Nut. Pablo Herrera (demo)', 'CNP-00001', true, 'NUT'),
   ('e.turno2',    'ENFERMERIA', 'Iris Campos (demo)',     'CEP-00001', false, null)
 ) as x(usr, rol, nombre, col, act, esp)
 left join public.especialidad e on e.codigo = x.esp;
@@ -1141,7 +1174,15 @@ from (values
   ('m.pediatria2','Consultorio 3', time '14:00', time '19:00', array[1,3,5]),
   ('m.gineco',    'Consultorio 4', time '08:00', time '13:00', array[1,3,5]),
   ('m.general4',  'Consultorio 4', time '13:00', time '19:00', array[2,4]),
-  ('m.general4',  'Consultorio 4', time '08:00', time '13:00', array[6])
+  ('m.general4',  'Consultorio 4', time '08:00', time '13:00', array[6]),
+  ('m.familiar',  'Consultorio 5', time '07:00', time '13:00', array[1,2,3,4,5]),
+  ('m.interna',   'Consultorio 5', time '13:00', time '19:00', array[1,2,3,4,5]),
+  ('m.obstetra',  'Consultorio 6', time '07:00', time '13:00', array[1,2,3,4,5,6]),
+  ('m.cred',      'Consultorio 6', time '13:00', time '18:00', array[1,2,3,4,5]),
+  ('m.odonto',    'Consultorio 7', time '07:00', time '13:00', array[1,2,3,4,5,6]),
+  ('m.odonto2',   'Consultorio 7', time '13:00', time '19:00', array[1,2,3,4,5]),
+  ('m.psicologia','Consultorio 8', time '08:00', time '14:00', array[1,2,3,4,5]),
+  ('m.nutricion', 'Consultorio 8', time '14:00', time '19:00', array[1,2,3,4,5])
 ) as x(usr, area, ini, fin, dias)
 join public.usuario u on u.username = x.usr
 join public.area_atencion a on a.nombre = x.area

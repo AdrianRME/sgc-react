@@ -1,7 +1,7 @@
 import { useEffect, useId, useRef } from 'react';
 import { animate, m, useReducedMotion } from 'motion/react';
 import { CircleCheck, ChevronsUp, Clock, Info, TriangleAlert } from 'lucide-react';
-import { STATE, PRIO, SIS, ROUTE } from '../lib/constants.js';
+import { STATE, PRIO, SIS, ROUTE, ESP_POR_RAMA } from '../lib/constants.js';
 import { waitInfo } from '../lib/clinical.js';
 import { fmtNum, initials } from '../lib/format.js';
 import { spring } from '../lib/motion.js';
@@ -26,6 +26,14 @@ export const PrioBadge = ({ prio }) =>
 export const SisBadge = ({ sis }) => <Badge tone={SIS[sis]?.[1] || 'mut'}>{SIS[sis]?.[0] || sis}</Badge>;
 
 export const TurnCode = ({ id, className = '' }) => <span className={`tcode ${className}`}>{id}</span>;
+
+/** Opciones de un <select> de especialidad, agrupadas por rama de la cartera de servicios. */
+export const EspOptions = () =>
+  ESP_POR_RAMA.map((r) => (
+    <optgroup key={r.k} label={r.n}>
+      {r.esps.map((e) => <option key={e.k} value={e.k}>{e.n}</option>)}
+    </optgroup>
+  ));
 
 /* ---------- Contenedores ---------- */
 
