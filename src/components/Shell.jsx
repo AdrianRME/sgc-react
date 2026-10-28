@@ -5,7 +5,6 @@ import {
 } from 'lucide-react';
 import { useStore } from '../store/useStore.js';
 import { ACTIVE_STATES, QUEUE, ROLES } from '../lib/constants.js';
-import { esCuentaCompartida } from '../lib/cuentasDemo.js';
 import { byArrival, byConsulta } from '../lib/clinical.js';
 import { callNext } from '../store/actions.js';
 import { fade } from '../lib/motion.js';
@@ -79,8 +78,6 @@ export function Shell({ section, children }) {
   const current = section === 'sala' ? SALA : sections.find(([k]) => k === section) || sections[0];
   const waiting = waitingFor(user, db.turns);
   const queueSection = role.queue || sections[0][0];
-  // Cuenta compartida del prototipo (acceso rápido): su contraseña no se cambia para que los demás puedan seguir entrando
-  const compartida = esCuentaCompartida(user.u);
 
   useHotkey((e) => (e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'k', () => setPalette(true));
   useEffect(() => {
@@ -108,12 +105,12 @@ export function Shell({ section, children }) {
       { id: 'sala-ext', group: 'Acciones', label: 'Abrir la pantalla de sala en otra ventana', icon: ExternalLink, run: () => window.open('#/sala', '_blank', 'noopener') },
       { id: 'sim', group: 'Acciones', label: 'Simular el ciclo del paciente', icon: CirclePlay, keywords: 'simulación prueba demo escenario', run: () => setSim(true) },
       { id: 'theme', group: 'Preferencias', label: effective === 'dark' ? 'Usar tema claro' : 'Usar tema oscuro', icon: effective === 'dark' ? Sun : Moon, keywords: 'tema modo oscuro claro', run: toggle },
+      { id: 'pwd', group: 'Cuenta', label: 'Cambiar mi contraseña', icon: KeyRound, run: () => setPwd(true) },
     );
-    if (!compartida) acts.push({ id: 'pwd', group: 'Cuenta', label: 'Cambiar mi contraseña', icon: KeyRound, run: () => setPwd(true) });
     if (user.role === 'jef') acts.push({ id: 'reset', group: 'Cuenta', label: 'Restablecer datos de demostración', icon: RotateCcw, run: confirmReset });
     acts.push({ id: 'out', group: 'Cuenta', label: 'Cerrar sesión', icon: LogOut, run: () => signOut() });
     return [...nav, ...acts];
-  }, [sections, base, user.role, area, effective, run, toggle, signOut, confirmReset, compartida]);
+  }, [sections, base, user.role, area, effective, run, toggle, signOut, confirmReset]);
 
   const navItem = ([k, l, icon], count) => (
     <a key={k} className="nb" href={`#${base}/${k}`} aria-current={current[0] === k ? 'page' : undefined} onClick={() => setNavOpen(false)}>
@@ -147,10 +144,10 @@ export function Shell({ section, children }) {
             <Avatar name={user.n} />
             <div><b>{user.n}</b><span>{user.u}{user.col ? ` (${user.col})` : ''}</span></div>
           </div>
-          {!compartida && <button className="lnk" onClick={() => setPwd(true)}><KeyRound /> Cambiar contraseña</button>}
+          <button className="lnk" onClick={() => setPwd(true)}><KeyRound /> Cambiar contraseña</button>
           {user.role === 'jef' && <button className="lnk" onClick={confirmReset}><RotateCcw /> Restablecer datos demo</button>}
           <button className="lnk" onClick={() => signOut()}><LogOut /> Cerrar sesión</button>
-          <small className="sess">{compartida ? 'Cuenta compartida del prototipo. ' : ''}{repo.kind === 'supabase' ? 'La sesión se cierra tras 15 minutos sin actividad.' : 'Modo local de desarrollo.'}</small>
+          <small className="sess">{repo.kind === 'supabase' ? 'Sesión segura: se cierra tras 15 minutos sin actividad.' : 'Modo local de desarrollo.'}</small>
         </div>
       </aside>
       <AnimatePresence>{navOpen && <m.div {...fade} className="scrim" onClick={() => setNavOpen(false)} />}</AnimatePresence>

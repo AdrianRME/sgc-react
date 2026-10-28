@@ -1,14 +1,8 @@
 export const MIN = 60_000;
 export const DAY = 86_400_000;
 
-/** Contraseña de las cuentas de demostración (en Supabase la crean schema.sql y las actualizaciones). */
+/** Contraseña del modo local (sin Supabase), solo para desarrollo. Con Supabase se usa Supabase Auth. */
 export const DEMO_PASSWORD = 'SgcDemo2026';
-/**
- * Acceso rápido del prototipo: el inicio de sesión ofrece las cuentas de demostración y entra con un clic.
- * Activo por defecto (prototipo con datos ficticios). Para una prueba de seguridad o un uso real, publique con
- * VITE_ACCESO_DEMO=false: vuelve el formulario de usuario y contraseña solo.
- */
-export const ACCESO_DEMO = import.meta.env.VITE_ACCESO_DEMO !== 'false';
 export const MAX_LOGIN_ATTEMPTS = 3;
 export const LOCK_MS = 30_000;
 /** Dominio de las cuentas de Supabase Auth: el usuario a.admision ingresa como a.admision@sgc.example.org. */

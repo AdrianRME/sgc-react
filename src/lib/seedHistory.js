@@ -16,10 +16,40 @@ import { CANCEL, CIE, DAY, MIN, TH_DEFAULT, TARIFA_CONSULTA, SIS_EXONERADO, TRIA
 import { startOfDay } from './format.js';
 import { especialidadSugerida, sameDay, sugerirCita } from './agenda.js';
 
-// El personal de la demostración vive aparte: el inicio de sesión lo usa sin descargar este generador
-import { DEMO_USERS } from './cuentasDemo.js';
-
-export { DEMO_USERS };
+/** Personal de la demostración. Las cuentas de Supabase se crean con los mismos datos en schema.sql. */
+export const DEMO_USERS = [
+  { u: 'a.admision', n: 'Carla Vidal (demo)', role: 'adm', col: '', on: true },
+  { u: 'c.caja', n: 'Rocío Tello (demo)', role: 'caj', col: '', on: true },
+  { u: 'e.triaje', n: 'Pedro Luna (demo)', role: 'enf', col: 'CEP-00000', on: true },
+  { u: 'm.consulta', n: 'Dra. Elena Ríos (demo)', role: 'med', col: 'CMP-00000', on: true, esp: 'MG' },
+  { u: 'm.consulta2', n: 'Dr. Luis Paz (demo)', role: 'med', col: 'CMP-00001', on: true, esp: 'MG' },
+  { u: 'm.pediatria', n: 'Dra. Sofía Mora (demo)', role: 'med', col: 'CMP-00002', on: true, esp: 'PED' },
+  { u: 'm.cardio', n: 'Dr. Raúl Vega (demo)', role: 'med', col: 'CMP-00003', on: true, esp: 'CAR' },
+  { u: 'm.general3', n: 'Dra. Patricia Núñez (demo)', role: 'med', col: 'CMP-00004', on: true, esp: 'MG' },
+  { u: 'm.pediatria2', n: 'Dr. Andrés Salas (demo)', role: 'med', col: 'CMP-00005', on: true, esp: 'PED' },
+  { u: 'a.admision2', n: 'Jorge Huamán (demo)', role: 'adm', col: '', on: true },
+  { u: 'c.caja2', n: 'Lucía Paredes (demo)', role: 'caj', col: '', on: true },
+  { u: 'e.triaje2', n: 'Ana Quispe (demo)', role: 'enf', col: 'CEP-00002', on: true },
+  { u: 'm.gineco', n: 'Dra. Carmen Salazar (demo)', role: 'med', col: 'CMP-00006', on: true, esp: 'GIN' },
+  { u: 'm.general4', n: 'Dr. Hugo Medina (demo)', role: 'med', col: 'CMP-00007', on: true, esp: 'MG' },
+  { u: 'a.admision3', n: 'Elsa Chávez (demo)', role: 'adm', col: '', on: true },
+  { u: 'c.caja3', n: 'Martín Rojas (demo)', role: 'caj', col: '', on: true },
+  { u: 'e.triaje3', n: 'Luis Vargas (demo)', role: 'enf', col: 'CEP-00003', on: true },
+  { u: 'j.calidad', n: 'Silvia Torres (demo)', role: 'jef', col: '', on: true },
+  { u: 'j.jefatura', n: 'Marco Soto (demo)', role: 'jef', col: '', on: true },
+  // Resto de la cartera de primer nivel: medicina familiar e interna, materno-infantil, salud bucal, mental y nutrición
+  { u: 'm.familiar', n: 'Dr. Ernesto Llanos (demo)', role: 'med', col: 'CMP-00013', on: true, esp: 'MF' },
+  { u: 'm.interna', n: 'Dra. Liliana Pacheco (demo)', role: 'med', col: 'CMP-00014', on: true, esp: 'MI' },
+  { u: 'm.obstetra', n: 'Obst. Milagros Cárdenas (demo)', role: 'med', col: 'COP-00001', on: true, esp: 'OBS' },
+  { u: 'm.cred', n: 'Lic. Enf. Judith Arce (demo)', role: 'med', col: 'CEP-00006', on: true, esp: 'CRED' },
+  { u: 'm.odonto', n: 'C.D. Renato Valdivia (demo)', role: 'med', col: 'COP-10001', on: true, esp: 'ODO' },
+  { u: 'm.odonto2', n: 'C.D. Andrea Monzón (demo)', role: 'med', col: 'COP-10002', on: true, esp: 'ODO' },
+  { u: 'm.psicologia', n: 'Ps. Diana Ugaz (demo)', role: 'med', col: 'CPsP-00001', on: true, esp: 'PSI' },
+  { u: 'm.nutricion', n: 'Lic. Nut. Pablo Herrera (demo)', role: 'med', col: 'CNP-00001', on: true, esp: 'NUT' },
+  { u: 'e.turno2', n: 'Iris Campos (demo)', role: 'enf', col: 'CEP-00001', on: false },
+  // Autor de las citas que el paciente reserva por la web (no inicia sesión)
+  { u: 'a.citasweb', n: 'Citas por web (sistema)', role: 'adm', col: '', on: false },
+];
 
 const bloque = (med, dows, ini, fin, area) => dows.map((dow) => ({ id: `hor-${med}-${dow}`, med, dow, ini, fin, area, on: true }));
 

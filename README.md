@@ -33,11 +33,6 @@ sin pasar antes por Medicina General: es parte del objetivo de reducir los tiemp
 
 Comunes a todos los espacios:
 
-- **Acceso rápido del prototipo.** En el inicio de sesión se elige el área y luego la persona, y se entra con un
-  clic, sin escribir usuario ni contraseña (en Consulta, las personas se agrupan por especialidad). Son cuentas
-  reales de Supabase con la contraseña de demostración: siguen la seguridad por rol, la auditoría y el cierre por
-  inactividad, y su contraseña no se puede cambiar desde la app para que todos puedan seguir entrando. El formulario
-  de usuario y contraseña sigue disponible. Para desactivarlo, publique con `VITE_ACCESO_DEMO=false`.
 - **Inicio de sesión por área.** Cada usuario empieza con el prefijo de su rol: `a.` Admisión, `c.` Caja,
   `e.` Enfermería, `m.` Médico y `j.` Jefatura. Al escribirlo, la pantalla muestra solo el ícono, el espacio y los
   pasos de esa área. Lo reconoce por el prefijo, sin consultar al servidor, así que no revela si la cuenta existe.

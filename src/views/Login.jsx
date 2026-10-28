@@ -1,10 +1,8 @@
 import { lazy, Suspense, useRef, useState } from 'react';
 import { AnimatePresence, m } from 'motion/react';
-import { CalendarPlus, ChevronRight, CirclePlay, Eye, EyeOff, KeyRound, Lock, LogIn, Tv, Zap } from 'lucide-react';
+import { CalendarPlus, CirclePlay, Eye, EyeOff, Lock, LogIn, Tv } from 'lucide-react';
 import { useStore } from '../store/useStore.js';
-import { ACCESO_DEMO, DEMO_PASSWORD, ESP_POR_RAMA, MAX_LOGIN_ATTEMPTS, LOCK_MS, ROLES, roleFromUsername } from '../lib/constants.js';
-import { CUENTAS_RAPIDAS, nombreCorto } from '../lib/cuentasDemo.js';
-import { initials } from '../lib/format.js';
+import { DEMO_PASSWORD, MAX_LOGIN_ATTEMPTS, LOCK_MS, ROLES, roleFromUsername } from '../lib/constants.js';
 import { Field, Msg } from '../components/ui.jsx';
 import { Icon3D } from '../components/Icon3D.jsx';
 import { BrandMark } from '../components/BrandMark.jsx';
@@ -14,17 +12,8 @@ import './login.css';
 // El simulador no necesita sesión: corre sobre una copia de prueba de los datos
 const Simulador = lazy(() => import('../components/Simulador.jsx'));
 
-/**
- * Personas de un área para el acceso rápido. En Consulta se agrupan por especialidad, en el orden de las ramas.
- * [{ titulo, cuentas }]
- */
-function personasDe(role) {
-  const cuentas = CUENTAS_RAPIDAS.filter((x) => x.role === role);
-  if (role !== 'med') return [{ titulo: null, cuentas }];
-  return ESP_POR_RAMA.flatMap((r) => r.esps)
-    .map((e) => ({ titulo: e.n, cuentas: cuentas.filter((x) => x.esp === e.k) }))
-    .filter((g) => g.cuentas.length);
-}
+// Cuentas de demostración (solo se muestran en modo local de desarrollo)
+const DEV_USERS = [['a.admision', 'adm'], ['c.caja', 'caj'], ['e.triaje', 'enf'], ['m.consulta', 'med'], ['m.cardio', 'med'], ['j.jefatura', 'jef']];
 
 /*
  * Fondo: la pantalla de un monitor de signos vitales. Tres trazos (ECG en derivación II, pletismografía de
@@ -86,19 +75,18 @@ function Monitor() {
 }
 
 export function Login() {
-  const { signIn } = useStore();
+  const { signIn, repo } = useStore();
   const [u, setU] = useState('');
   const [p, setP] = useState('');
   const [show, setShow] = useState(false);
   const [sim, setSim] = useState(false);
   const [err, setErr] = useState('');
   const [busy, setBusy] = useState(false);
-  // Con el acceso rápido, el formulario de usuario y contraseña queda a un clic («Ingresar con mi contraseña»)
-  const [manual, setManual] = useState(!ACCESO_DEMO);
   const [fails, setFails] = useState(0);
   const [lockUntil, setLockUntil] = useState(0);
   const now = useNow(1000);
   const locked = lockUntil > now;
+  const local = repo.kind === 'local';
   const role = roleFromUsername(u);
   const R = role && ROLES[role];
   const userRef = useRef(null);
@@ -115,17 +103,18 @@ export function Login() {
     });
   };
 
-  const entrar = async (usuario, clave) => {
+  const submit = async (e) => {
+    e?.preventDefault();
     if (locked || busy) return;
     setBusy(true);
     try {
-      await signIn(usuario, clave);
+      await signIn(u, p);
     } catch (x) {
       const n = (lockUntil ? 0 : fails) + 1; // tras un bloqueo vencido, el conteo se reinicia
       if (lockUntil) setLockUntil(0);
       setFails(n);
       if (n >= MAX_LOGIN_ATTEMPTS) {
-        setLockUntil(() => Date.now() + LOCK_MS); // al fallar, no durante el render
+        setLockUntil(Date.now() + LOCK_MS);
         setErr('Demasiados intentos fallidos. Acceso bloqueado temporalmente.');
       } else {
         setErr(`${x.message} Intento ${n} de ${MAX_LOGIN_ATTEMPTS}.`);
@@ -134,15 +123,6 @@ export function Login() {
     } finally {
       setBusy(false);
     }
-  };
-  const submit = (e) => {
-    e.preventDefault();
-    entrar(u, p);
-  };
-  /** Acceso rápido: entra con la cuenta compartida de esa persona, sin escribir nada. */
-  const entrarComo = (x) => {
-    setU(x.u);
-    entrar(x.u, DEMO_PASSWORD);
   };
 
   return (
@@ -179,13 +159,13 @@ export function Login() {
               </AnimatePresence>
             </span>
             <h1>{R ? R.n : 'Bienvenido'}</h1>
-            <p>{R ? R.tag : ACCESO_DEMO && !manual ? 'Elija su área para empezar' : 'Ingrese con su usuario institucional'}</p>
+            <p>{R ? R.tag : 'Ingrese con su usuario institucional'}</p>
           </div>
 
           {err && (locked || !lockUntil) && (
             <Msg tone="crit">{err}{locked && ` Reintente en ${Math.ceil((lockUntil - now) / 1000)} s.`}</Msg>
           )}
-          <div className="stack">
+          <form onSubmit={submit} noValidate className="stack">
             <div className="areas" role="group" aria-label="Área de trabajo">
               {AREAS_LOGIN.map(([k, n]) => (
                 <button key={k} type="button" className="area-btn" data-role={k} aria-pressed={role === k} onClick={() => pickArea(k)} disabled={locked}>
@@ -194,32 +174,6 @@ export function Login() {
                 </button>
               ))}
             </div>
-          {!manual && (
-            <div className="rapido">
-              {role ? (
-                <div className="personas" role="group" aria-label={`Personal de ${R.n}`}>
-                  {personasDe(role).map((g) => (
-                    <div key={g.titulo || role} className="personas-g">
-                      {g.titulo && <span className="personas-t">{g.titulo}</span>}
-                      {g.cuentas.map((x) => (
-                        <button key={x.u} type="button" className="persona" onClick={() => entrarComo(x)} disabled={locked || busy}>
-                          <span className="persona-av" aria-hidden="true">{initials(nombreCorto(x.n))}</span>
-                          <span className="persona-n"><b>{nombreCorto(x.n)}</b><small>{busy && u === x.u ? 'Ingresando…' : x.u}</small></span>
-                          <ChevronRight aria-hidden="true" />
-                        </button>
-                      ))}
-                    </div>
-                  ))}
-                </div>
-              ) : (
-                <p className="rapido-ayuda"><Zap aria-hidden="true" /> Elija su área y luego su nombre: entra con un clic, sin contraseña.</p>
-              )}
-              <button type="button" className="lnk-login" onClick={() => setManual(true)}><KeyRound aria-hidden="true" /> Ingresar con usuario y contraseña</button>
-            </div>
-          )}
-          </div>
-          {manual && (
-          <form onSubmit={submit} noValidate className="stack">
             <Field label="Usuario">
               {(a) => (
                 <input
@@ -242,11 +196,23 @@ export function Login() {
             <button className="btn lg full" disabled={locked || busy || !u || !p}>
               <LogIn /> {busy ? 'Verificando…' : R ? `Ingresar a ${R.n}` : 'Ingresar'}
             </button>
-            {ACCESO_DEMO && <button type="button" className="lnk-login" onClick={() => setManual(false)}><Zap aria-hidden="true" /> Volver al acceso rápido</button>}
           </form>
-          )}
 
-          <p className="sec-note"><Lock aria-hidden="true" /> {ACCESO_DEMO ? 'Prototipo con datos ficticios' : 'Conexión cifrada'} · la sesión se cierra tras 15 min sin uso</p>
+          {local ? (
+            <div className="demo-box">
+              <span className="note">Cuentas de prueba · clave <code>{DEMO_PASSWORD}</code></span>
+              <div className="quick">
+                {DEV_USERS.map(([x, r]) => (
+                  <button key={x} type="button" className="qbtn" data-role={r} title={x} aria-pressed={u === x} onClick={() => { setU(x); setP(DEMO_PASSWORD); }}>
+                    <Icon3D name={ROLES[r].icon} size={26} />
+                    <span>{x === 'm.cardio' ? 'Cardiología' : ROLES[r].n}</span>
+                  </button>
+                ))}
+              </div>
+            </div>
+          ) : (
+            <p className="sec-note"><Lock aria-hidden="true" /> Conexión cifrada · la sesión se cierra tras 15 min sin uso</p>
+          )}
         </m.div>
       </main>
     </div>

@@ -129,9 +129,6 @@ En **Project Settings → API Keys**:
 
 Nunca use la *secret key* en la app.
 
-Opcional: `VITE_ACCESO_DEMO` = `false` quita el acceso rápido de un clic del inicio de sesión (por defecto está activo,
-porque el prototipo solo tiene datos ficticios). Úselo si el sistema va a tener datos reales o para una prueba de seguridad.
-
 ## 5. Publicar en Vercel
 
 Importe el repositorio, agregue las dos variables del paso 4 y despliegue. Vercel detecta Vite solo.
