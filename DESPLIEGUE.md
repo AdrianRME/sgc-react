@@ -85,6 +85,10 @@ Ejecutarlo otra vez **borra todos los datos** y restablece esas contraseñas.
 > Si aparece un error de permisos sobre `auth.users`, Supabase no dejó crear las cuentas desde SQL.
 > Copie el mensaje exacto: la alternativa es crear las cuentas con una Edge Function.
 
+**Todo en un solo paso.** `supabase/actualizacion-unica.sql` reúne, en orden, el arreglo de Caja, la versión 1.3 y
+los datos de demostración ampliados. En un proyecto que ya tiene la versión 1.2 basta con ejecutar ese archivo
+(se puede repetir). Los archivos de abajo son sus partes, por si se quiere ejecutar solo una.
+
 **Versión 1.3: cartera completa de primer nivel.** Ejecute `supabase/actualizacion-v1.3.sql` **antes** de publicar la
 versión de la app que la usa. Solo agrega filas (no cambia tablas, el modelo de ERwin sigue igual) y se puede repetir:
 - 7 especialidades más (Medicina Familiar e Interna, CRED, Obstetricia, Odontología, Psicología y Nutrición), con
