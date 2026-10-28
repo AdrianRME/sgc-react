@@ -38,9 +38,9 @@ function Cobro({ turn, patient, onPaid, onCancel }) {
         <TurnCode id={turn.id} className="big" />
         <div className="pc-main">
           <b>{fullName(patient)}</b>
-          <small>{age(patient.nac)} años, DNI {patient.dni}, {patient.hc}</small>
+          {patient ? <small>{age(patient.nac)} años, DNI {patient.dni}, {patient.hc}</small> : <small>Datos del paciente no disponibles</small>}
         </div>
-        <SisBadge sis={patient.sis} />
+        {patient && <SisBadge sis={patient.sis} />}
       </div>
       <div className="charge">
         <span>{CONCEPTO_PAGO}</span>

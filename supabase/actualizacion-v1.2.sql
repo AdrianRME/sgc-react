@@ -640,3 +640,12 @@ revoke execute on function public.sgc_guardar(jsonb), public.sgc_sala(), public.
 grant execute on function public.sgc_guardar(jsonb) to authenticated;
 grant execute on function public.sgc_sala(), public.sgc_paciente_cita(text, date), public.sgc_cupos(text),
                           public.sgc_reservar_cita(text, date, jsonb) to anon, authenticated;
+
+-- Caja lee los datos del paciente: los necesita para cobrar y emitir la boleta
+-- (sin esto, Caja recibe los turnos pero no a sus pacientes y la pantalla se cae)
+drop policy if exists personal_asistencial on public.paciente;
+create policy personal_asistencial on public.paciente for select to authenticated
+  using ((select sgc_interno.rol_actual()) in ('ADMISION','CAJA','ENFERMERIA','MEDICO'));
+drop policy if exists personal_asistencial on public.historia_clinica;
+create policy personal_asistencial on public.historia_clinica for select to authenticated
+  using ((select sgc_interno.rol_actual()) in ('ADMISION','CAJA','ENFERMERIA','MEDICO'));

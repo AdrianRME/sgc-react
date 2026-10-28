@@ -2101,11 +2101,11 @@ create policy personal_activo on public.pago for select to authenticated
 create policy personal_activo on public.cita for select to authenticated
   using ((select sgc_interno.rol_actual()) is not null);
 
--- Datos personales del paciente: personal asistencial (no Jefatura)
+-- Datos personales del paciente: personal asistencial y Caja, que cobra y emite la boleta a su nombre (no Jefatura)
 create policy personal_asistencial on public.paciente for select to authenticated
-  using ((select sgc_interno.rol_actual()) in ('ADMISION','ENFERMERIA','MEDICO'));
+  using ((select sgc_interno.rol_actual()) in ('ADMISION','CAJA','ENFERMERIA','MEDICO'));
 create policy personal_asistencial on public.historia_clinica for select to authenticated
-  using ((select sgc_interno.rol_actual()) in ('ADMISION','ENFERMERIA','MEDICO'));
+  using ((select sgc_interno.rol_actual()) in ('ADMISION','CAJA','ENFERMERIA','MEDICO'));
 
 -- Signos vitales: Enfermería y Medicina
 create policy personal_clinico on public.signos_vitales for select to authenticated
