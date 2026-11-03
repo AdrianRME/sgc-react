@@ -166,9 +166,11 @@ export function Shell({ section, children }) {
             <span className="txt">Buscar o ir a…</span>
             <span className="keys" aria-hidden="true"><Kbd>{isMac ? '⌘' : 'Ctrl'}</Kbd><Kbd>K</Kbd></span>
           </button>
-          <button className="btn sec sm sim-btn" onClick={() => setSim(true)} title="Simular paso a paso el ciclo de un paciente (no cambia datos reales)">
-            <CirclePlay aria-hidden="true" /> <span className="txt">Simulación</span>
-          </button>
+          {repo.kind !== 'sim' && (
+            <button className="btn sec sm sim-btn" onClick={() => setSim(true)} title="Simular paso a paso el ciclo de un paciente (no cambia datos reales)">
+              <CirclePlay aria-hidden="true" /> <span className="txt">Simulación</span>
+            </button>
+          )}
           <Notifications feed={feed} />
           <button className="icon-btn" onClick={toggle} aria-label={effective === 'dark' ? 'Usar tema claro' : 'Usar tema oscuro'}>
             {effective === 'dark' ? <Sun /> : <Moon />}

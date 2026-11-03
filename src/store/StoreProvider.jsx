@@ -202,14 +202,15 @@ export function StoreProvider({ children }) {
   /* ---------- Cierre por inactividad ---------- */
   useEffect(() => {
     if (!authed) return undefined;
-    let last = Date.now();
+    // Reloj monótono: la simulación en vivo mueve Date.now() y no debe cerrar la sesión real
+    let last = performance.now();
     const bump = () => {
-      last = Date.now();
+      last = performance.now();
     };
     const evs = ['pointerdown', 'keydown', 'wheel', 'touchstart'];
     evs.forEach((e) => window.addEventListener(e, bump, { passive: true }));
     const id = setInterval(() => {
-      const left = IDLE_MS - (Date.now() - last);
+      const left = IDLE_MS - (performance.now() - last);
       if (left <= 0) signOut('Sesión cerrada por inactividad.');
       else setIdleLeft(left <= IDLE_WARN_MS ? left : null);
     }, 5000);

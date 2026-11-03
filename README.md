@@ -38,9 +38,14 @@ Comunes a todos los espacios:
   pasos de esa área. Lo reconoce por el prefijo, sin consultar al servidor, así que no revela si la cuenta existe.
 - **La ruta en vivo**, de Admisión a Alta, con los turnos que avanzan entre etapas.
 - **Simulador del ciclo del paciente** (botón «Simulación», también en el inicio de sesión): recorre paso a paso
-  ocho casos (nuevo con SIS, nuevo sin seguro, con historial y alergia, crítico, caída del SIS, caída del servidor,
+  nueve casos (nuevo con SIS, nuevo sin seguro, con historial y alergia, gestante, crítico, caída del SIS, caída del servidor,
   sin conexión y paciente que no se presenta). Ejecuta las mismas reglas del sistema sobre una copia de prueba de los
   datos: muestra estados, prioridad, cita, boleta, receta y rechazos reales sin tocar la base.
+  Con **«Ver en vivo»** el caso elegido se reproduce en las pantallas reales de cada estación (Admisión, Caja,
+  Triaje y Consulta): un cursor escribe los datos, elige las opciones y pulsa los botones, y se ven los avisos,
+  el ticket, la boleta, la constancia de cita y la receta. Arriba queda una barra con el paso actual y los
+  botones Pausar, Siguiente, velocidad (1× o 2×), Reiniciar y Detener. Mientras dura, el reloj de las pantallas
+  muestra la hora del caso; al detenerla vuelve la hora real y la sesión sigue como estaba.
 - **Sin conexión**: si el equipo pierde internet lo avisa de inmediato; un cambio que no se pudo guardar se deshace
   en pantalla, y al volver la red los datos se recargan solos.
 - **Paleta de comandos** con <kbd>Ctrl</kbd> + <kbd>K</kbd>, para ir a cualquier sección o llamar al siguiente.
@@ -192,6 +197,7 @@ src/
     seed.js · seedHistory.js  demostración: 5 semanas de atenciones generadas con semilla fija
     motion.js           animaciones compartidas
     simulacion.js       casos del simulador: pasos que ejecutan las acciones reales sobre una copia de prueba
+    simGuion.js         simulación en vivo: lo que el cursor escribe y pulsa en cada pantalla · reloj.js su reloj
   store/              StoreProvider (sesión, carga, inactividad, avisos) · actions.js (reglas de negocio)
   data/               supabaseRepo (Auth + funciones sgc_*) · localRepo (desarrollo) · merge.js
   hooks/              consulta asíncrona, historia del paciente, tema, atajos, avisos, confirmación, documentos

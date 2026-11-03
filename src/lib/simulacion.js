@@ -9,6 +9,7 @@
  * - accion(db, ctx, mem): acción de dominio. Con `rechazo` se espera que el sistema la impida (DomainError).
  * - falla: 'servidor' | 'red'. La acción no se guarda: el sistema la deshace y avisa (como en StoreProvider.run).
  * - min: minutos que pasan antes del paso · hasta(mem): hora mínima del paso (por ejemplo, la hora de la cita).
+ * - ui: lo que la simulación en vivo escribe y pulsa en la pantalla real de la estación (ver lib/simGuion.js).
  */
 import { DomainError, isCurrent, turnKey } from './clinical.js';
 import { ACTIVE_STATES, CANCEL, CIE, DAY, MIN, TRIAGE_STATION } from './constants.js';
@@ -53,22 +54,22 @@ const NORMAL = { pa: '118/76', fc: '78', fr: '16', t: '36.8', spo2: '98', peso: 
 
 const buscar = (dni, texto) => ({
   st: 'adm', quien: 'a.admision', min: 1, titulo: 'Admisión busca el DNI',
-  texto, accion: (db, ctx) => searchAudit(db, ctx, dni),
+  texto, accion: (db, ctx) => searchAudit(db, ctx, dni), ui: { tipo: 'buscar', dni },
 });
 
 const registrar = (dni, form, sis, texto) => ({
   st: 'adm', quien: 'a.admision', min: 2, titulo: 'Admisión genera el turno',
-  texto, accion: (db, ctx) => createTurn(db, ctx, { dni, form, sis }),
+  texto, accion: (db, ctx) => createTurn(db, ctx, { dni, form, sis }), ui: { tipo: 'registrar', form, nuevo: !!form.nom },
 });
 
 const triaje = ({ vitals = NORMAL, motivo, falla, titulo, texto } = {}) => [
   {
     st: 'enf', quien: 'e.triaje', min: 4, titulo: 'Enfermería llama al paciente',
     texto: `El llamado aparece en la pantalla de sala con el código del turno y «${TRIAGE_STATION}». Es por código: la sala no muestra nombres.`,
-    accion: (db, ctx, mem) => callTurn(db, ctx, mem.id),
+    accion: (db, ctx, mem) => callTurn(db, ctx, mem.id), ui: { tipo: 'llamar' },
   },
   {
-    st: 'enf', quien: 'e.triaje', min: 1, titulo: 'Inicia el triaje',
+    st: 'enf', quien: 'e.triaje', min: 1, titulo: 'Inicia el triaje', ui: { tipo: 'iniciar', boton: 'Iniciar triaje' },
     texto: 'Solo hay un paciente a la vez en el módulo de triaje: el sistema no deja iniciar otro hasta terminar este.',
     accion: (db, ctx, mem) => startTriage(db, ctx, mem.id),
   },
@@ -77,6 +78,7 @@ const triaje = ({ vitals = NORMAL, motivo, falla, titulo, texto } = {}) => [
     titulo: titulo || 'Registra los signos vitales',
     texto: texto || 'El sistema calcula la prioridad (normal, prioritaria o crítica) con los umbrales clínicos aprobados. Nadie la elige a mano.',
     accion: (db, ctx, mem) => saveTriage(db, ctx, mem.id, { ...vitals, motivo }, pacienteDe(db, turnoDe(db, mem, ctx.now).dni)?.alg ?? ''),
+    ui: { tipo: 'triaje', vitals, motivo },
   },
 ];
 
@@ -90,6 +92,7 @@ const cita = (texto) => ({
     if (!s) throw new DomainError('No hay cupos libres para la especialidad.');
     return assignCita(db, ctx, mem.id, s.cita);
   },
+  ui: { tipo: 'cita' },
   guarda: (res, mem) => {
     mem.med = res.result.cita.med;
     mem.area = res.result.cita.area;
@@ -101,10 +104,10 @@ const consulta = ({ notas, dx, meds = [], dest = 'Alta', destx = '', previo = []
   {
     st: 'med', quien: (mem) => mem.med, area: (mem) => mem.area, hasta: (mem) => mem.at, titulo: 'El médico llama al paciente',
     texto: (db, mem) => `A la hora de su cita, ${medicoDe(db, mem.med)} lo llama a ${mem.area}. Cada médico solo llama a los pacientes que tienen cita con él, y el consultorio no llama a otro mientras tiene una atención abierta.`,
-    accion: (db, ctx, mem) => callTurn(db, ctx, mem.id),
+    accion: (db, ctx, mem) => callTurn(db, ctx, mem.id), ui: { tipo: 'llamar' },
   },
   {
-    st: 'med', quien: (mem) => mem.med, area: (mem) => mem.area, min: 1, titulo: 'Abre la historia clínica',
+    st: 'med', quien: (mem) => mem.med, area: (mem) => mem.area, min: 1, titulo: 'Abre la historia clínica', ui: { tipo: 'iniciar', boton: 'Iniciar atención' },
     texto: (db, mem, now) => {
       const t = turnoDe(db, mem, now);
       const p = pacienteDe(db, t.dni);
@@ -118,6 +121,7 @@ const consulta = ({ notas, dx, meds = [], dest = 'Alta', destx = '', previo = []
     st: 'med', quien: (mem) => mem.med, area: (mem) => mem.area, min: 15, titulo: 'Cierra la atención y emite la receta',
     texto: 'Se exige anamnesis y al menos un diagnóstico CIE-10. La receta recibe su número correlativo y el consultorio queda libre para el siguiente paciente.',
     accion: (db, ctx, mem) => finishConsult(db, ctx, mem.id, { notas, dx: dx.map((c) => [...cie(c), 'D']), meds, dest, destx }),
+    ui: { tipo: 'consulta', notas, dx, meds, dest, destx },
   },
 ];
 
@@ -131,7 +135,7 @@ export const ESCENARIOS = [
     resumen: 'Primera vez en el centro, asegurado: no paga y pasa directo a triaje.',
     pasos: [
       buscar(NUEVA.dni, 'El DNI no está registrado: se piden nombres, apellidos, fecha de nacimiento y teléfono. Al buscar, el sistema deja constancia en la auditoría (con el DNI enmascarado).'),
-      { st: 'sis', quien: 'a.admision', min: 1, titulo: 'Verifica el seguro', texto: 'La consulta al SIS responde «SIS activo». Con seguro la consulta no se cobra.' },
+      { st: 'sis', quien: 'a.admision', min: 1, titulo: 'Verifica el seguro', texto: 'La consulta al SIS responde «SIS activo». Con seguro la consulta no se cobra.', ui: { tipo: 'sis' } },
       registrar(NUEVA.dni, NUEVA, 'ACTIVO', 'Se abre su historia clínica con un número nuevo (HC) y se genera el turno. Con SIS se registra un pago de S/ 0.00 sin boleta y el paciente no pasa por Caja.'),
       ...triaje({ motivo: 'Dolor de garganta y tos desde hace 2 días' }),
       cita(),
@@ -144,17 +148,19 @@ export const ESCENARIOS = [
     resumen: 'No asegurado: paga en Caja antes del triaje; el sistema controla el vuelto.',
     pasos: [
       buscar(NUEVO_SIN_SIS.dni, 'El DNI no está registrado: se toman sus datos.'),
-      { st: 'sis', quien: 'a.admision', min: 1, titulo: 'Verifica el seguro', texto: 'El SIS responde «No asegurado»: deberá pagar la consulta en Caja.' },
+      { st: 'sis', quien: 'a.admision', min: 1, titulo: 'Verifica el seguro', texto: 'El SIS responde «No asegurado»: deberá pagar la consulta en Caja.', ui: { tipo: 'sis' } },
       registrar(NUEVO_SIN_SIS.dni, NUEVO_SIN_SIS, 'NO_ASEGURADO', 'El turno queda «Pendiente de pago». Aún no entra a la lista de triaje: Admisión le indica que pase a la caja que esté libre.'),
       {
         st: 'caj', quien: 'c.caja', min: 3, rechazo: true, titulo: 'Caja intenta cobrar con S/ 10.00',
         texto: 'La consulta cuesta S/ 20.00. El sistema no deja registrar un pago en efectivo que no cubre la tarifa.',
         accion: (db, ctx, mem) => registerPayment(db, ctx, mem.id, { metodo: 'EFECTIVO', recibido: 10 }),
+        ui: { tipo: 'cobrar', metodo: 'EFECTIVO', recibido: '10' },
       },
       {
         st: 'caj', quien: 'c.caja', min: 1, titulo: 'Cobra con un billete de S/ 50.00',
         texto: `Vuelto: ${fmtSoles(30)}. Se emite la boleta con su número correlativo (serie B001) y el paciente pasa a la lista de triaje.`,
         accion: (db, ctx, mem) => registerPayment(db, ctx, mem.id, { metodo: 'EFECTIVO', recibido: 50 }),
+        ui: { tipo: 'cobrar', metodo: 'EFECTIVO', recibido: '50' },
       },
       ...triaje({ motivo: 'Dolor lumbar al cargar peso' }),
       cita(),
@@ -170,7 +176,7 @@ export const ESCENARIOS = [
         const p = pacienteDe(db, '70000001');
         return `${fullName(p)} ya tiene su historia ${p.hc}: no se vuelve a registrar. Admisión solo confirma su teléfono.`;
       }),
-      { st: 'sis', quien: 'a.admision', min: 1, titulo: 'Verifica el seguro', texto: 'SIS activo: no paga.' },
+      { st: 'sis', quien: 'a.admision', min: 1, titulo: 'Verifica el seguro', texto: 'SIS activo: no paga.', ui: { tipo: 'sis' } },
       registrar('70000001', { tel: '999 000 101' }, 'ACTIVO', 'El turno se genera con la misma historia clínica: todo lo de hoy se suma a sus atenciones anteriores.'),
       ...triaje({ vitals: { ...NORMAL, t: '38.6', fc: '96' }, motivo: 'Fiebre y dolor de garganta' }),
       cita(),
@@ -184,6 +190,7 @@ export const ESCENARIOS = [
           accion: (db, ctx, mem) => finishConsult(db, ctx, mem.id, {
             notas: 'Faringoamigdalitis.', dx: [[...cie('J06.9'), 'D']], meds: [med('Amoxicilina 500 mg', '1 cápsula', 'cada 8 h', 7)], dest: 'Alta', destx: '',
           }),
+          ui: { tipo: 'consulta', notas: 'Faringoamigdalitis.', dx: ['J06.9'], meds: [med('Amoxicilina 500 mg', '1 cápsula', 'cada 8 h', 7)], dest: 'Alta', destx: '' },
         }],
       }),
       alta('El médico cambió a azitromicina. La historia de la paciente suma esta atención a las anteriores.'),
@@ -194,7 +201,7 @@ export const ESCENARIOS = [
     resumen: 'El motivo lleva la cita a Obstetricia, en la rama materno-infantil.',
     pasos: [
       buscar(GESTANTE.dni, 'Gestante sin historia en el centro: se toman sus datos.'),
-      { st: 'sis', quien: 'a.admision', min: 1, titulo: 'Verifica el seguro', texto: 'SIS activo: la gestante no paga.' },
+      { st: 'sis', quien: 'a.admision', min: 1, titulo: 'Verifica el seguro', texto: 'SIS activo: la gestante no paga.', ui: { tipo: 'sis' } },
       registrar(GESTANTE.dni, GESTANTE, 'ACTIVO', 'Turno generado. Con SIS pasa directo a triaje.'),
       ...triaje({ motivo: 'Control prenatal', vitals: { ...NORMAL, pa: '110/70', peso: '66' } }),
       cita('Por el motivo «Control prenatal», el sistema propone Obstetricia (rama materno-infantil) y el primer cupo libre de la obstetra en el consultorio 6. No pasa por Medicina General.'),
@@ -227,9 +234,9 @@ export const ESCENARIOS = [
     k: 'sis-caido', icon: 'satellite', titulo: 'Caída del SIS',
     resumen: 'El servicio del SIS no responde: la atención no se detiene (contingencia).',
     pasos: [
-      buscar(NUEVA.dni, 'Paciente nuevo: se toman sus datos.'),
+      { ...buscar(NUEVA.dni, 'Paciente nuevo: se toman sus datos. En Admisión se marca «Probar SIS caído» para simular que el servicio no responde.'), ui: { tipo: 'buscar', dni: NUEVA.dni, caido: true } },
       {
-        st: 'sis', quien: 'a.admision', min: 1, conexion: 'sis', titulo: 'El SIS no responde',
+        st: 'sis', quien: 'a.admision', min: 1, conexion: 'sis', titulo: 'El SIS no responde', ui: { tipo: 'sis' },
         texto: 'Pasado el tiempo límite, el sistema no deja al paciente esperando: registra su seguro como «Pendiente de validación» (modo contingencia, Regla 6). En Admisión se prueba con «Probar SIS caído».',
       },
       registrar(NUEVA.dni, NUEVA, 'PENDIENTE_VALIDACION', 'Mientras se valida, se atiende como asegurado: no paga y pasa a triaje. El turno queda marcado como «contingencia SIS» en la auditoría.'),
@@ -266,12 +273,14 @@ export const ESCENARIOS = [
         st: 'caj', quien: 'c.caja', min: 3, falla: 'red', conexion: 'red', titulo: 'Caja cobra… sin internet',
         texto: 'El equipo de Caja perdió la conexión. El sistema lo detecta y lo muestra en la barra superior. El pago no se registra y NO se imprime boleta: así no se cobra dos veces ni queda una boleta sin respaldo.',
         accion: (db, ctx, mem) => registerPayment(db, ctx, mem.id, { metodo: 'TARJETA' }),
+        ui: { tipo: 'cobrar', metodo: 'TARJETA' },
       },
       { st: 'red', quien: 'c.caja', min: 2, titulo: 'Vuelve la conexión', texto: 'Al volver la red, la app avisa «Conexión restablecida» y recarga los datos sola: el turno sigue «Pendiente de pago».' },
       {
         st: 'caj', quien: 'c.caja', min: 1, titulo: 'Cobra de nuevo',
         texto: 'Ahora se registra el pago con tarjeta y se emite la boleta. El paciente pasa a triaje.',
         accion: (db, ctx, mem) => registerPayment(db, ctx, mem.id, { metodo: 'TARJETA' }),
+        ui: { tipo: 'cobrar', metodo: 'TARJETA' },
       },
       ...triaje({ motivo: 'Dolor de cabeza y mareo', vitals: { ...NORMAL, pa: '138/88' } }),
       cita(),
@@ -289,12 +298,12 @@ export const ESCENARIOS = [
       {
         st: 'enf', quien: 'e.triaje', min: 3, titulo: 'Lo llama otra vez',
         texto: 'Nadie se acerca. El llamado se repite en la pantalla de sala y el sistema cuenta las veces.',
-        accion: (db, ctx, mem) => callTurn(db, ctx, mem.id),
+        accion: (db, ctx, mem) => callTurn(db, ctx, mem.id), ui: { tipo: 'rellamar' },
       },
       {
         st: 'enf', quien: 'e.triaje', min: 3, titulo: 'Cierra el turno',
         texto: 'Se cierra con el motivo «No se presentó al llamado». La sala deja de mostrarlo y el siguiente paciente puede pasar.',
-        accion: (db, ctx, mem) => cancelTurn(db, ctx, mem.id, CANCEL.noShow),
+        accion: (db, ctx, mem) => cancelTurn(db, ctx, mem.id, CANCEL.noShow), ui: { tipo: 'noShow' },
       },
       alta('En los indicadores de Jefatura cuenta como abandono, junto con los que no pagan o no asisten a su cita.'),
     ],
@@ -303,7 +312,7 @@ export const ESCENARIOS = [
 
 /**
  * Ejecuta un escenario de principio a fin y devuelve una foto por paso:
- * { paso, n, quien, now, db, turno, paciente, toast, error, audit, conexion }.
+ * { paso, n, quien, area, now, db, turno, paciente, toast, result, error, audit, conexion }.
  * Si el sistema responde distinto de lo previsto (por ejemplo, un día sin cupos), la simulación se detiene en
  * ese paso con `inesperado` y el motivo, en lugar de mostrar un resultado que no es el real.
  */
@@ -341,10 +350,11 @@ export function ejecutar(esc, base, reloj) {
     }
     const turno = mem.id ? turnoDe(db, mem, now) : null;
     fotos.push({
-      paso: p, n, quien, now, db, turno, inesperado,
+      paso: p, n, quien, area: ctx.area, now, db, turno, inesperado,
       paciente: turno ? pacienteDe(db, turno.dni) : null,
       texto: typeof p.texto === 'function' ? p.texto(db, mem, now) : p.texto,
       toast: res && !p.falla ? res.toast : null,
+      result: res && !p.falla ? res.result : null,
       error, audit,
       conexion: p.falla === 'red' || p.conexion === 'red' ? 'red' : p.falla === 'servidor' ? 'servidor' : p.conexion === 'sis' ? 'sis' : 'ok',
       sala: turno?.calledAt === now ? `${turno.id} → ${turno.dest}` : null,

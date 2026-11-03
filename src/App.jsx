@@ -5,6 +5,7 @@ import { useStore } from './store/useStore.js';
 import { ROLES } from './lib/constants.js';
 import { page } from './lib/motion.js';
 import { useHash } from './hooks/useHash.js';
+import { useSimVivo } from './lib/simVivo.js';
 import { Shell } from './components/Shell.jsx';
 import { Toasts } from './components/Toasts.jsx';
 import { ChangePassword } from './components/ChangePassword.jsx';
@@ -15,6 +16,7 @@ import { Login } from './views/Login.jsx';
 const Sala = lazy(() => import('./views/Sala.jsx'));
 const CitaWeb = lazy(() => import('./views/CitaWeb.jsx'));
 const Flujo = lazy(() => import('./views/Flujo.jsx'));
+const SimEnVivo = lazy(() => import('./components/SimEnVivo.jsx'));
 const VIEWS = {
   adm: {
     registro: lazy(() => import('./views/Admision.jsx')),
@@ -118,11 +120,22 @@ function Router() {
   );
 }
 
+/** La simulación en vivo ocupa la pantalla con sus propias estaciones de prueba; al detenerla vuelve la app real. */
+function Contenido() {
+  const vivo = useSimVivo();
+  if (vivo) return <Suspense fallback={<Splash />}><SimEnVivo k={vivo} /></Suspense>;
+  return (
+    <>
+      <Router />
+      <Toasts />
+    </>
+  );
+}
+
 export default function App() {
   return (
     <StoreProvider>
-      <Router />
-      <Toasts />
+      <Contenido />
     </StoreProvider>
   );
 }

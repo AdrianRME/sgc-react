@@ -92,6 +92,12 @@ export function createSupabaseRepo(url, anonKey) {
     kind: 'supabase',
     label: 'Supabase · tiempo real',
 
+    /** La simulación en vivo mueve el reloj: mientras corre no se renueva la sesión por hora. */
+    pausarSesion(pausa) {
+      if (pausa) sb.auth.stopAutoRefresh();
+      else sb.auth.startAutoRefresh();
+    },
+
     /* ---------- Sesión ---------- */
     async getSession() {
       const { data } = await sb.auth.getSession();
