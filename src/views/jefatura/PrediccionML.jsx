@@ -23,7 +23,10 @@ function Comparacion({ m, unidad, base }) {
     <div className="ml-kpis">
       <div className="ml-kpi"><small>Error medio del modelo (MAE)</small><b>{num1(m.mae)} {unidad}</b></div>
       <div className="ml-kpi"><small>Error de la línea base ({base})</small><b>{num1(m.maeBase)} {unidad}</b></div>
-      <div className={`ml-kpi ${mejora > 0.02 ? 'good' : ''}`}><small>{mejora >= 0 ? 'Mejora del modelo' : 'El modelo empeora'}</small><b>{pct(Math.abs(mejora))}</b></div>
+      <div className={`ml-kpi ${mejora > 0.02 ? 'good' : ''}`}>
+        <small>{Math.abs(mejora) < 0.01 ? 'Frente a la línea base' : mejora > 0 ? 'Mejora del modelo' : 'El modelo empeora'}</small>
+        <b>{Math.abs(mejora) < 0.01 ? 'Igual' : pct(Math.abs(mejora))}</b>
+      </div>
       <div className="ml-kpi"><small>Datos de entrenamiento / de prueba</small><b>{fmtNum(m.n.train)} / {fmtNum(m.n.test)}</b></div>
     </div>
   );
