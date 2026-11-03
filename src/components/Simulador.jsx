@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { AnimatePresence, m } from 'motion/react';
-import { ChevronLeft, ChevronRight, Clock, MonitorPlay, Pause, Play, RotateCcw, Server, ServerCrash, ShieldAlert, Tv, WifiOff } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Clock, MonitorPlay, Pause, Play, RotateCcw, Server, ServerCrash, ShieldAlert, Tv, Users, WifiOff } from 'lucide-react';
 import { ESCENARIOS, crearSandbox, ejecutar, relojInicial } from '../lib/simulacion.js';
 import { iniciarVivo } from '../lib/simVivo.js';
 import { ROUTE } from '../lib/constants.js';
@@ -123,9 +123,14 @@ export default function Simulador({ onClose }) {
           <h3>Simulador del ciclo del paciente</h3>
           <p>Elija un caso y pulse «Ver en vivo»: se reproduce en las pantallas reales de cada estación, con los datos escritos y los botones pulsados. Usa las mismas reglas del sistema sobre una copia de prueba: no cambia los datos reales.</p>
         </div>
-        <button type="button" className="btn lg sim-vivo" onClick={() => { iniciarVivo(k); onClose(); }}>
-          <MonitorPlay aria-hidden="true" /> Ver en vivo
-        </button>
+        <div className="sim-acc">
+          <button type="button" className="btn lg sim-vivo" onClick={() => { iniciarVivo(k); onClose(); }}>
+            <MonitorPlay aria-hidden="true" /> Ver en vivo
+          </button>
+          <button type="button" className="btn sec sim-vivo" onClick={() => { iniciarVivo('hora-punta:20'); onClose(); }} title="Muchos pacientes llegan en una hora y el centro los atiende con las reglas reales">
+            <Users aria-hidden="true" /> Hora punta: 20 pacientes en 1 hora
+          </button>
+        </div>
       </header>
 
       <div className="sim-body">

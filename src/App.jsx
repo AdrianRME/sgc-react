@@ -17,6 +17,7 @@ const Sala = lazy(() => import('./views/Sala.jsx'));
 const CitaWeb = lazy(() => import('./views/CitaWeb.jsx'));
 const Flujo = lazy(() => import('./views/Flujo.jsx'));
 const SimEnVivo = lazy(() => import('./components/SimEnVivo.jsx'));
+const HoraPunta = lazy(() => import('./components/HoraPunta.jsx'));
 const VIEWS = {
   adm: {
     registro: lazy(() => import('./views/Admision.jsx')),
@@ -123,6 +124,9 @@ function Router() {
 /** La simulación en vivo ocupa la pantalla con sus propias estaciones de prueba; al detenerla vuelve la app real. */
 function Contenido() {
   const vivo = useSimVivo();
+  if (vivo?.startsWith('hora-punta')) {
+    return <Suspense fallback={<Splash />}><HoraPunta key={vivo} pacientes={+vivo.split(':')[1] || 20} /></Suspense>;
+  }
   if (vivo) return <Suspense fallback={<Splash />}><SimEnVivo k={vivo} /></Suspense>;
   return (
     <>
