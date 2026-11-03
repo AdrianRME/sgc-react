@@ -46,6 +46,10 @@ Comunes a todos los espacios:
   el ticket, la boleta, la constancia de cita y la receta. Arriba queda una barra con el paso actual y los
   botones Pausar, Siguiente, velocidad (1× o 2×), Reiniciar y Detener. Mientras dura, el reloj de las pantallas
   muestra la hora del caso; al detenerla vuelve la hora real y la sesión sigue como estaba.
+  **«Hora punta»** hace llegar 15, 20 o 30 pacientes en una hora y los atiende minuto a minuto con las mismas
+  reglas (Admisión, dos cajas, un módulo de triaje y cada médico según su cita). Se ve en el flujo en vivo de
+  Jefatura o en la pantalla de sala, con contadores por estación; al final compara la espera real con la del
+  modelo de ML.
 - **Sin conexión**: si el equipo pierde internet lo avisa de inmediato; un cambio que no se pudo guardar se deshace
   en pantalla, y al volver la red los datos se recargan solos.
 - **Paleta de comandos** con <kbd>Ctrl</kbd> + <kbd>K</kbd>, para ir a cualquier sección o llamar al siguiente.
