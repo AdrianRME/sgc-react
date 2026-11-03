@@ -92,3 +92,20 @@
 @media (max-width: 1180px) { .dash-tabs { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
 @media (max-width: 640px) { .dash-tabs { grid-template-columns: repeat(2, minmax(0, 1fr)); } .dash-tab small { display: none; } }
 .rama-row th { padding-top: 12px; font-size: var(--fs-xs); font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase; color: var(--muted); text-align: left; }
+
+/* Predicción con ML */
+.ml-kpis { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; margin-bottom: 16px; }
+.ml-kpi { padding: 10px 12px; border-radius: 12px; background: var(--surface-2); border: 1px solid var(--line); }
+.ml-kpi small { display: block; font-size: var(--fs-xs); color: var(--muted); line-height: 1.3; }
+.ml-kpi b { display: block; margin-top: 4px; font-size: var(--fs-lg, 1.15rem); font-variant-numeric: tabular-nums; }
+.ml-kpi.good { border-color: color-mix(in oklab, var(--good) 45%, var(--line)); background: color-mix(in oklab, var(--good) 8%, var(--surface)); }
+.ml-row { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.2fr); gap: 24px; align-items: start; }
+.ml-h { margin: 0 0 8px; font-size: var(--fs-sm); font-weight: 650; }
+.ml-h:not(:first-child) { margin-top: 18px; }
+.ml-scatter { width: 100%; max-width: 340px; display: block; }
+.ml-scatter .diag { stroke: var(--line-strong); stroke-dasharray: 4 4; }
+.ml-scatter .eje { stroke: var(--line-strong); }
+.ml-scatter text { font-size: 10px; fill: var(--muted); }
+.ml-leyenda { display: flex; gap: 14px; margin: 6px 0 0; font-size: var(--fs-xs); color: var(--muted); }
+.ml-leyenda i { display: inline-block; width: 9px; height: 9px; border-radius: 50%; margin-right: 4px; vertical-align: middle; }
+@media (max-width: 900px) { .ml-kpis { grid-template-columns: repeat(2, minmax(0, 1fr)); } .ml-row { grid-template-columns: minmax(0, 1fr); } }

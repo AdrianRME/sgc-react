@@ -21,6 +21,7 @@ import { StackBar } from '../../components/charts/StackBar.jsx';
 import { Meter } from '../../components/charts/Meter.jsx';
 import { Sparkline } from '../../components/charts/Sparkline.jsx';
 import '../../components/charts/charts.css';
+import { PrediccionML } from './PrediccionML.jsx';
 import './jefatura.css';
 
 const PRIO_SERIES = [
@@ -37,6 +38,7 @@ const TABS = [
   ['demanda', 'Demanda y citas', 'people', 'Cuándo llegan y qué se prevé'],
   ['pacientes', 'Pacientes', 'heart', 'Diagnósticos y perfil'],
   ['consultorios', 'Consultorios y tablas', 'clipboard', 'Productividad y detalle'],
+  ['ml', 'Predicción con ML', 'sparkles', 'Espera y afluencia aprendidas'],
 ];
 
 /** Cifra principal con variación frente al periodo anterior. `good` dice si subir es bueno. */
@@ -287,6 +289,7 @@ export default function Tablero() {
             </div>
           )}
 
+          {tab === 'ml' && <PrediccionML facts={qa.data} turns={db.turns} now={now} error={qa.error} />}
           {tab === 'consultorios' && (
             <div className="dash-grid">
               <Panel title="Productividad por consultorio" className="span-3">
