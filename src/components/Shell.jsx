@@ -25,6 +25,13 @@ import { Supervision } from './Supervision.jsx';
 const Simulador = lazy(() => import('./Simulador.jsx'));
 
 const SALA = ['sala', 'Pantalla de sala', 'tv'];
+/** Texto del indicador de conexión y de la sesión según dónde se guardan los datos. */
+const CONEXION = { supabase: 'En línea', local: 'Local', sim: 'Simulación' };
+const SESION = {
+  supabase: 'Sesión segura: se cierra tras 15 minutos sin actividad.',
+  local: 'Modo local de desarrollo.',
+  sim: 'Simulación: datos de prueba, no se guarda nada en la base real.',
+};
 const isMac = typeof navigator !== 'undefined' && /Mac|iPhone|iPad/.test(navigator.platform);
 
 /**
@@ -148,7 +155,7 @@ export function Shell({ section, children }) {
           <button className="lnk" onClick={() => setPwd(true)}><KeyRound /> Cambiar contraseña</button>
           {user.role === 'jef' && <button className="lnk" onClick={confirmReset}><RotateCcw /> Restablecer datos demo</button>}
           <button className="lnk" onClick={() => signOut()}><LogOut /> Cerrar sesión</button>
-          <small className="sess">{repo.kind === 'supabase' ? 'Sesión segura: se cierra tras 15 minutos sin actividad.' : 'Modo local de desarrollo.'}</small>
+          <small className="sess">{SESION[repo.kind] ?? SESION.local}</small>
         </div>
       </aside>
       <AnimatePresence>{navOpen && <m.div {...fade} className="scrim" onClick={() => setNavOpen(false)} />}</AnimatePresence>
@@ -177,7 +184,7 @@ export function Shell({ section, children }) {
           </button>
           <span className={`conn ${status.ok ? '' : 'bad'}`} title={status.msg || repo.label}>
             <i className="dot" aria-hidden="true" />
-            <span className="txt">{status.ok ? (repo.kind === 'supabase' ? 'En línea' : 'Local') : 'Sin conexión'}</span>
+            <span className="txt">{status.ok ? (CONEXION[repo.kind] ?? CONEXION.local) : 'Sin conexión'}</span>
           </span>
         </header>
         {!status.ok && (
