@@ -8,7 +8,7 @@ import { callTurn, callNext, startTriage, saveTriage, returnToQueue, cancelTurn 
 import { evalTriage, validateVitals, imcCategory, byTriaje, turnKey } from '../lib/clinical.js';
 import { age, cap, fmtD, fmtLongDay, fmtT, fullName, saludo, startOfToday } from '../lib/format.js';
 import { listItem, spring } from '../lib/motion.js';
-import { CANCEL, QUEUE } from '../lib/constants.js';
+import { CANCEL, QUEUE, TRIAGE_MODULES } from '../lib/constants.js';
 import { useNow } from '../hooks/useNow.js';
 import { usePatientHistory } from '../hooks/usePatientHistory.js';
 import { Help } from '../components/WorkspaceHeader.jsx';
@@ -140,14 +140,16 @@ function TriageForm({ turn, patient, onSaved }) {
 }
 
 export default function Triaje() {
-  const { db, run, patient, user } = useStore();
+  const { db, run, patient, user, area, updatePrefs } = useStore();
   const now = useNow();
   const docs = useDocuments();
   const [ask, dialog] = useConfirm();
   // Al terminar el triaje, la cita se da aquí mismo: el paciente no vuelve a Admisión
   const [citaFor, setCitaFor] = useState(null);
   const queue = db.turns.filter((t) => QUEUE.enf.includes(t.state)).sort(byTriaje);
-  const current = db.turns.find((t) => t.state === 'EN_TRIAJE');
+  // Cada enfermera trabaja en su módulo: solo su paciente en triaje y sus llamados son suyos
+  const current = db.turns.find((t) => t.state === 'EN_TRIAJE' && t.dest === area);
+  const enOtros = db.turns.filter((t) => t.state === 'EN_TRIAJE' && t.dest !== area).length;
   const porCitar = citaFor && db.turns.find((t) => t.id === citaFor && t.state === 'PENDIENTE_CITA');
   const pat = (t) => patient(t.dni);
   const citaLista = (t) => {
@@ -157,10 +159,10 @@ export default function Triaje() {
   const today = startOfToday();
   const hechos = db.turns.filter((t) => t.tTriSave >= today);
   const esperan = queue.filter((t) => t.state === 'EN_ESPERA_TRIAJE');
-  const llamados = queue.filter((t) => t.state === 'LLAMADO_TRIAJE');
+  const llamados = queue.filter((t) => t.state === 'LLAMADO_TRIAJE' && t.dest === area);
   const tiles = [
     { k: 'espera', n: 'En espera', icon: 'hourglass', c: 'enf', value: esperan.length },
-    { k: 'llamados', n: 'Llamados', icon: 'megaphone', c: 'warn', value: llamados.length },
+    { k: 'llamados', n: 'En otros módulos', icon: 'megaphone', c: 'warn', value: enOtros },
     { k: 'hechos', n: 'Triajes hoy', icon: 'check', c: 'good', value: hechos.length },
     { k: 'crit', n: 'Críticos hoy', icon: 'warning', c: 'crit', value: hechos.filter((t) => t.prio === 'CRITICA').length },
   ];
@@ -187,12 +189,19 @@ export default function Triaje() {
     <>
       <SectionHero
         icon="thermometer"
-        kicker={`${cap(fmtLongDay(now))} · ${fmtT(now)}`}
+        kicker={`${area} · ${cap(fmtLongDay(now))} · ${fmtT(now)}`}
         title={`${saludo(now)}, ${user.n.split(' ')[0]}`}
-        text="Triaje: llame al paciente, registre sus signos vitales y, al terminar, confirme su cita. De aquí va directo a su médico."
+        text="Triaje: llame al paciente a su módulo, registre sus signos vitales y, al terminar, confirme su cita. Las demás enfermeras atienden la misma cola en sus módulos."
         tiles={tiles}
         label="Resumen de triaje"
-        actions={<Help role="enf" />}
+        actions={
+          <>
+            <select aria-label="Módulo de triaje" value={area} onChange={(e) => updatePrefs({ area: e.target.value })} disabled={!!current}>
+              {TRIAGE_MODULES.map((a) => <option key={a}>{a}</option>)}
+            </select>
+            <Help role="enf" />
+          </>
+        }
       />
       <div className={`grid-2 ws-grid ${current ? 'focus' : ''}`}>
         <Panel
@@ -215,9 +224,11 @@ export default function Triaje() {
                       patient={pat(t)}
                       c={called ? 'var(--warn)' : 'var(--st-enf)'}
                       on={called}
-                      tag={called ? `Llamado${t.calls > 1 ? ` ${t.calls} veces` : ''}` : 'En espera'}
+                      tag={called ? `Llamado a ${t.dest === area ? 'su módulo' : t.dest}${t.calls > 1 ? ` (${t.calls} veces)` : ''}` : 'En espera'}
                       meta={<><span>{age(pat(t).nac)} años</span><WaitTime turn={t} now={now} /></>}
-                      actions={called ? llamadoActs(t) : <button className="btn sec sm" onClick={() => run(callTurn, t.id)}><PhoneCall /> Llamar</button>}
+                      actions={called
+                        ? (t.dest === area ? llamadoActs(t) : <Badge tone="info">{t.dest}</Badge>)
+                        : <button className="btn sec sm" onClick={() => run(callTurn, t.id)} disabled={!!current}><PhoneCall /> Llamar</button>}
                     />
                   );
                 })}

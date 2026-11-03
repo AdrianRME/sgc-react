@@ -89,6 +89,13 @@ Ejecutarlo otra vez **borra todos los datos** y restablece esas contraseñas.
 los datos de demostración ampliados. En un proyecto que ya tiene la versión 1.2 basta con ejecutar ese archivo
 (se puede repetir). Los archivos de abajo son sus partes, por si se quiere ejecutar solo una.
 
+**Versión 2.4: varios módulos de triaje.** Ejecute `supabase/actualizacion-v2.4.sql` **antes** de publicar la versión
+2.4 (se puede repetir; requiere la 2.3). Cada enfermera atiende en su módulo (Módulo de Triaje 1 a 5), a un paciente a
+la vez, y varias atienden la misma cola al mismo tiempo. Agrega los módulos 2 a 5, cambia el índice de «un paciente en
+triaje» a uno por módulo y reemplaza `sgc_guardar` y la espera estimada de la sala (la cola de triaje se reparte entre
+las enfermeras activas). No cambia tablas ni columnas. Si se publica la app sin ejecutarlo, las enfermeras 2 y 3 no
+pueden llamar a sus módulos.
+
 **Versión 2.3: seguridad y supervisión de pacientes sensibles.** Ejecute `supabase/actualizacion-v2.3.sql` **antes**
 de publicar la versión 2.3 de la app (se puede repetir). Agrega dos columnas a TURNO (`signo_alarma` y
 `atencion_preferente`; el script de ERwin ya las tiene) y reemplaza `sgc_guardar`, `sgc_sala`, `sgc_indicadores` y la

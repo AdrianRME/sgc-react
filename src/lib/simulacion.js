@@ -12,7 +12,7 @@
  * - ui: lo que la simulación en vivo escribe y pulsa en la pantalla real de la estación (ver lib/simGuion.js).
  */
 import { DomainError, isCurrent, turnKey } from './clinical.js';
-import { ACTIVE_STATES, CANCEL, CIE, DAY, MIN, TRIAGE_STATION } from './constants.js';
+import { ACTIVE_STATES, CANCEL, CIE, DAY, MIN, TRIAGE_STATION, moduloTriaje } from './constants.js';
 import { fmtHora, fmtSoles, fullName, startOfDay } from './format.js';
 import { especialidadSugerida, sugerirCita } from './agenda.js';
 import { lastComprobante, lastRecipe } from './ids.js';
@@ -70,7 +70,7 @@ const triaje = ({ vitals = NORMAL, motivo, falla, titulo, texto } = {}) => [
   },
   {
     st: 'enf', quien: 'e.triaje', min: 1, titulo: 'Inicia el triaje', ui: { tipo: 'iniciar', boton: 'Iniciar triaje' },
-    texto: 'Solo hay un paciente a la vez en el módulo de triaje: el sistema no deja iniciar otro hasta terminar este.',
+    texto: 'Cada enfermera atiende a un paciente a la vez en su módulo; las demás enfermeras atienden la misma cola en sus módulos.',
     accion: (db, ctx, mem) => startTriage(db, ctx, mem.id),
   },
   {
@@ -324,7 +324,9 @@ export function ejecutar(esc, base, reloj) {
   for (const [n, p] of esc.pasos.entries()) {
     now = Math.max(now + (p.min ?? 2) * MIN, p.hasta?.(mem) ?? 0);
     const quien = db.users.find((u) => u.u === (typeof p.quien === 'function' ? p.quien(mem) : p.quien)) || null;
-    const ctx = { user: quien, area: typeof p.area === 'function' ? p.area(mem) : undefined, now, ip: '' };
+    // La enfermera trabaja en su módulo de triaje; el médico, en el consultorio de la cita
+    const area = typeof p.area === 'function' ? p.area(mem) : quien?.role === 'enf' ? moduloTriaje(db.users, quien.u) : undefined;
+    const ctx = { user: quien, area, now, ip: '' };
     let res = null;
     let error = null;
     if (p.accion) {

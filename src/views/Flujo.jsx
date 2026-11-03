@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { AnimatePresence, LayoutGroup, m } from 'motion/react';
 import { ArrowRight } from 'lucide-react';
 import { useStore } from '../store/useStore.js';
-import { AREAS, STAGES, TRIAGE_STATION } from '../lib/constants.js';
+import { AREAS, STAGES, TRIAGE_MODULES, modulosTriaje } from '../lib/constants.js';
 import { byStage, turnKey, waitInfo } from '../lib/clinical.js';
 import { estimarEsperas, rangoEspera } from '../lib/espera.js';
 import { fullName } from '../lib/format.js';
@@ -15,11 +15,14 @@ import './flujo.css';
 
 /** Ocupación de cada sala: quién está siendo atendido y a quién se está llamando. */
 function Rooms({ turns, users, now }) {
-  const rooms = [[TRIAGE_STATION, 'thermometer', 'EN_TRIAJE', 'LLAMADO_TRIAJE'], ...AREAS.map((a) => [a, 'stethoscope', 'EN_CONSULTA', 'LLAMADO_CONSULTA'])];
+  // Un módulo de triaje por enfermera activa (y los que tengan un paciente, aunque sean más)
+  const enUso = new Set(turns.filter((t) => ['EN_TRIAJE', 'LLAMADO_TRIAJE'].includes(t.state)).map((t) => t.dest));
+  const modulos = TRIAGE_MODULES.filter((m, i) => i < modulosTriaje(users) || enUso.has(m));
+  const rooms = [...modulos.map((m) => [m, 'thermometer', 'EN_TRIAJE', 'LLAMADO_TRIAJE']), ...AREAS.map((a) => [a, 'stethoscope', 'EN_CONSULTA', 'LLAMADO_CONSULTA'])];
   return (
     <div className="rooms">
       {rooms.map(([room, icon, busyState, callState]) => {
-        const busy = turns.find((t) => t.state === busyState && (busyState === 'EN_TRIAJE' || t.dest === room));
+        const busy = turns.find((t) => t.state === busyState && t.dest === room);
         const calling = turns.filter((t) => t.state === callState && t.dest === room);
         const who = busy && users.find((u) => u.u === (busy.med || busy.enf))?.n;
         const since = busy ? Math.max(0, Math.round((now - (busy.tMedCall || busy.tTriCall || busy.t0)) / 60000)) : 0;
@@ -63,7 +66,7 @@ export default function Flujo() {
   // Admisión ve el nombre para orientar al paciente; Jefatura trabaja solo con códigos
   const pat = (t) => (user.role === 'adm' ? patient(t.dni) : null);
   const citados = db.turns.filter((t) => t.state === 'CITADO').length;
-  const est = estimarEsperas(db.turns, now);
+  const est = estimarEsperas(db.turns, now, { modulos: modulosTriaje(db.users) });
   return (
     <>
       <SectionHero

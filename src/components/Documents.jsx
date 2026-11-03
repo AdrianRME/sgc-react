@@ -1,7 +1,7 @@
 import { Printer } from 'lucide-react';
 import { useStore } from '../store/useStore.js';
 import { cap, fmtDT, fmtHora, fmtLongDay, fmtSoles, age, maskDni, fullName } from '../lib/format.js';
-import { CENTRO, CONCEPTO_PAGO, METODOS_PAGO, TARIFA_CONSULTA } from '../lib/constants.js';
+import { CENTRO, CONCEPTO_PAGO, METODOS_PAGO, TARIFA_CONSULTA, modulosTriaje } from '../lib/constants.js';
 import { especialidad, sameDay } from '../lib/agenda.js';
 import { esperaDe, rangoEspera } from '../lib/espera.js';
 import { usePatientHistory } from '../hooks/usePatientHistory.js';
@@ -90,7 +90,7 @@ function nextStep(t) {
 function EsperaAprox({ turn: t }) {
   const { db } = useStore();
   const now = useNow(60_000);
-  const r = rangoEspera(esperaDe(db.turns, t, now));
+  const r = rangoEspera(esperaDe(db.turns, t, now, { modulos: modulosTriaje(db.users) }));
   if (!r) return null;
   const etapa = t.state === 'EN_ESPERA_TRIAJE' ? 'para triaje' : 'para la consulta';
   return <p className="tk-b">Espera aproximada {etapa}: <b>{r}</b>. Puede variar: los casos más graves pasan primero.</p>;
@@ -139,7 +139,7 @@ export function Ticket({ turn: t, onClose }) {
       </dl>
       <p className="tk-foot">Conserve este ticket. Su código aparecerá en la pantalla de la sala.</p>
       <DocActions onClose={onClose} />
-      <TicketPrint turn={t} indicacion={nextStep(t)} espera={rangoEspera(esperaDe(db.turns, t, now))} />
+      <TicketPrint turn={t} indicacion={nextStep(t)} espera={rangoEspera(esperaDe(db.turns, t, now, { modulos: modulosTriaje(db.users) }))} />
     </Modal>
   );
 }

@@ -167,15 +167,16 @@ function Resumen({ r }) {
       <div className="ml-kpis">
         <div className="ml-kpi"><small>Atendidos el mismo día</small><b>{r.atendidos} de {r.llegaron}</b></div>
         <div className="ml-kpi"><small>Con cita otro día (sin cupo hoy)</small><b>{r.citadosOtroDia}</b></div>
-        <div className="ml-kpi"><small>Espera media hasta la consulta</small><b>{n1(r.esperaMedia)} min</b></div>
+        <div className="ml-kpi"><small>Espera media hasta que lo llama el médico</small><b>{n1(r.esperaMedia)} min</b></div>
         <div className="ml-kpi"><small>Duración de la jornada simulada</small><b>{r.duracion} min</b></div>
       </div>
       {r.comparados.length > 0 && (
         <>
           <p className="hp-nota">
             Espera real frente a la que estimó el modelo de ML al llegar cada paciente (sección «Predicción con ML»). Error medio: <b>{n1(r.mae)} min</b>.
-            El modelo aprendió con el historial de días normales; en esta hora punta {r.sesgo >= 0 ? 'sobreestimó' : 'subestimó'} la espera en {n1(Math.abs(r.sesgo))} min
-            en promedio. Con datos reales de horas punta habría que reentrenarlo.
+            En esta hora punta {r.sesgo >= 0 ? 'sobreestimó' : 'subestimó'} la espera en {n1(Math.abs(r.sesgo))} min en promedio: el modelo aprende del
+            historial, y cuando el proceso cambia (más módulos de triaje, médicos que atienden antes de la hora de la cita o una hora más cargada)
+            se equivoca hasta que se reentrena con los datos nuevos.
           </p>
           <div className="tblw hp-tbl">
             <table className="tbl">

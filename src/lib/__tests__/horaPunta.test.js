@@ -21,8 +21,14 @@ describe('hora punta', () => {
     expect(h.resumen.atendidos + h.resumen.citadosOtroDia).toBe(20);
   });
 
-  it('el triaje atiende de uno en uno y los no asegurados pagan antes', () => {
-    for (const f of h.fotos) expect(f.db.turns.filter((t) => t.state === 'EN_TRIAJE').length).toBeLessThanOrEqual(1);
+  it('cada módulo de triaje atiende de uno en uno, varios a la vez, y los no asegurados pagan antes', () => {
+    let maxModulos = 0;
+    for (const f of h.fotos) {
+      const enTriaje = f.db.turns.filter((t) => t.state === 'EN_TRIAJE');
+      expect(new Set(enTriaje.map((t) => t.dest)).size).toBe(enTriaje.length);
+      maxModulos = Math.max(maxModulos, enTriaje.length);
+    }
+    expect(maxModulos).toBeGreaterThan(1);
     const pagan = final.filter((t) => t.pago && t.pago.metodo !== 'SIS');
     expect(pagan.every((t) => t.tPago <= t.tTriCall)).toBe(true);
   });

@@ -11,7 +11,7 @@ import {
   allergyConflicts, validatePrescription, isCurrent, latestThresholds, turnKey, preferenteDe,
 } from '../lib/clinical.js';
 import {
-  ACTIVE_STATES, TRIAGE_STATION, ROLES, PRIO, TARIFA_CONSULTA, METODOS_PAGO, SIS_EXONERADO, ESPECIALIDADES,
+  ACTIVE_STATES, TRIAGE_STATION, TRIAGE_MODULES, ROLES, PRIO, TARIFA_CONSULTA, METODOS_PAGO, SIS_EXONERADO, ESPECIALIDADES,
   PREFERENTE, SIGNOS_ALARMA, MOTIVOS_ACCESO_HC,
 } from '../lib/constants.js';
 import { nextTurnId, nextRecipe, nextHC, nextComprobante, uid, tempPassword } from '../lib/ids.js';
@@ -194,13 +194,14 @@ export function callTurn(db, ctx, id) {
   if (!tri && t.cita && t.cita.med !== ctx.user.u) {
     throw new DomainError(`${id} tiene cita con ${medName(db, t.cita.med)}: solo su médico puede llamarlo.`);
   }
-  if (!tri && t.state === 'LLAMADO_CONSULTA' && t.dest !== ctx.area) {
+  // Triaje: cada enfermera llama a su módulo (varios módulos atienden la misma cola a la vez)
+  const dest = tri ? (TRIAGE_MODULES.includes(ctx.area) ? ctx.area : TRIAGE_STATION) : ctx.area;
+  if (t.state === to && t.dest && t.dest !== dest) {
     throw new DomainError(`${id} ya fue llamado a ${t.dest}.`);
   }
-  // CR-06: no se llama a otro paciente mientras el consultorio tiene una atención abierta
-  const open = !tri && db.turns.find((x) => x.state === 'EN_CONSULTA' && x.dest === ctx.area && x.id !== id);
+  // CR-06: no se llama a otro paciente mientras el consultorio (o el módulo de triaje) tiene una atención abierta
+  const open = db.turns.find((x) => x.state === (tri ? 'EN_TRIAJE' : 'EN_CONSULTA') && x.dest === dest && x.id !== id);
   if (open) throw new DomainError(`Termine o devuelva la atención de ${open.id} antes de llamar a otro paciente.`);
-  const dest = tri ? TRIAGE_STATION : ctx.area;
   const repeat = t.state === to;
   const turn = {
     ...t, state: to, dest, calledAt: ctx.now, calls: (t.calls || 0) + 1,
@@ -226,8 +227,10 @@ export function callNext(db, ctx, queue, sorter) {
 export function startTriage(db, ctx, id) {
   const t = findTurn(db, id, ctx.now);
   assertTransition(t, 'EN_TRIAJE');
-  const busy = db.turns.find((x) => x.state === 'EN_TRIAJE' && x.id !== id);
-  if (busy) throw new DomainError(`Ya hay un paciente en triaje (${busy.id}). Finalícelo o devuélvalo a la lista.`);
+  // Un paciente a la vez en cada módulo: el del módulo al que fue llamado
+  const modulo = t.dest || TRIAGE_STATION;
+  const busy = db.turns.find((x) => x.state === 'EN_TRIAJE' && (x.dest || TRIAGE_STATION) === modulo && x.id !== id);
+  if (busy) throw new DomainError(`Ya hay un paciente en ${modulo} (${busy.id}). Finalícelo o devuélvalo a la lista.`);
   return { changes: { turns: [{ ...t, state: 'EN_TRIAJE', enf: ctx.user.u }] } };
 }
 

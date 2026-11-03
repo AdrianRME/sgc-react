@@ -3,12 +3,15 @@ import { StoreCtx } from './useStore.js';
 import { createRepo } from '../data/repo.js';
 import { applyChanges } from '../data/merge.js';
 import { DomainError } from '../lib/clinical.js';
-import { AREAS, IDLE_MS, IDLE_WARN_MS } from '../lib/constants.js';
+import { AREAS, IDLE_MS, IDLE_WARN_MS, moduloTriaje } from '../lib/constants.js';
 import { currentThresholds, loginAudit, logoutAudit } from './actions.js';
 import { consultorioHoy } from '../lib/agenda.js';
 
-/** Consultorio del médico: el que eligió o, si no eligió, el de su horario de hoy. */
-const areaOf = (prefs, db, u, now = Date.now()) => prefs.area || consultorioHoy(db?.horarios || [], u, now) || AREAS[0];
+/** Puesto de trabajo: la enfermera, su módulo de triaje; el médico, el consultorio que eligió o el de su horario de hoy. */
+const areaOf = (prefs, db, u, now = Date.now()) => {
+  if (db?.users?.find((x) => x.u === u)?.role === 'enf') return moduloTriaje(db.users, u, prefs.area);
+  return (prefs.area?.startsWith('Consultorio') && prefs.area) || consultorioHoy(db?.horarios || [], u, now) || AREAS[0];
+};
 
 const PREFS_KEY = 'sgc-prefs';
 

@@ -238,10 +238,10 @@ create index ix_turno_codigo on public.turno (codigo_turno);
 -- Un paciente no puede tener dos turnos activos el mismo día
 create unique index uq_turno_activo_paciente on public.turno (id_paciente, fecha_turno)
     where estado not in ('ATENDIDO','CANCELADO');
--- Un consultorio atiende a un solo paciente a la vez; el módulo de triaje también
+-- Un consultorio atiende a un solo paciente a la vez; cada módulo de triaje también (v2.4: varios módulos)
 create unique index uq_turno_consultorio_ocupado on public.turno (id_area_destino)
     where estado = 'EN_CONSULTA';
-create unique index uq_turno_triaje_ocupado on public.turno (estado)
+create unique index uq_turno_triaje_ocupado on public.turno (id_area_destino)
     where estado = 'EN_TRIAJE';
 
 -- ---------------------------------------------------------------------
@@ -502,6 +502,10 @@ insert into public.especialidad (codigo, nombre, duracion_cita_min) values
 
 insert into public.area_atencion (nombre, tipo) values
   ('Módulo de Triaje 1', 'TRIAJE'),
+  ('Módulo de Triaje 2', 'TRIAJE'),
+  ('Módulo de Triaje 3', 'TRIAJE'),
+  ('Módulo de Triaje 4', 'TRIAJE'),
+  ('Módulo de Triaje 5', 'TRIAJE'),
   ('Consultorio 1', 'CONSULTORIO'),
   ('Consultorio 2', 'CONSULTORIO'),
   ('Consultorio 3', 'CONSULTORIO'),
@@ -1557,13 +1561,13 @@ begin
       if v_area is null or v_area_tipo <> (array['TRIAJE','CONSULTORIO'])[(v_hacia = 'LLAMADO_CONSULTA')::int + 1] then
         raise exception 'Destino de llamado no válido: %', r->>'dest' using errcode = 'P0001';
       end if;
-      if v_desde = v_hacia and v_hacia = 'LLAMADO_CONSULTA' and v_area <> t.id_area_destino then
+      if v_desde = v_hacia and v_area <> t.id_area_destino then
         raise exception '% ya fue llamado a %.', r->>'id', t.area_nombre using errcode = 'P0001';
       end if;
-      -- CR-06: no se llama a otro paciente mientras el consultorio tiene una atención abierta
-      if v_hacia = 'LLAMADO_CONSULTA' and exists (select 1 from public.turno o
-                                                  where o.estado = 'EN_CONSULTA' and o.id_area_destino = v_area
-                                                    and o.id_turno <> t.id_turno) then
+      -- CR-06: no se llama a otro paciente mientras el consultorio (o el módulo de triaje) tiene una atención abierta
+      if exists (select 1 from public.turno o
+                  where o.estado = case when v_hacia = 'LLAMADO_CONSULTA' then 'EN_CONSULTA' else 'EN_TRIAJE' end
+                    and o.id_area_destino = v_area and o.id_turno <> t.id_turno) then
         raise exception 'Termine o devuelva la atención abierta en % antes de llamar a otro paciente.', r->>'dest'
           using errcode = 'P0001';
       end if;
@@ -1889,15 +1893,18 @@ language sql stable set search_path = '' as $$
       from public.turno t, desde
      where t.ts_inicio_triaje is not null and t.ts_fin_triaje >= desde.t and t.ts_fin_triaje <= now()),
   tri_m as (select case when count(*) >= 3 then avg(d) filter (where n <= 20) else 7 end as m from tri_d),
+  -- v2.4: la cola de triaje la atienden tantos módulos como enfermeras activas (al menos 1, a lo más 5)
+  tri_c as (
+    select greatest(1, least(5, count(*))) as c from public.usuario where rol = 'ENFERMERIA' and activo),
   tri_ocupado as (
     select coalesce(sum(greatest(1, m.m - extract(epoch from now() - t.ts_inicio_triaje) / 60)), 0) as r
       from public.turno t, tri_m m
      where t.estado = 'EN_TRIAJE' or (t.estado = 'LLAMANDO' and t.ts_fin_triaje is null)),
   tri as (
-    select t.id_turno, (row_number() over (order by (t.signo_alarma is null),
+    select t.id_turno, ((row_number() over (order by (t.signo_alarma is null),
                         (sgc_interno.preferente(t.atencion_preferente, p.fecha_nacimiento, t.hora_llegada) is null),
-                        t.hora_llegada) - 1) * m.m + o.r as e
-      from public.turno t join public.paciente p on p.id_paciente = t.id_paciente, tri_m m, tri_ocupado o
+                        t.hora_llegada) - 1) * m.m + o.r) / k.c as e
+      from public.turno t join public.paciente p on p.id_paciente = t.id_paciente, tri_m m, tri_ocupado o, tri_c k
      where t.estado = 'EN_ESPERA_TRIAJE'),
   cola as (
     select t.id_turno, c.id_usuario_medico as med, e.duracion_cita_min as ref,

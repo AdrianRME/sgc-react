@@ -213,6 +213,21 @@ export const SIS = {
 };
 
 export const TRIAGE_STATION = 'Módulo de Triaje 1';
+/** Módulos de triaje: cada enfermera de turno atiende en el suyo, a un paciente a la vez. */
+export const TRIAGE_MODULES = Array.from({ length: 5 }, (_, i) => `Módulo de Triaje ${i + 1}`);
+
+/** Enfermeras activas, en orden de usuario: la primera trabaja en el módulo 1, la segunda en el 2, y así. */
+const enfermeras = (users) => (users || []).filter((u) => u.role === 'enf' && u.on).map((u) => u.u).sort();
+
+/** Módulo de triaje de una enfermera: el que eligió o, si no eligió, el que le toca por orden. */
+export function moduloTriaje(users, u, elegido) {
+  if (TRIAGE_MODULES.includes(elegido)) return elegido;
+  const i = enfermeras(users).indexOf(u);
+  return TRIAGE_MODULES[Math.max(0, i) % TRIAGE_MODULES.length];
+}
+
+/** Puestos que atienden la cola de triaje: tantos como enfermeras activas (al menos 1, a lo más los módulos). */
+export const modulosTriaje = (users) => Math.min(TRIAGE_MODULES.length, Math.max(1, enfermeras(users).length));
 /** Consultorios del centro (1 a 4: medicina y especialidades; 5 a 8: familiar e interna, materno, bucal, mental y nutrición). */
 export const AREAS = Array.from({ length: 8 }, (_, i) => `Consultorio ${i + 1}`);
 

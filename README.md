@@ -47,7 +47,7 @@ Comunes a todos los espacios:
   botones Pausar, Siguiente, velocidad (1× o 2×), Reiniciar y Detener. Mientras dura, el reloj de las pantallas
   muestra la hora del caso; al detenerla vuelve la hora real y la sesión sigue como estaba.
   **«Hora punta»** hace llegar 15, 20 o 30 pacientes en una hora y los atiende minuto a minuto con las mismas
-  reglas (Admisión, dos cajas, un módulo de triaje y cada médico según su cita). Se ve en el flujo en vivo de
+  reglas (Admisión, dos cajas, cada enfermera en su módulo de triaje y cada médico con sus citados). Se ve en el flujo en vivo de
   Jefatura o en la pantalla de sala, con contadores por estación; al final compara la espera real con la del
   modelo de ML.
 - **Sin conexión**: si el equipo pierde internet lo avisa de inmediato; un cambio que no se pudo guardar se deshace
@@ -213,6 +213,7 @@ src/
 supabase/schema.sql   17 tablas, cuentas y horarios demo, RLS por rol, funciones sgc_* y tiempo real
 supabase/actualizacion-v1.3.sql  cartera de primer nivel: 11 especialidades, 8 consultorios y sus profesionales
 supabase/actualizacion-v2.3.sql  urgencia sin cobro previo y atención preferente (2 columnas nuevas en TURNO)
+supabase/actualizacion-v2.4.sql  varios módulos de triaje: uno por enfermera (sin cambios de tablas)
 supabase/datos-demo.sql  más personal y médicos con horario, y 18 pacientes por tipo de caso con su historia
 erwin/                el mismo modelo en SQL Server 2005 para el diagrama en CA ERwin r7
 vercel.json           cabeceras de seguridad (CSP, HSTS, X-Frame-Options…)

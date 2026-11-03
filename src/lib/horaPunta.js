@@ -1,11 +1,11 @@
 /**
  * Hora punta: muchos pacientes llegan en una hora y el centro los atiende con las MISMAS acciones de dominio que
  * usan las estaciones (store/actions.js), minuto a minuto, sobre una copia de prueba de los datos. Admisión genera
- * los turnos, Caja cobra a los no asegurados, un solo módulo de triaje atiende de uno en uno y cada médico llama
+ * los turnos, Caja cobra a los no asegurados, cada enfermera atiende en su módulo de triaje y cada médico llama
  * solo a sus citas cuando llega la hora. El resultado es una foto por minuto para reproducirla en el flujo en vivo.
  */
 import { DomainError, byConsulta, byTriaje, turnKey } from './clinical.js';
-import { CIE, MIN, SIS_EXONERADO } from './constants.js';
+import { CIE, MIN, SIS_EXONERADO, moduloTriaje } from './constants.js';
 import { especialidadSugerida, sugerirCita } from './agenda.js';
 import { applyChanges } from '../data/merge.js';
 import { toFacts } from './analytics.js';
@@ -41,7 +41,6 @@ const CASOS = {
 
 const ADMISION = ['a.admision', 'a.admision2'];
 const CAJAS = ['c.caja', 'c.caja2'];
-const ENFERMERA = 'e.triaje';
 
 /**
  * Simula la hora punta. Devuelve { fotos, pacientes, resumen }: una foto por minuto con { now, db, eventos }.
@@ -50,6 +49,8 @@ const ENFERMERA = 'e.triaje';
 export function simularHoraPunta(base, reloj, { pacientes = 20, minutos = 60, seed = 11, maxMin = 360 } = {}) {
   const r = azar(seed);
   const userOf = (u) => base.users.find((x) => x.u === u);
+  // Todas las enfermeras activas del centro trabajan a la vez, cada una en su módulo
+  const enfermeras = base.users.filter((u) => u.role === 'enf' && u.on).map((u) => u.u).sort();
   const candidatos = base.patients.filter((p) => ['ACTIVO', 'NO_ASEGURADO'].includes(p.sis));
   const elegidos = [...candidatos].sort(() => r() - 0.5).slice(0, pacientes);
   // Llegadas: más pacientes al inicio de la hora; una urgencia con signo de alarma hacia la mitad
@@ -111,28 +112,33 @@ export function simularHoraPunta(base, reloj, { pacientes = 20, minutos = 60, se
       }
     }
 
-    // Triaje: un solo módulo; llamar, iniciar y registrar signos (4 a 6 minutos), y dar la cita
-    const enTriaje = db.turns.find((t) => t.state === 'EN_TRIAJE');
-    const llamado = db.turns.find((t) => t.state === 'LLAMADO_TRIAJE');
-    if (enTriaje && fin.get(enTriaje.id) <= m) {
-      const { caso } = plan.get(enTriaje.dni);
-      const p = db.patients.find((x) => x.dni === enTriaje.dni);
-      const res = ejecutar(ENFERMERA, undefined, now, (d, c) => saveTriage(d, c, enTriaje.id, { ...BASE, ...caso[1], motivo: caso[0] }, p.alg ?? ''), eventos,
-        (x) => `${enTriaje.id} termina el triaje: prioridad ${x.result.prio.toLowerCase()}`);
-      if (res) {
-        const t = res.result;
-        const s = sugerirCita(db, especialidadSugerida(p, t.tri, now), t.prio, now, turnKey(t));
-        if (s) ejecutar(ENFERMERA, undefined, now, (d, c) => assignCita(d, c, t.id, s.cita), eventos);
+    // Triaje: cada enfermera en su módulo llama, inicia, registra los signos (4 a 6 minutos) y da la cita
+    for (const enf of enfermeras) {
+      const modulo = moduloTriaje(base.users, enf);
+      const enTriaje = db.turns.find((t) => t.state === 'EN_TRIAJE' && t.dest === modulo);
+      const llamado = db.turns.find((t) => t.state === 'LLAMADO_TRIAJE' && t.dest === modulo);
+      if (enTriaje) {
+        if (fin.get(enTriaje.id) > m) continue;
+        const { caso } = plan.get(enTriaje.dni);
+        const p = db.patients.find((x) => x.dni === enTriaje.dni);
+        const res = ejecutar(enf, modulo, now, (d, c) => saveTriage(d, c, enTriaje.id, { ...BASE, ...caso[1], motivo: caso[0] }, p.alg ?? ''), eventos,
+          (x) => `${enTriaje.id} termina el triaje en el ${modulo.replace('Módulo de Triaje', 'módulo')}: prioridad ${x.result.prio.toLowerCase()}`);
+        if (res) {
+          const t = res.result;
+          const s = sugerirCita(db, especialidadSugerida(p, t.tri, now), t.prio, now, turnKey(t));
+          if (s) ejecutar(enf, modulo, now, (d, c) => assignCita(d, c, t.id, s.cita), eventos);
+        }
+      } else if (llamado) {
+        ejecutar(enf, modulo, now, (d, c) => startTriage(d, c, llamado.id));
+        fin.set(llamado.id, m + r.entre(4, 6));
+      } else {
+        const sig = db.turns.filter((t) => t.state === 'EN_ESPERA_TRIAJE').sort(byTriaje)[0];
+        if (sig) ejecutar(enf, modulo, now, (d, c) => callTurn(d, c, sig.id), eventos, `${modulo} llama a ${sig.id}`);
       }
-    } else if (llamado) {
-      ejecutar(ENFERMERA, undefined, now, (d, c) => startTriage(d, c, llamado.id));
-      fin.set(llamado.id, m + r.entre(4, 6));
-    } else if (!enTriaje) {
-      const sig = db.turns.filter((t) => t.state === 'EN_ESPERA_TRIAJE').sort(byTriaje)[0];
-      if (sig) ejecutar(ENFERMERA, undefined, now, (d, c) => callTurn(d, c, sig.id), eventos, `Triaje llama a ${sig.id}`);
     }
 
-    // Consulta: cada médico llama a su siguiente paciente cuando llega la hora de la cita (8 a 15 minutos)
+    // Consulta: cada médico, al quedar libre, llama al siguiente de sus pacientes que ya está en el centro, por
+    // prioridad y hora de la cita (no deja esperar al paciente presente hasta su hora si puede atenderlo antes)
     const medicos = [...new Set(db.turns.filter((t) => t.cita && ['EN_ESPERA_CONSULTA', 'LLAMADO_CONSULTA', 'EN_CONSULTA'].includes(t.state)).map((t) => t.cita.med))];
     for (const med of medicos) {
       const suyos = db.turns.filter((t) => t.cita?.med === med);
@@ -151,7 +157,7 @@ export function simularHoraPunta(base, reloj, { pacientes = 20, minutos = 60, se
         ejecutar(med, llamadoMed.cita.area, now, (d, c) => startConsult(d, c, llamadoMed.id));
         fin.set(llamadoMed.id, m + r.entre(8, 15));
       } else {
-        const sig = suyos.filter((t) => t.state === 'EN_ESPERA_CONSULTA' && t.cita.at <= now).sort(byConsulta)[0];
+        const sig = suyos.filter((t) => t.state === 'EN_ESPERA_CONSULTA').sort(byConsulta)[0];
         if (sig) ejecutar(med, sig.cita.area, now, (d, c) => callTurn(d, c, sig.id), eventos, `${sig.cita.area} llama a ${sig.id}`);
       }
     }
@@ -168,14 +174,14 @@ export function simularHoraPunta(base, reloj, { pacientes = 20, minutos = 60, se
 function resumir(base, db, reloj, fin) {
   const hoy = db.turns.filter((t) => t.t0 >= reloj);
   const atendidos = hoy.filter((t) => t.state === 'ATENDIDO');
-  // Espera del paciente como la aprende el modelo: pago, triaje y consulta, sin contar la hora de la cita
-  const espera = (t) => ((t.tPago ?? t.t0) - t.t0 + (t.tTriCall - (t.tPago ?? t.t0)) + (t.tMedCall - t.tLlega)) / MIN;
+  // Lo que vive el paciente: desde que llega hasta que el médico lo llama (pago, triaje, cita y consulta)
+  const espera = (t) => (t.tMedCall - t.t0) / MIN;
   // El modelo se entrena con el historial anterior (no ve esta hora) y estima con lo que se sabía al llegar
   const historia = toFacts(base.turns, base.patients);
   const ml = modeloEspera(historia, reloj);
   const cargaHora = hoy.reduce((m, t) => m.set(new Date(t.t0).getHours(), (m.get(new Date(t.t0).getHours()) || 0) + 1), new Map());
   const comparados = ml
-    ? atendidos.filter((t) => t.tLlega && t.tTriCall).map((t) => ({
+    ? atendidos.filter((t) => t.tMedCall).map((t) => ({
       id: t.id, prio: t.prio, real: espera(t),
       ml: ml.predecir({ prio: t.prio, paga: t.pago?.metodo !== 'SIS', t0: t.t0 }, cargaHora.get(new Date(t.t0).getHours()) || 1),
     }))

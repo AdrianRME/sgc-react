@@ -4,7 +4,7 @@ import { Bell, BellOff, Maximize, Mic, MicOff, Monitor, WifiOff } from 'lucide-r
 import { useStore } from '../store/useStore.js';
 import { byTriaje, byConsulta, turnKey } from '../lib/clinical.js';
 import { estimarEsperas, rangoEspera } from '../lib/espera.js';
-import { AREAS, TRIAGE_STATION } from '../lib/constants.js';
+import { AREAS, TRIAGE_STATION, modulosTriaje } from '../lib/constants.js';
 import { fmtLongDay, fmtT } from '../lib/format.js';
 import { beep, announce } from '../lib/sound.js';
 import { spring } from '../lib/motion.js';
@@ -92,6 +92,7 @@ const callKey = (t) => `${t.id}@${t.calledAt}`;
  */
 export default function Sala({ standalone = false }) {
   const { turns, error, ordered } = useSalaTurns();
+  const { db } = useStore();
   const sortBy = (list, cmp) => (ordered ? list : [...list].sort(cmp));
   const now = useNow(15_000);
   // El navegador solo permite audio después de una interacción del usuario.
@@ -106,7 +107,7 @@ export default function Sala({ standalone = false }) {
 
   // RF-14: la función pública ya trae la espera calculada en la base; con sesión se calcula aquí igual.
   // (Si la base aún no tiene la actualización v1.2, la sala pública no trae marcas de tiempo y no se muestra.)
-  const est = estimarEsperas(turns.filter((t) => t.t0 != null), now);
+  const est = estimarEsperas(turns.filter((t) => t.t0 != null), now, { modulos: modulosTriaje(db?.users) });
   const espera = (t) => rangoEspera(t.espera ?? est.get(turnKey(t)), { aprox: true });
 
   const calls = turns.filter((t) => CALLED.includes(t.state)).sort((a, b) => (b.calledAt || 0) - (a.calledAt || 0));

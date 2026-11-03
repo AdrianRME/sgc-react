@@ -1,10 +1,10 @@
 /**
  * Tiempo aproximado de espera de cada paciente en cola (RF-14), con la fórmula del capítulo IV del informe:
- *   espera = ⌈Q / c⌉ × t_medio
- * Q son los turnos por delante y c los puestos que atienden esa cola. Hay un solo módulo de triaje y cada
- * médico atiende solo a sus citados, así que c = 1 en ambas colas. Al paciente que se está atendiendo se le
- * cuenta solo lo que le falta (t_medio menos lo que ya lleva, mínimo 1 min). En consulta, además, nadie es
- * llamado antes de la hora de su cita.
+ *   espera = (lo que falta a los que se atienden + Q × t_medio) / c
+ * Q son los turnos por delante y c los puestos que atienden esa cola. En triaje, c es el número de módulos
+ * (una enfermera activa por módulo); en consulta, cada médico atiende solo a sus citados, así que c = 1. Al
+ * paciente que se está atendiendo se le cuenta solo lo que le falta (t_medio menos lo que ya lleva, mínimo
+ * 1 min). En consulta, además, nadie es llamado antes de la hora de su cita.
  *
  * t_medio es el promedio móvil de las últimas ESPERA_N atenciones del día en esa etapa (en consulta, las del
  * mismo médico). Con menos de ESPERA_MIN_MUESTRAS se usa una referencia: TRIAJE_REF_MIN en triaje y la
@@ -56,7 +56,7 @@ export function tiemposMedios(turns, now) {
  * Minutos aproximados de espera de cada turno en cola, por turnKey. Solo se estiman los que esperan triaje
  * o consulta; el pago y la cita dependen de que el paciente se acerque a la ventanilla.
  */
-export function estimarEsperas(turns, now) {
+export function estimarEsperas(turns, now, { modulos = 1 } = {}) {
   const out = new Map();
   const { tri, med } = tiemposMedios(turns, now);
   const resto = (t, from, media) => Math.max(1, media - (now - t[from]) / MIN);
@@ -65,7 +65,7 @@ export function estimarEsperas(turns, now) {
   turns
     .filter((t) => t.state === 'EN_ESPERA_TRIAJE')
     .sort(byTriaje)
-    .forEach((t, i) => out.set(turnKey(t), Math.round(ocupadoTri + i * tri)));
+    .forEach((t, i) => out.set(turnKey(t), Math.round((ocupadoTri + i * tri) / modulos)));
 
   const colas = new Map();
   for (const t of turns.filter((x) => x.state === 'EN_ESPERA_CONSULTA')) {
@@ -84,7 +84,7 @@ export function estimarEsperas(turns, now) {
 }
 
 /** Espera aproximada de un turno, o null si no está en una cola que se pueda estimar. */
-export const esperaDe = (turns, turn, now) => estimarEsperas(turns, now).get(turnKey(turn)) ?? null;
+export const esperaDe = (turns, turn, now, opciones) => estimarEsperas(turns, now, opciones).get(turnKey(turn)) ?? null;
 
 /**
  * Rango de 5 minutos que contiene la estimación, para mostrarla como aproximación y no como promesa.
