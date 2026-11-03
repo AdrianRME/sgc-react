@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { AnimatePresence, LayoutGroup, m } from 'motion/react';
 import { Bell, BellOff, Maximize, Mic, MicOff, Monitor, WifiOff } from 'lucide-react';
 import { useStore } from '../store/useStore.js';
-import { byArrival, byConsulta, turnKey } from '../lib/clinical.js';
+import { byTriaje, byConsulta, turnKey } from '../lib/clinical.js';
 import { estimarEsperas, rangoEspera } from '../lib/espera.js';
 import { AREAS, TRIAGE_STATION } from '../lib/constants.js';
 import { fmtLongDay, fmtT } from '../lib/format.js';
@@ -114,7 +114,7 @@ export default function Sala({ standalone = false }) {
   const names = [...new Set([TRIAGE_STATION, ...AREAS, ...calls.map(zonaDe), ...waiting.map(zonaDe)])].sort(sortZonas);
   const zonas = names.map((name) => {
     const cola = waiting.filter((t) => zonaDe(t) === name);
-    const cmp = name === TRIAGE_STATION ? byArrival : byConsulta;
+    const cmp = name === TRIAGE_STATION ? byTriaje : byConsulta;
     return { ...infoZona(name), calls: calls.filter((t) => zonaDe(t) === name), waiting: sortBy(cola, cmp) };
   });
   // Una zona elegida que ya no existe (se renombró un consultorio) vuelve a mostrar todas

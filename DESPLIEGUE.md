@@ -89,6 +89,20 @@ Ejecutarlo otra vez **borra todos los datos** y restablece esas contraseñas.
 los datos de demostración ampliados. En un proyecto que ya tiene la versión 1.2 basta con ejecutar ese archivo
 (se puede repetir). Los archivos de abajo son sus partes, por si se quiere ejecutar solo una.
 
+**Versión 2.3: seguridad y supervisión de pacientes sensibles.** Ejecute `supabase/actualizacion-v2.3.sql` **antes**
+de publicar la versión 2.3 de la app (se puede repetir). Agrega dos columnas a TURNO (`signo_alarma` y
+`atencion_preferente`; el script de ERwin ya las tiene) y reemplaza `sgc_guardar`, `sgc_sala`, `sgc_indicadores` y la
+espera estimada:
+- **Urgencia sin cobro previo:** si Admisión marca un signo de alarma, el paciente sin seguro pasa a triaje sin pagar
+  (Ley N.° 26842, art. 3) y encabeza la cola; Caja lo cobra después, sin cambiar su estado.
+- **Atención preferente (Ley N.° 27408):** adultos mayores (60+) y niños (hasta 11 años) por su edad, y gestantes o
+  personas con discapacidad que marca Admisión, pasan primero a igual prioridad clínica. La sala no lo muestra.
+- En la app (sin cambios en la base): **escalada** de urgencias, críticos sin sobrecupo y críticos o prioritarios que
+  superan su tiempo objetivo, y **acceso justificado** a historias clínicas ajenas a la atención (queda en la auditoría).
+
+Se probó en PostgreSQL 16 (PGlite) sobre la base publicada (schema + v1.2 + única + v2.3 dos veces) y en una
+instalación nueva con `schema.sql`: 15 de 15 comprobaciones en cada una.
+
 **Versión 1.3: cartera completa de primer nivel.** Ejecute `supabase/actualizacion-v1.3.sql` **antes** de publicar la
 versión de la app que la usa. Solo agrega filas (no cambia tablas, el modelo de ERwin sigue igual) y se puede repetir:
 - 7 especialidades más (Medicina Familiar e Interna, CRED, Obstetricia, Odontología, Psicología y Nutrición), con

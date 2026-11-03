@@ -18,8 +18,10 @@ const hourOf = (t) => {
 /** Hecho anónimo de un turno. Mismo formato que devuelve sgc_indicadores(). */
 export function toFacts(turns, patients) {
   const byDni = new Map(patients.map((p) => [p.dni, p]));
-  return turns.map((t) => {
-    const p = byDni.get(t.dni);
+  return turns.map((x) => {
+    const p = byDni.get(x.dni);
+    // La urgencia pasa a triaje sin pagar: no tuvo espera de pago y su espera de triaje cuenta desde la llegada
+    const t = x.urg ? { ...x, tPago: x.t0 } : x;
     return {
       t0: hourOf(t.t0), state: t.state, prio: t.prio ?? null,
       dur: Object.fromEntries(STAGES.map((s) => [s.k, minutesBetween(t, s.from, s.to)])),

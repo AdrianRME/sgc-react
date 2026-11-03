@@ -208,6 +208,10 @@ create table public.turno (
     ts_ultimo_llamado      timestamptz  null,
     veces_llamado          smallint     not null default 0,
     id_usuario_en_atencion uuid         null,
+    -- v2.3: signo de alarma que vio Admisión (urgencia: triaje sin cobro previo) y atención preferente
+    -- marcada en ventanilla (la de la edad la deduce sgc_interno.preferente)
+    signo_alarma           varchar(40)  null,
+    atencion_preferente    varchar(15)  null,
     constraint pk_turno primary key (id_turno),
     constraint uq_turno_codigo_dia unique (fecha_turno, codigo_turno),
     constraint ck_turno_estado check (estado in ('PENDIENTE_PAGO','EN_ESPERA_TRIAJE','EN_TRIAJE','PENDIENTE_CITA',
@@ -218,6 +222,7 @@ create table public.turno (
         (ts_fin_triaje is null or ts_inicio_triaje is null or ts_fin_triaje >= ts_inicio_triaje) and
         (ts_cierre     is null or ts_cierre >= hora_llegada)),
     constraint ck_turno_llamados check (veces_llamado >= 0),
+    constraint ck_turno_preferente check (atencion_preferente in ('GESTANTE','DISCAPACIDAD')),
     constraint fk_turno_paciente foreign key (id_paciente)
         references public.paciente (id_paciente) on delete restrict on update cascade,
     constraint fk_turno_usuario foreign key (id_usuario_admision)
@@ -1210,6 +1215,21 @@ select sgc_interno.guardar_umbrales(
 --   p_dni nulo   → turnos de trabajo: desde p_desde o todavía abiertos.
 --   p_dni dado   → todas las atenciones de ese paciente (historia).
 -- ---------------------------------------------------------------------
+-- Atención preferente (Ley N.° 27408): la que marcó Admisión o, si no, la de la edad al llegar
+-- (adulto mayor desde los 60 años, niño hasta los 11). Igual que preferenteDe() en src/lib/clinical.js.
+create function sgc_interno.preferente(p_marcada text, p_nac date, p_llegada timestamptz) returns text
+language sql immutable set search_path = '' as $$
+  select coalesce(p_marcada, case
+    when p_nac is null then null
+    when extract(year from age((p_llegada at time zone 'America/Lima')::date, p_nac)) >= 60 then 'ADULTO_MAYOR'
+    when extract(year from age((p_llegada at time zone 'America/Lima')::date, p_nac)) <= 11 then 'NINO' end) $$;
+
+-- Signos de alarma que habilitan la urgencia (los mismos de SIGNOS_ALARMA en src/lib/constants.js)
+create function sgc_interno.signo_alarma_valido(p text) returns boolean
+language sql immutable set search_path = '' as $$
+  select p in ('Dificultad para respirar', 'Dolor de pecho', 'Sangrado abundante', 'Convulsión o desmayo',
+               'Fiebre alta en menor de 5 años', 'Dolor intenso', 'Gestante con sangrado o dolor') $$;
+
 create function sgc_interno.turnos_json(p_desde date, p_dni text) returns jsonb
 language sql stable security invoker set search_path = '' as $$
 select coalesce((
@@ -1222,6 +1242,8 @@ select coalesce((
       'tEnd', case when t.estado = 'ATENDIDO' then sgc_interno.ms(t.ts_cierre) end,
       'calledAt', sgc_interno.ms(t.ts_ultimo_llamado),
       'calls', nullif(t.veces_llamado, 0),
+      'urg', t.signo_alarma,
+      'pref', sgc_interno.preferente(t.atencion_preferente, p.fecha_nacimiento, t.hora_llegada),
       'tPago', sgc_interno.ms(pg.fecha_pago),
       'pago', case when pg.id_pago is not null then jsonb_build_object(
                 'metodo', pg.metodo_pago, 'monto', pg.monto, 'comp', pg.numero_comprobante,
@@ -1369,7 +1391,7 @@ declare
   yo record; r jsonb; tri jsonb;
   v_pac uuid; v_hist uuid; v_turno uuid; t record;
   v_desde text; v_hacia text; v_area uuid; v_area_tipo text; v_prio text; v_pa text[];
-  v_exon boolean; v_fecha date;
+  v_exon boolean; v_fecha date; v_urg text; v_pref text;
 begin
   select * into yo from sgc_interno.usuario_actual();
   if yo.id_usuario is null then
@@ -1472,12 +1494,25 @@ begin
         raise exception 'El paciente con DNI % no está registrado.', r->>'dni' using errcode = 'P0001';
       end if;
       v_exon := sgc_interno.exonerado((select condicion_sis from public.paciente where id_paciente = v_pac));
-      if v_hacia is distinct from (case when v_exon then 'EN_ESPERA_TRIAJE' else 'PENDIENTE_PAGO' end) then
-        raise exception 'Un turno nuevo empieza %.',
-          case when v_exon then 'en espera de triaje (SIS: no paga)' else 'pendiente de pago en Caja' end using errcode = 'P0001';
+      -- Urgencia (signo de alarma): pasa a triaje sin cobro previo (Ley N.° 26842, art. 3) y paga después
+      v_urg := nullif(trim(coalesce(r->>'urg', '')), '');
+      if v_urg is not null and not sgc_interno.signo_alarma_valido(v_urg) then
+        raise exception 'Signo de alarma no válido: %', v_urg using errcode = 'P0001';
       end if;
-      insert into public.turno (fecha_turno, codigo_turno, id_paciente, id_usuario_admision, hora_llegada, estado)
-      values (sgc_interno.hoy(), r->>'id', v_pac, yo.id_usuario, now(), v_hacia)
+      if v_hacia is distinct from (case when v_exon or v_urg is not null then 'EN_ESPERA_TRIAJE' else 'PENDIENTE_PAGO' end) then
+        raise exception 'Un turno nuevo empieza %.',
+          case when v_exon then 'en espera de triaje (SIS: no paga)'
+               when v_urg is not null then 'en espera de triaje (urgencia: paga después)'
+               else 'pendiente de pago en Caja' end using errcode = 'P0001';
+      end if;
+      -- Atención preferente: se guarda solo la que marca Admisión; la de la edad la deduce la base
+      v_pref := case when r->>'pref' in ('GESTANTE','DISCAPACIDAD') then r->>'pref' end;
+      if v_pref = 'GESTANTE' and (select sexo from public.paciente where id_paciente = v_pac) <> 'F' then
+        raise exception 'Solo una paciente mujer puede registrarse como gestante.' using errcode = 'P0001';
+      end if;
+      insert into public.turno (fecha_turno, codigo_turno, id_paciente, id_usuario_admision, hora_llegada, estado,
+                                signo_alarma, atencion_preferente)
+      values (sgc_interno.hoy(), r->>'id', v_pac, yo.id_usuario, now(), v_hacia, v_urg, v_pref)
       returning id_turno into v_turno;
       if v_exon then
         perform sgc_interno.guardar_pago(v_turno, '{"metodo": "SIS", "monto": 0}'::jsonb, yo.id_usuario, now());
@@ -1486,6 +1521,19 @@ begin
     end if;
 
     v_desde := t.estado_app;
+    -- Cobro posterior de una urgencia: Caja registra el pago sin cambiar el estado del turno
+    if yo.rol = 'CAJA' and v_hacia = v_desde and t.signo_alarma is not null and jsonb_typeof(r->'pago') = 'object'
+       and not exists (select 1 from public.pago where id_turno = t.id_turno) then
+      if coalesce(r->'pago'->>'metodo', '') not in ('EFECTIVO','TARJETA','BILLETERA') then
+        raise exception 'Medio de pago no válido.' using errcode = 'P0001';
+      end if;
+      if coalesce(r->'pago'->>'comp', '') !~ '^B001-[0-9]{6}$' then
+        raise exception 'Número de boleta no válido.' using errcode = 'P0001';
+      end if;
+      perform sgc_interno.guardar_pago(t.id_turno, jsonb_build_object('metodo', r->'pago'->>'metodo',
+                'monto', sgc_interno.tarifa(), 'comp', r->'pago'->>'comp'), yo.id_usuario, now());
+      continue;
+    end if;
     if v_pac is not null and v_pac <> t.id_paciente then
       raise exception 'El código % ya se asignó a otro paciente. Actualice la página e intente de nuevo.', r->>'id'
         using errcode = 'P0001';
@@ -1787,8 +1835,10 @@ begin
     select jsonb_agg(jsonb_build_object(
       't0', sgc_interno.ms(date_trunc('hour', t.hora_llegada)),
       'dur', jsonb_build_object(
-        'espPago', sgc_interno.minutos(t.hora_llegada, pg.fecha_pago),
-        'espTri', sgc_interno.minutos(pg.fecha_pago, t.ts_inicio_triaje),
+        -- La urgencia pasa a triaje sin pagar: su espera de pago es 0 y la de triaje cuenta desde la llegada
+        'espPago', case when t.signo_alarma is not null then 0 else sgc_interno.minutos(t.hora_llegada, pg.fecha_pago) end,
+        'espTri', sgc_interno.minutos(case when t.signo_alarma is not null then t.hora_llegada else pg.fecha_pago end,
+                                      t.ts_inicio_triaje),
         'tri', sgc_interno.minutos(t.ts_inicio_triaje, t.ts_fin_triaje),
         'espCita', sgc_interno.minutos(t.ts_fin_triaje, ci.fecha_registro),
         'espMed', sgc_interno.minutos(case when ci.ts_llegada is not null
@@ -1844,17 +1894,21 @@ language sql stable set search_path = '' as $$
       from public.turno t, tri_m m
      where t.estado = 'EN_TRIAJE' or (t.estado = 'LLAMANDO' and t.ts_fin_triaje is null)),
   tri as (
-    select t.id_turno, (row_number() over (order by t.hora_llegada) - 1) * m.m + o.r as e
-      from public.turno t, tri_m m, tri_ocupado o
+    select t.id_turno, (row_number() over (order by (t.signo_alarma is null),
+                        (sgc_interno.preferente(t.atencion_preferente, p.fecha_nacimiento, t.hora_llegada) is null),
+                        t.hora_llegada) - 1) * m.m + o.r as e
+      from public.turno t join public.paciente p on p.id_paciente = t.id_paciente, tri_m m, tri_ocupado o
      where t.estado = 'EN_ESPERA_TRIAJE'),
   cola as (
     select t.id_turno, c.id_usuario_medico as med, e.duracion_cita_min as ref,
            (c.fecha_cita + c.hora_cita) at time zone 'America/Lima' as hora,
            row_number() over (partition by c.id_usuario_medico
                               order by array_position(array['CRITICA','PRIORITARIA','NORMAL']::text[], t.nivel_prioridad::text),
+                                       (sgc_interno.preferente(t.atencion_preferente, p.fecha_nacimiento, t.hora_llegada) is null),
                                        greatest(c.ts_llegada, (c.fecha_cita + c.hora_cita) at time zone 'America/Lima'),
                                        t.hora_llegada) - 1 as i
       from public.turno t
+      join public.paciente p on p.id_paciente = t.id_paciente
       join public.cita c on c.id_turno = t.id_turno
       join public.especialidad e on e.id_especialidad = c.id_especialidad
      where t.estado = 'EN_ESPERA_CONSULTA'),
@@ -1899,11 +1953,16 @@ language sql stable security definer set search_path = '' as $$
                   t.ts_ultimo_llamado desc nulls last,
                   case when t.estado = 'EN_ESPERA_CONSULTA'
                        then array_position(array['CRITICA','PRIORITARIA','NORMAL']::text[], t.nivel_prioridad::text) end,
+                  -- triaje: primero la urgencia; en triaje y consulta, la atención preferente (Ley N.° 27408)
+                  case when t.estado = 'EN_ESPERA_TRIAJE' then t.signo_alarma is null end,
+                  case when t.estado in ('EN_ESPERA_TRIAJE','EN_ESPERA_CONSULTA')
+                       then sgc_interno.preferente(t.atencion_preferente, pa.fecha_nacimiento, t.hora_llegada) is null end,
                   -- en consulta, por la hora de la cita (o de llegada, si llegó tarde)
                   case when t.estado = 'EN_ESPERA_CONSULTA'
                        then greatest(c.ts_llegada, (c.fecha_cita + c.hora_cita) at time zone 'America/Lima') end,
                   t.hora_llegada), '[]'::jsonb)
   from public.turno t left join public.area_atencion a on a.id_area = t.id_area_destino
+  join public.paciente pa on pa.id_paciente = t.id_paciente
   left join public.cita c on c.id_turno = t.id_turno
   left join public.area_atencion ca on ca.id_area = c.id_area
   left join sgc_interno.esperas() es on es.id_turno = t.id_turno
@@ -2097,6 +2156,7 @@ grant usage on schema sgc_interno to authenticated;
 grant execute on function sgc_interno.ms(timestamptz), sgc_interno.estado_app(text, timestamptz),
                           sgc_interno.mapa_umbral(), sgc_interno.usuario_actual(), sgc_interno.rol_actual(),
                           sgc_interno.antecedentes(uuid), sgc_interno.motivo_triaje(uuid), sgc_interno.turnos_json(date, text),
+                          sgc_interno.preferente(text, date, timestamptz),
                           sgc_interno.auditar_historia(text)
   to authenticated;
 

@@ -5,7 +5,7 @@ import {
 } from 'lucide-react';
 import { useStore } from '../store/useStore.js';
 import { ACTIVE_STATES, QUEUE, ROLES } from '../lib/constants.js';
-import { byArrival, byConsulta } from '../lib/clinical.js';
+import { byTriaje, byConsulta } from '../lib/clinical.js';
 import { callNext } from '../store/actions.js';
 import { fade } from '../lib/motion.js';
 import { go } from '../hooks/useHash.js';
@@ -19,6 +19,7 @@ import { BrandMark } from './BrandMark.jsx';
 import { ChangePassword } from './ChangePassword.jsx';
 import { CommandPalette } from './CommandPalette.jsx';
 import { Notifications } from './Notifications.jsx';
+import { Supervision } from './Supervision.jsx';
 
 // El simulador (y los datos de prueba que usa) se descargan recién al abrirlo
 const Simulador = lazy(() => import('./Simulador.jsx'));
@@ -99,7 +100,7 @@ export function Shell({ section, children }) {
   const commands = useMemo(() => {
     const nav = [...sections, SALA].map(([k, l]) => ({ id: `go-${k}`, group: 'Ir a', label: l, icon: k === 'sala' ? Tv : LayoutGrid, run: () => go(`${base}/${k}`) }));
     const acts = [];
-    if (user.role === 'enf') acts.push({ id: 'next-tri', group: 'Acciones', label: 'Llamar al siguiente paciente de triaje', icon: PhoneCall, run: () => run(callNext, 'tri', byArrival) });
+    if (user.role === 'enf') acts.push({ id: 'next-tri', group: 'Acciones', label: 'Llamar al siguiente paciente de triaje', icon: PhoneCall, run: () => run(callNext, 'tri', byTriaje) });
     if (user.role === 'med') acts.push({ id: 'next-med', group: 'Acciones', label: `Llamar al siguiente paciente a ${area}`, icon: PhoneCall, run: () => run(callNext, 'med', byConsulta) });
     acts.push(
       { id: 'sala-ext', group: 'Acciones', label: 'Abrir la pantalla de sala en otra ventana', icon: ExternalLink, run: () => window.open('#/sala', '_blank', 'noopener') },
@@ -191,6 +192,7 @@ export function Shell({ section, children }) {
             </Msg>
           </div>
         )}
+        {user.role !== 'caj' && <Supervision turns={db.turns} user={user} onNueva={onCritical} />}
         <main className="page" id="contenido">{children}</main>
       </div>
 

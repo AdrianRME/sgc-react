@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { AnimatePresence, m } from 'motion/react';
 import { Ban, Banknote, CreditCard, Receipt, Smartphone } from 'lucide-react';
 import { useStore } from '../store/useStore.js';
-import { registerPayment, cancelTurn } from '../store/actions.js';
+import { registerPayment, registerLatePayment, cancelTurn, porCobrarDespues } from '../store/actions.js';
 import { byArrival } from '../lib/clinical.js';
 import { CANCEL, CONCEPTO_PAGO, METODOS_PAGO, QUEUE, TARIFA_CONSULTA } from '../lib/constants.js';
 import { age, cap, fmtLongDay, fmtSoles, fmtT, fullName, iniciales, saludo, startOfToday } from '../lib/format.js';
@@ -20,6 +20,8 @@ const BILLETES = [20, 50, 100];
 
 /** Cobro de un turno: medio de pago, vuelto en efectivo y boleta. */
 function Cobro({ turn, patient, onPaid, onCancel }) {
+  // Urgencia: ya pasó a triaje sin pagar; se cobra sin cambiar su estado y nunca se anula por no pagar
+  const late = porCobrarDespues(turn);
   const { run } = useStore();
   const [metodo, setMetodo] = useState('EFECTIVO');
   const [recibido, setRecibido] = useState('');
@@ -28,7 +30,7 @@ function Cobro({ turn, patient, onPaid, onCancel }) {
 
   const submit = async (e) => {
     e.preventDefault();
-    const r = await run(registerPayment, turn.id, { metodo, recibido });
+    const r = await run(late ? registerLatePayment : registerPayment, turn.id, { metodo, recibido });
     if (r.ok) onPaid(r.result);
   };
 
@@ -71,9 +73,11 @@ function Cobro({ turn, patient, onPaid, onCancel }) {
       )}
       <div className="actions">
         <button className="btn lg" disabled={cash && !(vuelto >= 0)}><Receipt /> Registrar pago y emitir boleta</button>
-        <button type="button" className="btn dng" onClick={onCancel}><Ban /> No pagó</button>
+        {!late && <button type="button" className="btn dng" onClick={onCancel}><Ban /> No pagó</button>}
       </div>
-      <p className="note">Al pagar, el paciente pasa a la lista de triaje. Los pacientes con SIS no pasan por Caja.</p>
+      <p className="note">{late
+        ? 'Urgencia: el paciente pasó a triaje sin cobro previo. Si no puede pagar ahora, su atención continúa y el cobro queda pendiente.'
+        : 'Al pagar, el paciente pasa a la lista de triaje. Los pacientes con SIS no pasan por Caja.'}</p>
     </form>
   );
 }
@@ -84,7 +88,8 @@ export default function Caja() {
   const docs = useDocuments();
   const [ask, dialog] = useConfirm();
   const [selId, setSelId] = useState(null);
-  const queue = db.turns.filter((t) => QUEUE.caj.includes(t.state)).sort(byArrival);
+  const urgencias = db.turns.filter(porCobrarDespues).sort(byArrival);
+  const queue = [...db.turns.filter((t) => QUEUE.caj.includes(t.state)).sort(byArrival), ...urgencias];
   const sel = queue.find((t) => t.id === selId) || queue[0];
   const today = startOfToday();
   const pagos = db.turns.filter((t) => t.pago && t.pago.t >= today).sort((a, b) => b.pago.t - a.pago.t);
@@ -122,7 +127,7 @@ export default function Caja() {
         actions={<Help role="caj" />}
       />
       <div className="grid-2 caj-grid">
-        <Panel title="Por cobrar" count={queue.length} icon="hourglass" sub="Sin seguro: pagan antes del triaje, en orden de llegada" className="caj-panel" data-role="caj">
+        <Panel title="Por cobrar" count={queue.length} icon="hourglass" sub="Sin seguro: pagan antes del triaje, en orden de llegada. Las urgencias pagan después de su atención." className="caj-panel" data-role="caj">
           {queue.length ? (
             <ul className="pacs">
               <AnimatePresence initial={false}>
@@ -138,7 +143,7 @@ export default function Caja() {
                             <TurnCode id={t.id} />
                             <span>llegó {fmtT(t.t0)}</span>
                             <WaitTime turn={t} now={now} />
-                            {i === 0 && <span className="pac-st">Siguiente</span>}
+                            {t.urg ? <Badge tone="crit">Urgencia · cobro posterior</Badge> : i === 0 && <span className="pac-st">Siguiente</span>}
                           </span>
                         </span>
                       </button>

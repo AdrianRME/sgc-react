@@ -1,7 +1,7 @@
 import { useEffect, useId, useRef } from 'react';
 import { animate, m, useReducedMotion } from 'motion/react';
 import { CircleCheck, ChevronsUp, Clock, Info, TriangleAlert } from 'lucide-react';
-import { STATE, PRIO, SIS, ROUTE, ESP_POR_RAMA } from '../lib/constants.js';
+import { STATE, PRIO, SIS, ROUTE, ESP_POR_RAMA, PREFERENTE } from '../lib/constants.js';
 import { waitInfo } from '../lib/clinical.js';
 import { fmtNum, initials } from '../lib/format.js';
 import { spring } from '../lib/motion.js';
@@ -26,6 +26,14 @@ export const PrioBadge = ({ prio }) =>
 export const SisBadge = ({ sis }) => <Badge tone={SIS[sis]?.[1] || 'mut'}>{SIS[sis]?.[0] || sis}</Badge>;
 
 export const TurnCode = ({ id, className = '' }) => <span className={`tcode ${className}`}>{id}</span>;
+
+/** Urgencia y atención preferente de un turno (solo en las estaciones con sesión, nunca en la sala pública). */
+export const TurnFlags = ({ turn }) => (
+  <>
+    {turn.urg && <Badge tone="crit" icon={TriangleAlert} title={`Signo de alarma: ${turn.urg}. Pasa primero a triaje.`}>Urgencia</Badge>}
+    {turn.pref && <Badge tone="info" title="Atención preferente (Ley N.° 27408): pasa primero a igual prioridad">{PREFERENTE[turn.pref]}</Badge>}
+  </>
+);
 
 /** Opciones de un <select> de especialidad, agrupadas por rama de la cartera de servicios. */
 export const EspOptions = () =>

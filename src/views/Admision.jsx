@@ -3,13 +3,13 @@ import { AnimatePresence, m } from 'motion/react';
 import { Ban, Check, LogIn, Search, Ticket as TicketIcon, WifiOff } from 'lucide-react';
 import { useStore } from '../store/useStore.js';
 import { createTurn, cancelTurn, checkIn, searchAudit, activeTurnOf, validatePatientForm } from '../store/actions.js';
-import { ACTIVE_STATES, CANCEL, ROUTE, SIS_EXONERADO, STATE, TARIFA_CONSULTA } from '../lib/constants.js';
+import { ACTIVE_STATES, CANCEL, PREFERENTE, ROUTE, SIGNOS_ALARMA, SIS_EXONERADO, STATE, TARIFA_CONSULTA } from '../lib/constants.js';
 import { sameDay } from '../lib/agenda.js';
-import { byArrival, normalize } from '../lib/clinical.js';
+import { byArrival, normalize, preferenteDe } from '../lib/clinical.js';
 import { age, cap, fmtCitaDia, fmtLongDay, fmtSoles, fmtT, fmtHora, fullName, iniciales as initials, isoDay, saludo } from '../lib/format.js';
 import { listItem } from '../lib/motion.js';
 import { useNow } from '../hooks/useNow.js';
-import { Empty, Field, Msg, Panel, SisBadge, StateBadge, TurnCode, WaitTime } from '../components/ui.jsx';
+import { Empty, Field, Msg, Panel, SisBadge, StateBadge, TurnCode, TurnFlags, WaitTime } from '../components/ui.jsx';
 import { useConfirm } from '../hooks/useConfirm.jsx';
 import { useDocuments } from '../hooks/useDocuments.jsx';
 import { useCitaAcciones } from '../hooks/useCitaAcciones.jsx';
@@ -63,6 +63,9 @@ function Registro() {
   const [found, setFound] = useState(null);
   const [form, setForm] = useState(EMPTY_FORM);
   const [errs, setErrs] = useState({});
+  // Condición al llegar: signo de alarma (urgencia) y atención preferente que marca Admisión
+  const [urg, setUrg] = useState('');
+  const [pref, setPref] = useState('');
   const now = useNow(60_000);
   const [today] = useState(() => isoDay(Date.now()));
   const dniOk = /^\d{8}$/.test(q);
@@ -76,6 +79,8 @@ function Registro() {
     const res = await sisLookup(dni, p, down);
     setLoading(false);
     setFound({ dni, p, ...res });
+    setUrg('');
+    setPref('');
     setForm(p ? { nom: p.nom, ape: p.ape, nac: p.nac, sexo: p.sexo, tel: p.tel } : EMPTY_FORM);
     setErrs({});
     run(searchAudit, dni);
@@ -92,7 +97,7 @@ function Registro() {
       setErrs(v);
       if (Object.keys(v).length) return;
     }
-    const r = await run(createTurn, { dni: found.dni, form, sis: found.sis });
+    const r = await run(createTurn, { dni: found.dni, form, sis: found.sis, urg: urg || null, pref: pref || null });
     if (r.ok) {
       clear();
       docs.openTicket(r.result);
@@ -103,6 +108,8 @@ function Registro() {
   const isNew = found && !found.p;
   const exonerado = found && SIS_EXONERADO.includes(found.sis);
   const paso = found ? 2 : loading ? 1 : 0;
+  const sexo = found?.p?.sexo ?? form.sexo;
+  const prefEdad = found && preferenteDe(found.p ?? (form.nac ? { nac: form.nac } : null), null, now);
 
   return (
     <Panel
@@ -210,11 +217,13 @@ function Registro() {
             ) : dup ? (
               <Msg tone="crit">Ya tiene el turno <b>{dup.id}</b> activo ({STATE[dup.state][0].toLowerCase()}). No se genera otro.</Msg>
             ) : (
-              <div className="next-step" data-role={exonerado ? 'enf' : 'caj'}>
-                <Icon3D name={exonerado ? 'thermometer' : 'scroll'} size={34} />
+              <div className="next-step" data-role={exonerado || urg ? 'enf' : 'caj'}>
+                <Icon3D name={urg ? 'warning' : exonerado ? 'thermometer' : 'scroll'} size={34} />
                 <span>
                   <small>Siguiente paso</small>
-                  <b>{exonerado ? 'Triaje · sin pago (SIS)' : `Caja · pagar ${fmtSoles(TARIFA_CONSULTA)}`}</b>
+                  <b>{urg
+                    ? `Urgencia · triaje inmediato${exonerado ? '' : ', paga después'}`
+                    : exonerado ? 'Triaje · sin pago (SIS)' : `Caja · pagar ${fmtSoles(TARIFA_CONSULTA)}`}</b>
                 </span>
               </div>
             )}
@@ -243,6 +252,37 @@ function Registro() {
               </fieldset>
             ) : (
               <Field label="Teléfono de contacto" error={errs.tel}>{(a) => <input {...a} value={form.tel} onChange={set('tel')} inputMode="tel" />}</Field>
+            )}
+
+            {!dup && (
+              <fieldset className="adm-form adm-cond">
+                <legend>Condición al llegar</legend>
+                <div className="row">
+                  <Field label="Signo de alarma (urgencia)">
+                    {(a) => (
+                      <select {...a} value={urg} onChange={(e) => setUrg(e.target.value)}>
+                        <option value="">Ninguno</option>
+                        {SIGNOS_ALARMA.map((x) => <option key={x}>{x}</option>)}
+                      </select>
+                    )}
+                  </Field>
+                  <Field label="Atención preferente">
+                    {(a) => (
+                      <select {...a} value={pref} onChange={(e) => setPref(e.target.value)}>
+                        <option value="">{prefEdad ? `${PREFERENTE[prefEdad]} (por edad)` : 'No corresponde'}</option>
+                        {sexo === 'F' && <option value="GESTANTE">{PREFERENTE.GESTANTE}</option>}
+                        <option value="DISCAPACIDAD">{PREFERENTE.DISCAPACIDAD}</option>
+                      </select>
+                    )}
+                  </Field>
+                </div>
+                {urg && (
+                  <Msg tone="crit">
+                    <b>Urgencia:</b> pasa primero a triaje{exonerado ? '' : ' sin cobro previo (Ley N.° 26842, art. 3); paga en Caja después de su atención'}.
+                    Enfermería y Jefatura reciben el aviso.
+                  </Msg>
+                )}
+              </fieldset>
             )}
 
             <div className="actions">
@@ -325,6 +365,7 @@ function Pacientes({ filter, lists }) {
                       <TurnCode id={t.id} />
                       <span className="pac-st">{st?.n}</span>
                       <WaitTime turn={t} now={now} />
+                      <TurnFlags turn={t} />
                     </span>
                   </div>
                   <StateBadge state={t.state} />

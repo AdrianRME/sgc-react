@@ -165,7 +165,46 @@ export const PRIO = {
  * Tiempo objetivo de espera (min). Se marca en rojo al superarlo. La espera de consulta depende de la
  * prioridad de triaje; las demás esperas tienen un objetivo por etapa.
  */
-export const WAIT_TARGET = { CRITICA: 5, PRIORITARIA: 20, NORMAL: 60, espPago: 15, espTri: 30, espCita: 15 };
+export const WAIT_TARGET = { CRITICA: 5, PRIORITARIA: 20, NORMAL: 60, espPago: 15, espTri: 30, espCita: 15, urgTri: 5 };
+
+/**
+ * Atención preferente (Ley N.° 27408): a igual prioridad clínica, pasan primero. La edad la marca el sistema;
+ * gestante y discapacidad, Admisión al generar el turno. Nunca se muestra en la pantalla pública.
+ */
+export const PREFERENTE = {
+  ADULTO_MAYOR: 'Adulto mayor',
+  NINO: 'Niño o niña',
+  GESTANTE: 'Gestante',
+  DISCAPACIDAD: 'Persona con discapacidad',
+};
+/** Edades de la atención preferente automática: adulto mayor desde los 60 años (Ley N.° 30490) y niño hasta los 11. */
+export const EDAD_MAYOR = 60;
+export const EDAD_NINO_MAX = 11;
+
+/**
+ * Signos de alarma que Admisión ve al llegar el paciente: con cualquiera, el turno es una urgencia y pasa a
+ * triaje sin cobro previo (Ley N.° 26842, art. 3: la emergencia se atiende sin condicionarla al pago).
+ */
+/**
+ * Motivos para que un profesional abra la historia de un paciente que no está atendiendo (acceso de
+ * emergencia o «romper el vidrio»). El motivo queda en la auditoría que revisa Jefatura.
+ */
+export const MOTIVOS_ACCESO_HC = [
+  'Urgencia o emergencia del paciente',
+  'Interconsulta solicitada por otro profesional',
+  'Continuidad de la atención (control o seguimiento)',
+  'Auditoría médica autorizada',
+];
+
+export const SIGNOS_ALARMA = [
+  'Dificultad para respirar',
+  'Dolor de pecho',
+  'Sangrado abundante',
+  'Convulsión o desmayo',
+  'Fiebre alta en menor de 5 años',
+  'Dolor intenso',
+  'Gestante con sangrado o dolor',
+];
 
 export const SIS = {
   ACTIVO: ['SIS activo', 'ok'],

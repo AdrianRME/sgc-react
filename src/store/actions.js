@@ -8,10 +8,11 @@
  */
 import {
   DomainError, assertTransition, evalTriage, validateVitals, validateThresholds,
-  allergyConflicts, validatePrescription, isCurrent, latestThresholds, turnKey,
+  allergyConflicts, validatePrescription, isCurrent, latestThresholds, turnKey, preferenteDe,
 } from '../lib/clinical.js';
 import {
   ACTIVE_STATES, TRIAGE_STATION, ROLES, PRIO, TARIFA_CONSULTA, METODOS_PAGO, SIS_EXONERADO, ESPECIALIDADES,
+  PREFERENTE, SIGNOS_ALARMA, MOTIVOS_ACCESO_HC,
 } from '../lib/constants.js';
 import { nextTurnId, nextRecipe, nextHC, nextComprobante, uid, tempPassword } from '../lib/ids.js';
 import { maskDni, fullName, age, fmtD, fmtHora, fmtLongDay } from '../lib/format.js';
@@ -67,8 +68,15 @@ export function validatePatientForm(f) {
   return e;
 }
 
-export function createTurn(db, ctx, { dni, form, sis }) {
+/**
+ * Turno nuevo. Con SIS no paga y pasa a triaje; sin seguro espera en Caja. Si Admisión ve un signo de alarma
+ * (`urg`), es una urgencia: pasa a triaje primero y sin cobro previo, y paga después de ser atendido.
+ * `pref` es la atención preferente que marca Admisión (gestante o discapacidad); la de la edad la pone el sistema.
+ */
+export function createTurn(db, ctx, { dni, form, sis, urg = null, pref = null }) {
   if (!/^\d{8}$/.test(dni)) throw new DomainError('El DNI debe tener 8 dígitos.');
+  if (urg && !SIGNOS_ALARMA.includes(urg)) throw new DomainError('Elija el signo de alarma de la urgencia.');
+  if (pref && !['GESTANTE', 'DISCAPACIDAD'].includes(pref)) throw new DomainError('Atención preferente no válida.');
   const dup = activeTurnOf(db, dni);
   if (dup) throw new DomainError(`El paciente ya tiene el turno ${dup.id} activo.`);
 
@@ -86,21 +94,28 @@ export function createTurn(db, ctx, { dni, form, sis }) {
     patient = { ...patient, tel: form.tel?.trim() ?? patient.tel, sis };
   }
 
+  if (pref === 'GESTANTE' && patient.sexo !== 'F') throw new DomainError('Solo una paciente mujer puede registrarse como gestante.');
+
   // Con SIS la consulta no se cobra: se registra un pago de S/ 0.00 y el paciente pasa directo a triaje.
-  // Sin seguro, el turno espera en Caja: no entra a triaje hasta pagar.
+  // Sin seguro, el turno espera en Caja: no entra a triaje hasta pagar, salvo que sea una urgencia.
   const id = nextTurnId(db.turns, ctx.now);
   const exonerado = SIS_EXONERADO.includes(sis);
+  const preferente = preferenteDe(patient, pref, ctx.now);
   const turn = {
-    id, dni, adm: ctx.user.u, state: exonerado ? 'EN_ESPERA_TRIAJE' : 'PENDIENTE_PAGO', prio: null, t0: ctx.now,
+    id, dni, adm: ctx.user.u, state: exonerado || urg ? 'EN_ESPERA_TRIAJE' : 'PENDIENTE_PAGO', prio: null, t0: ctx.now,
+    ...(urg && { urg }), // el signo de alarma que vio Admisión
+    ...(preferente && { pref: preferente }),
     ...(exonerado && { tPago: ctx.now, pago: { metodo: 'SIS', monto: 0, comp: null, by: ctx.user.u, t: ctx.now } }),
   };
-  audit.push(auditEntry(ctx, 'TURNO_CREADO', `${id} registrado${sis === 'PENDIENTE_VALIDACION' ? ' (contingencia SIS)' : ''}`));
+  audit.push(auditEntry(ctx, 'TURNO_CREADO', `${id} registrado${sis === 'PENDIENTE_VALIDACION' ? ' (contingencia SIS)' : ''}${preferente ? ` · atención preferente: ${PREFERENTE[preferente].toLowerCase()}` : ''}`));
+  if (urg) audit.push(auditEntry(ctx, 'URGENCIA', `${id} · signo de alarma: ${urg.toLowerCase()}${exonerado ? '' : ' · pasa a triaje sin cobro previo'}`));
   if (exonerado) audit.push(auditEntry(ctx, 'PAGO_REGISTRADO', `${id} exonerado por SIS`));
+  const sigue = urg
+    ? `Urgencia: pasa primero a triaje${exonerado ? '' : ' sin pagar; el pago se hace en Caja después de la atención'}.`
+    : exonerado ? 'Con SIS no paga: pasa directo a triaje.' : `Debe pagar S/ ${TARIFA_CONSULTA.toFixed(2)} en Caja antes del triaje.`;
   return {
     changes: { patients: [patient], turns: [turn], audit },
-    toast: ['ok', exonerado
-      ? `Turno ${id} generado para ${fullName(patient)}. Con SIS no paga: pasa directo a triaje.`
-      : `Turno ${id} generado para ${fullName(patient)}. Debe pagar S/ ${TARIFA_CONSULTA.toFixed(2)} en Caja antes del triaje.`],
+    toast: [urg ? 'crit' : 'ok', `Turno ${id} generado para ${fullName(patient)}. ${sigue}`],
     result: turn,
   };
 }
@@ -128,6 +143,33 @@ export function registerPayment(db, ctx, id, { metodo, recibido }) {
       audit: [auditEntry(ctx, 'PAGO_REGISTRADO', `${id} · ${comp} · S/ ${TARIFA_CONSULTA.toFixed(2)} · ${METODOS_PAGO[metodo]}`)],
     },
     toast: ['ok', `Pago registrado (${comp}). ${id} pasa a la lista de triaje.`],
+    result: turn,
+  };
+}
+
+/** Urgencias que pasaron a triaje sin pagar y todavía no pagan (Caja las cobra después de la atención). */
+export const porCobrarDespues = (t) => t.urg && !t.pago && t.state !== 'CANCELADO';
+
+/**
+ * Cobro posterior de una urgencia: no cambia el estado del turno (el paciente ya fue atendido o lo está
+ * siendo). Si se va sin pagar, la deuda queda registrada: nunca se detuvo su atención por el pago.
+ */
+export function registerLatePayment(db, ctx, id, { metodo, recibido }) {
+  const t = db.turns.find((x) => x.id === id && porCobrarDespues(x));
+  if (!t) throw new DomainError(`El turno ${id} no tiene un cobro pendiente de urgencia.`);
+  if (!METODOS_PAGO[metodo] || metodo === 'SIS') throw new DomainError('Elija el medio de pago: efectivo, tarjeta o billetera digital.');
+  if (metodo === 'EFECTIVO' && !(+recibido >= TARIFA_CONSULTA)) {
+    throw new DomainError(`El monto recibido no cubre la tarifa de S/ ${TARIFA_CONSULTA.toFixed(2)}.`);
+  }
+  const comp = nextComprobante(db.turns, db.meta?.compMax);
+  const pago = { metodo, monto: TARIFA_CONSULTA, comp, by: ctx.user.u, t: ctx.now };
+  const turn = { ...t, tPago: ctx.now, pago };
+  return {
+    changes: {
+      turns: [turn],
+      audit: [auditEntry(ctx, 'PAGO_REGISTRADO', `${id} · ${comp} · S/ ${TARIFA_CONSULTA.toFixed(2)} · ${METODOS_PAGO[metodo]} (cobro posterior a la urgencia)`)],
+    },
+    toast: ['ok', `Pago registrado (${comp}). La urgencia ${id} queda pagada.`],
     result: turn,
   };
 }
@@ -288,8 +330,9 @@ export function checkIn(db, ctx, id) {
     const exonerado = SIS_EXONERADO.includes(p?.sis);
     const to = exonerado ? 'EN_ESPERA_TRIAJE' : 'PENDIENTE_PAGO';
     assertTransition(t, to);
+    const preferente = preferenteDe(p, t.pref, ctx.now);
     const turn = {
-      ...t, _prev: turnKey(t), state: to, t0: ctx.now,
+      ...t, _prev: turnKey(t), state: to, t0: ctx.now, ...(preferente && { pref: preferente }),
       ...(exonerado && { tPago: ctx.now, pago: { metodo: 'SIS', monto: 0, comp: null, by: ctx.user.u, t: ctx.now } }),
     };
     return {
@@ -349,6 +392,21 @@ export function reservarCita(db, ctx, { dni, nac, cita, canal }) {
 }
 
 /* ---------- Consulta ---------- */
+
+/**
+ * ¿El profesional tiene hoy una relación de atención con el paciente? (lo tiene citado, lo está atendiendo
+ * o ya lo atendió). Si no, para abrir su historia debe justificar el acceso.
+ */
+export const atiendeA = (db, u, dni) =>
+  db.turns.some((t) => t.dni === dni && (t.cita?.med === u || t.med === u || t.consult?.medico?.u === u));
+
+/** Acceso justificado a una historia clínica ajena a la atención del profesional: queda en la auditoría. */
+export function accesoJustificado(db, ctx, dni, motivo) {
+  if (!MOTIVOS_ACCESO_HC.includes(motivo)) throw new DomainError('Elija el motivo del acceso a la historia clínica.');
+  const p = db.patients.find((x) => x.dni === dni);
+  if (!p) throw new DomainError('Paciente no encontrado.');
+  return { changes: { audit: [auditEntry(ctx, 'HC_CONSULTADA', `${p.hc} · acceso justificado: ${motivo.toLowerCase()}`)] } };
+}
 
 export function startConsult(db, ctx, id) {
   const t = findTurn(db, id, ctx.now);

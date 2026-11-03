@@ -361,3 +361,8 @@ button.chip[aria-pressed='true'] { border-color: var(--role); background: var(--
 .esp-rama { display: flex; flex-direction: column; gap: 6px; }
 .esp-rama-h { font-size: var(--fs-xs); font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase; color: var(--muted); }
 .esp-rama .esp-pills { grid-template-columns: repeat(auto-fill, minmax(170px, 1fr)); }
+
+/* Motivo del acceso justificado a una historia clínica */
+.chk { display: flex; align-items: center; gap: 10px; padding: 9px 12px; border: 1px solid var(--line); border-radius: 10px; background: var(--surface); cursor: pointer; }
+.chk:has(input:checked) { border-color: var(--brand); background: var(--surface-2); }
+.msg svg, .msg b svg { width: 16px; height: 16px; vertical-align: -3px; }

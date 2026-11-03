@@ -1,7 +1,7 @@
 import { m } from 'motion/react';
 import { listItem } from '../lib/motion.js';
 import { fullName, iniciales } from '../lib/format.js';
-import { TurnCode } from './ui.jsx';
+import { TurnCode, TurnFlags } from './ui.jsx';
 
 /**
  * Tarjeta de un paciente en una cola: iniciales, nombre, turno y datos breves a la izquierda; su estado y la
@@ -18,6 +18,7 @@ export function PacCard({ turn, patient, c, tag, meta, note, badge, actions, on 
           <TurnCode id={turn.id} />
           {tag && <span className="pac-st">{tag}</span>}
           {meta}
+          <TurnFlags turn={turn} />
         </span>
         {note && <span className="pac-note">{note}</span>}
       </div>
@@ -38,7 +39,7 @@ export function Siguiente({ kicker = 'Siguiente paciente', turn, patient, c, det
       <div className="next-main">
         <small>{kicker}</small>
         <b>{fullName(patient)}</b>
-        <span className="pac-meta"><TurnCode id={turn.id} />{detail}</span>
+        <span className="pac-meta"><TurnCode id={turn.id} />{detail}<TurnFlags turn={turn} /></span>
       </div>
       <div className="next-act">{action}</div>
     </div>

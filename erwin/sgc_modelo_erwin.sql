@@ -139,13 +139,16 @@ CREATE TABLE turno (
     ts_ultimo_llamado       datetime         NULL,
     veces_llamado           smallint         NOT NULL DEFAULT 0,
     id_usuario_en_atencion  uniqueidentifier NULL,
+    signo_alarma            varchar(40)      NULL,
+    atencion_preferente     varchar(15)      NULL,
     CONSTRAINT pk_turno PRIMARY KEY (id_turno),
     CONSTRAINT uq_turno_codigo_dia UNIQUE (fecha_turno, codigo_turno),
     CONSTRAINT ck_turno_estado CHECK (estado IN ('PENDIENTE_PAGO','EN_ESPERA_TRIAJE','EN_TRIAJE','PENDIENTE_CITA',
                                                  'CITADO','EN_ESPERA_CONSULTA','LLAMANDO','EN_CONSULTA',
                                                  'ATENDIDO','CANCELADO')),
     CONSTRAINT ck_turno_prioridad CHECK (nivel_prioridad IN ('NORMAL','PRIORITARIA','CRITICA')),
-    CONSTRAINT ck_turno_llamados CHECK (veces_llamado >= 0)
+    CONSTRAINT ck_turno_llamados CHECK (veces_llamado >= 0),
+    CONSTRAINT ck_turno_preferente CHECK (atencion_preferente IN ('GESTANTE','DISCAPACIDAD'))
 )
 go
 

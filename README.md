@@ -202,6 +202,7 @@ src/
   assets/icons3d/     íconos 3D Fluent Emoji (Microsoft, licencia MIT)
 supabase/schema.sql   17 tablas, cuentas y horarios demo, RLS por rol, funciones sgc_* y tiempo real
 supabase/actualizacion-v1.3.sql  cartera de primer nivel: 11 especialidades, 8 consultorios y sus profesionales
+supabase/actualizacion-v2.3.sql  urgencia sin cobro previo y atención preferente (2 columnas nuevas en TURNO)
 supabase/datos-demo.sql  más personal y médicos con horario, y 18 pacientes por tipo de caso con su historia
 erwin/                el mismo modelo en SQL Server 2005 para el diagrama en CA ERwin r7
 vercel.json           cabeceras de seguridad (CSP, HSTS, X-Frame-Options…)

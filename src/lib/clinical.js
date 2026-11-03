@@ -1,5 +1,5 @@
-import { MEDS, WAIT_TARGET, MIN, ACTIVE_STATES, STAGES, STATE } from './constants.js';
-import { startOfDay } from './format.js';
+import { MEDS, WAIT_TARGET, MIN, ACTIVE_STATES, STAGES, STATE, EDAD_MAYOR, EDAD_NINO_MAX } from './constants.js';
+import { ageAt, startOfDay } from './format.js';
 
 /** Error de regla de negocio: su mensaje se muestra tal cual al usuario. */
 export class DomainError extends Error {}
@@ -150,15 +150,32 @@ export const latestThresholds = (versions) => [...versions].sort((a, b) => b.sin
 export const isCurrent = (t, now = Date.now()) => t.t0 >= startOfDay(now) || ACTIVE_STATES.includes(t.state);
 
 const RANK = { CRITICA: 0, PRIORITARIA: 1, NORMAL: 2 };
+const prioRank = (t) => RANK[t.prio] ?? 3;
+/** Atención preferente (Ley N.° 27408): 0 si la tiene, 1 si no. Desempata a igual prioridad clínica. */
+const prefRank = (t) => (t.pref ? 0 : 1);
 export const byArrival = (a, b) => a.t0 - b.t0;
-export const byPriority = (a, b) => (RANK[a.prio] ?? 3) - (RANK[b.prio] ?? 3) || a.t0 - b.t0;
+/** Cola de triaje: primero las urgencias, luego la atención preferente y después el orden de llegada. */
+export const byTriaje = (a, b) => (a.urg ? 0 : 1) - (b.urg ? 0 : 1) || prefRank(a) - prefRank(b) || a.t0 - b.t0;
+export const byPriority = (a, b) => prioRank(a) - prioRank(b) || prefRank(a) - prefRank(b) || a.t0 - b.t0;
 /**
- * Orden de la consulta: prioridad clínica y luego la hora en que empieza su espera (la de su cita o su
- * llegada, la que sea posterior). Así quien tiene cita más temprano pasa antes, salvo un caso más grave.
+ * Orden de la consulta: prioridad clínica, atención preferente y luego la hora en que empieza su espera (la de
+ * su cita o su llegada, la que sea posterior). Así quien tiene cita más temprano pasa antes, salvo un caso más grave.
  */
-export const byConsulta = (a, b) => (RANK[a.prio] ?? 3) - (RANK[b.prio] ?? 3) || (a.tLlega ?? a.t0) - (b.tLlega ?? b.t0);
+export const byConsulta = (a, b) =>
+  prioRank(a) - prioRank(b) || prefRank(a) - prefRank(b) || (a.tLlega ?? a.t0) - (b.tLlega ?? b.t0);
 
-const STAGE_SORT = { espCita: byPriority, espMed: byConsulta };
+/**
+ * Atención preferente de un paciente: la que Admisión marcó (gestante o discapacidad) o, si no, la que
+ * corresponde por su edad en la fecha `t`.
+ */
+export function preferenteDe(patient, marcada, t = Date.now()) {
+  if (marcada) return marcada;
+  if (!patient?.nac) return null;
+  const e = ageAt(patient.nac, t);
+  return e >= EDAD_MAYOR ? 'ADULTO_MAYOR' : e <= EDAD_NINO_MAX ? 'NINO' : null;
+}
+
+const STAGE_SORT = { espTri: byTriaje, espCita: byPriority, espMed: byConsulta };
 /** Turnos agrupados por etapa de la ruta; la espera de cita y la de consulta se ordenan por prioridad. */
 export const byStage = (turns) =>
   Object.fromEntries(STAGES.map((s) => [s.k, turns.filter((t) => s.states.includes(t.state)).sort(STAGE_SORT[s.k] || byArrival)]));
@@ -180,7 +197,11 @@ export function waitInfo(turn, now) {
   const since = turn[s.from] ?? turn.t0;
   const until = s.states.includes(turn.state) ? now : turn[s.to] ?? now;
   const min = Math.max(0, Math.floor((until - since) / MIN));
-  const target = s.k === 'espMed' ? WAIT_TARGET[turn.prio] ?? WAIT_TARGET.NORMAL : WAIT_TARGET[s.k];
+  const target = s.k === 'espMed' ? WAIT_TARGET[turn.prio] ?? WAIT_TARGET.NORMAL
+    : s.k === 'espTri' && turn.urg ? WAIT_TARGET.urgTri
+      // un paciente crítico sin cita necesita su sobrecupo de inmediato
+      : s.k === 'espCita' && turn.prio === 'CRITICA' ? WAIT_TARGET.CRITICA
+        : WAIT_TARGET[s.k];
   return { min, target, late: min > target };
 }
 

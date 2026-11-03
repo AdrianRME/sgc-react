@@ -5,7 +5,7 @@ import { SectionHero } from '../components/SectionHero.jsx';
 import { PacCard, Siguiente } from '../components/Cola.jsx';
 import { useStore } from '../store/useStore.js';
 import { callTurn, callNext, startTriage, saveTriage, returnToQueue, cancelTurn } from '../store/actions.js';
-import { evalTriage, validateVitals, imcCategory, byArrival, turnKey } from '../lib/clinical.js';
+import { evalTriage, validateVitals, imcCategory, byTriaje, turnKey } from '../lib/clinical.js';
 import { age, cap, fmtD, fmtLongDay, fmtT, fullName, saludo, startOfToday } from '../lib/format.js';
 import { listItem, spring } from '../lib/motion.js';
 import { CANCEL, QUEUE } from '../lib/constants.js';
@@ -146,7 +146,7 @@ export default function Triaje() {
   const [ask, dialog] = useConfirm();
   // Al terminar el triaje, la cita se da aquí mismo: el paciente no vuelve a Admisión
   const [citaFor, setCitaFor] = useState(null);
-  const queue = db.turns.filter((t) => QUEUE.enf.includes(t.state)).sort(byArrival);
+  const queue = db.turns.filter((t) => QUEUE.enf.includes(t.state)).sort(byTriaje);
   const current = db.turns.find((t) => t.state === 'EN_TRIAJE');
   const porCitar = citaFor && db.turns.find((t) => t.id === citaFor && t.state === 'PENDIENTE_CITA');
   const pat = (t) => patient(t.dni);
@@ -261,7 +261,7 @@ export default function Triaje() {
                     patient={pat(sigue)}
                     c="var(--st-enf)"
                     detail={<><span>{age(pat(sigue).nac)} años</span><WaitTime turn={sigue} now={now} /></>}
-                    action={<button className="btn lg" onClick={() => run(callNext, 'tri', byArrival)}><Megaphone /> Llamar siguiente</button>}
+                    action={<button className="btn lg" onClick={() => run(callNext, 'tri', byTriaje)}><Megaphone /> Llamar siguiente</button>}
                   />
                 )}
                 <p className="ahora-note">Al llamarlo, su turno aparece en la pantalla de la sala. Cuando se acerque, pulse «Iniciar triaje» y se abre aquí el registro de signos vitales.</p>

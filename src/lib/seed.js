@@ -1,5 +1,5 @@
 import { CIE, DAY, MIN, TH_DEFAULT, FAKE_IPS, HISTORY_DAYS, TARIFA_CONSULTA, ACTIVE_STATES, SERIE_BOLETA } from './constants.js';
-import { evalTriage } from './clinical.js';
+import { evalTriage, preferenteDe } from './clinical.js';
 import { cuposLibres } from './agenda.js';
 import { fmtHora, startOfDay } from './format.js';
 import { generateHistory, med, medico, DEMO_USERS, DEMO_HORARIOS } from './seedHistory.js';
@@ -187,8 +187,13 @@ export function buildSeed(now = Date.now()) {
   const extra = hist.patients.filter((p) => !namedDni.has(p.dni) && !busy.has(p.dni) && p.nac < `${new Date(now).getFullYear() - 14}`).slice(0, 6);
 
   const agenda = { users: DEMO_USERS, horarios: DEMO_HORARIOS, turns: hist.turns };
-  const turns = numberTurns([...hist.turns, ...liveTurns(now, extra, agenda)]);
   const patients = [...NAMED, ...hist.patients];
+  // Atención preferente por edad (Ley N.° 27408), como la marca Admisión al generar el turno
+  const byDni = new Map(patients.map((p) => [p.dni, p]));
+  const turns = numberTurns([...hist.turns, ...liveTurns(now, extra, agenda)]).map((t) => {
+    const pref = preferenteDe(byDni.get(t.dni), null, t.t0);
+    return pref ? { ...t, pref } : t;
+  });
 
   const audit = [
     ...hist.audit,

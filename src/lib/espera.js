@@ -14,7 +14,7 @@
  */
 import { ESPECIALIDADES, MIN } from './constants.js';
 import { startOfDay } from './format.js';
-import { byArrival, byConsulta, turnKey } from './clinical.js';
+import { byConsulta, byTriaje, turnKey } from './clinical.js';
 
 export const ESPERA_N = 20;
 export const ESPERA_MIN_MUESTRAS = 3;
@@ -64,7 +64,7 @@ export function estimarEsperas(turns, now) {
   const ocupadoTri = turns.filter((t) => EN_TRIAJE.includes(t.state)).reduce((a, t) => a + resto(t, 'tTriCall', tri), 0);
   turns
     .filter((t) => t.state === 'EN_ESPERA_TRIAJE')
-    .sort(byArrival)
+    .sort(byTriaje)
     .forEach((t, i) => out.set(turnKey(t), Math.round(ocupadoTri + i * tri)));
 
   const colas = new Map();
