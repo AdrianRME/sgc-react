@@ -61,7 +61,3 @@
   .pp-carnet { flex-wrap: wrap; }
   .pp-carnet-x { flex-direction: row; align-items: center; width: 100%; justify-content: space-between; }
 }
-/* Al imprimir una receta solo sale la receta */
-@media print {
-  .pp-page > header, .pp-page .cw-main > :not(.stack), .pp-page .stack > :not(.overlay) { display: none !important; }
-}

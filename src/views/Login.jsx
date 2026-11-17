@@ -1,6 +1,6 @@
 import { lazy, Suspense, useEffect, useRef, useState } from 'react';
 import { AnimatePresence, m } from 'motion/react';
-import { CalendarPlus, CirclePlay, Eye, EyeOff, Lock, LogIn, Tv, UserRound } from 'lucide-react';
+import { ArrowLeft, CalendarPlus, ChevronRight, CirclePlay, Eye, EyeOff, KeyRound, Lock, LogIn, Tv } from 'lucide-react';
 import { useStore } from '../store/useStore.js';
 import { DEMO_PASSWORD, MAX_LOGIN_ATTEMPTS, LOCK_MS, ROLES, roleFromUsername } from '../lib/constants.js';
 import { cambio, entrada } from '../lib/motion.js';
@@ -10,12 +10,13 @@ import { BrandMark } from '../components/BrandMark.jsx';
 import { BotonAnimaciones } from '../components/BotonAnimaciones.jsx';
 import { useNow } from '../hooks/useNow.js';
 import { useMovimiento } from '../hooks/useMovimiento.js';
+import { PIN_CENTRO, entrarVisita, esPersonal, marcarPersonal, salirVisita } from '../lib/entrada.js';
 import '../styles/vistas/login.css';
 
 // El simulador no necesita sesión: corre sobre una copia de prueba de los datos
 const Simulador = lazy(() => import('../components/Simulador.jsx'));
 
-// Cuentas de demostración (solo se muestran en modo local de desarrollo)
+// Cuentas de demostración (se muestran en modo local y en modo visita)
 const DEV_USERS = [['a.admision', 'adm'], ['c.caja', 'caj'], ['e.triaje', 'enf'], ['m.consulta', 'med'], ['m.cardio', 'med'], ['j.jefatura', 'jef']];
 
 /*
@@ -109,8 +110,75 @@ function Monitor() {
   );
 }
 
+/**
+ * Portada: ¿quién entra? El paciente va a su portal; el personal confirma con el PIN del centro; quien solo
+ * quiere conocer el sistema entra al modo visita (una copia de demostración que no toca el sistema real).
+ */
+function Eleccion({ onPersonal }) {
+  return (
+    <m.div className="login-card eleccion" {...entrada}>
+      <div className="eleccion-h">
+        <small>Centro de Salud · primer nivel</small>
+        <h1>¿Quién ingresa?</h1>
+        <p>Elija cómo quiere entrar al sistema.</p>
+      </div>
+      <div className="eleccion-ops">
+        <a className="eleccion-op" href="#/paciente" data-role="med">
+          <Icono name="folder" size={44} />
+          <span><b>Soy paciente</b><small>Vea su cita, sus atenciones y sus recetas</small></span>
+          <ChevronRight className="eleccion-ir" aria-hidden="true" />
+        </a>
+        <button type="button" className="eleccion-op" data-role="enf" onClick={onPersonal}>
+          <Icono name="nurse" size={44} />
+          <span><b>Soy personal del centro</b><small>Admisión, Caja, Triaje, Consulta o Jefatura</small></span>
+          <ChevronRight className="eleccion-ir" aria-hidden="true" />
+        </button>
+        <button type="button" className="eleccion-op visita" data-role="jef" onClick={entrarVisita}>
+          <Icono name="search" size={44} />
+          <span><b>Solo quiero explorar</b><small>Modo visita: use todo con datos de prueba, sin tocar el sistema real</small></span>
+          <ChevronRight className="eleccion-ir" aria-hidden="true" />
+        </button>
+      </div>
+    </m.div>
+  );
+}
+
+/** Confirmación del personal con el PIN del centro (en el prototipo se muestra en pantalla: no bloquea a nadie). */
+function PinPersonal({ onOk, onVolver }) {
+  const [pin, setPin] = useState('');
+  const [err, setErr] = useState('');
+  const comprobar = (e) => {
+    e.preventDefault();
+    if (pin === PIN_CENTRO) onOk();
+    else {
+      setErr('PIN incorrecto. Use el PIN del centro que aparece abajo.');
+      setPin('');
+    }
+  };
+  return (
+    <m.form className="login-card pin" {...entrada} onSubmit={comprobar} noValidate>
+      <div className="eleccion-h">
+        <small>Personal del centro</small>
+        <h1>PIN del centro</h1>
+        <p>Antes de ingresar con su usuario, confirme que es personal del centro.</p>
+      </div>
+      {err && <Msg tone="crit">{err}</Msg>}
+      <Field label="PIN de 4 dígitos">
+        {(a) => <input {...a} className="pin-in" value={pin} onChange={(e) => setPin(e.target.value.replace(/\D/g, '').slice(0, 4))} inputMode="numeric" autoComplete="off" placeholder="••••" autoFocus />}
+      </Field>
+      <p className="pin-demo"><KeyRound aria-hidden="true" /> Prototipo: el PIN de demostración es <b className="code">{PIN_CENTRO}</b></p>
+      <div className="actions">
+        <button className="btn lg" disabled={pin.length !== 4}><LogIn /> Continuar</button>
+        <button type="button" className="btn ghost" onClick={onVolver}><ArrowLeft /> Volver</button>
+      </div>
+    </m.form>
+  );
+}
+
 export function Login() {
   const { signIn, repo } = useStore();
+  const visita = repo.kind === 'visita';
+  const [paso, setPaso] = useState(() => (visita || esPersonal() ? 'login' : 'elige'));
   const [u, setU] = useState('');
   const [p, setP] = useState('');
   const [show, setShow] = useState(false);
@@ -121,7 +189,7 @@ export function Login() {
   const [lockUntil, setLockUntil] = useState(0);
   const now = useNow(1000);
   const locked = lockUntil > now;
-  const local = repo.kind === 'local';
+  const local = repo.kind === 'local' || visita;
   const role = roleFromUsername(u);
   const R = role && ROLES[role];
   const userRef = useRef(null);
@@ -159,9 +227,13 @@ export function Login() {
       setBusy(false);
     }
   };
+  const volver = () => {
+    marcarPersonal(false);
+    setPaso('elige');
+  };
 
   return (
-    <div className="login" data-role={role || undefined}>
+    <div className="login" data-role={paso === 'login' ? role || undefined : undefined}>
       <Monitor />
 
       <header className="login-top">
@@ -170,81 +242,96 @@ export function Login() {
           <div><b>SGC</b><span>Centro de Salud</span></div>
         </div>
         <nav className="top-links">
-          <a className="sala-link cita" href="#/cita"><CalendarPlus aria-hidden="true" /> Sacar cita</a>
-          <a className="sala-link" href="#/paciente"><UserRound aria-hidden="true" /> Mi atención</a>
-          <a className="sala-link" href="#/sala"><Tv aria-hidden="true" /> Pantalla de sala</a>
-          <button type="button" className="sala-link" onClick={() => setSim(true)}><CirclePlay aria-hidden="true" /> Simulación</button>
+          <a className="sala-link cita" href="#/cita"><CalendarPlus aria-hidden="true" /> <span>Sacar cita</span></a>
+          <a className="sala-link" href="#/sala"><Tv aria-hidden="true" /> <span>Pantalla de sala</span></a>
+          <button type="button" className="sala-link" onClick={() => setSim(true)}><CirclePlay aria-hidden="true" /> <span>Simulación</span></button>
           <BotonAnimaciones className="sala-link" />
         </nav>
       </header>
       {sim && <Suspense fallback={null}><Simulador onClose={() => setSim(false)} /></Suspense>}
 
       <main className="login-main">
-        <m.div className="login-card" {...entrada}>
-          <div className="who" aria-live="polite">
-            <span className="who-av">
-              <AnimatePresence mode="popLayout" initial={false}>
-                <m.span key={role || 'none'} {...cambio}>
-                  <Icono name={R ? R.icon : 'hospital'} size={56} />
-                </m.span>
-              </AnimatePresence>
-            </span>
-            <h1>{R ? R.n : 'Bienvenido'}</h1>
-            <p>{R ? R.tag : 'Ingrese con su usuario institucional'}</p>
-          </div>
-
-          {err && (locked || !lockUntil) && (
-            <Msg tone="crit">{err}{locked && ` Reintente en ${Math.ceil((lockUntil - now) / 1000)} s.`}</Msg>
-          )}
-          <form onSubmit={submit} noValidate className="stack">
-            <div className="areas" role="group" aria-label="Área de trabajo">
-              {AREAS_LOGIN.map(([k, n]) => (
-                <button key={k} type="button" className="area-btn" data-role={k} aria-pressed={role === k} onClick={() => pickArea(k)} disabled={locked}>
-                  <Icono name={ROLES[k].icon} size={20} />
-                  <span>{n}</span>
-                </button>
-              ))}
-            </div>
-            <Field label="Usuario">
-              {(a) => (
-                <input
-                  {...a} ref={userRef} value={u} onChange={(e) => setU(e.target.value)} placeholder="Elija su área o escriba su usuario"
-                  // En equipos compartidos el navegador no debe sugerir los usuarios que otros escribieron
-                  autoComplete="off" autoCapitalize="none" spellCheck="false" autoFocus disabled={locked}
-                />
-              )}
-            </Field>
-            <Field label="Contraseña">
-              {(a) => (
-                <div className="pw">
-                  <input {...a} type={show ? 'text' : 'password'} value={p} onChange={(e) => setP(e.target.value)} autoComplete="current-password" disabled={locked} />
-                  <button type="button" className="icon-btn sm" onClick={() => setShow((s) => !s)} aria-label={show ? 'Ocultar contraseña' : 'Mostrar contraseña'}>
-                    {show ? <EyeOff /> : <Eye />}
-                  </button>
-                </div>
-              )}
-            </Field>
-            <button className="btn lg full" disabled={locked || busy || !u || !p}>
-              <LogIn /> {busy ? 'Verificando…' : R ? `Ingresar a ${R.n}` : 'Ingresar'}
-            </button>
-          </form>
-
-          {local ? (
-            <div className="demo-box">
-              <span className="note">Cuentas de prueba · clave <code>{DEMO_PASSWORD}</code></span>
-              <div className="quick">
-                {DEV_USERS.map(([x, r]) => (
-                  <button key={x} type="button" className="qbtn" data-role={r} title={x} aria-pressed={u === x} onClick={() => { setU(x); setP(DEMO_PASSWORD); }}>
-                    <Icono name={ROLES[r].icon} size={20} />
-                    <span>{x === 'm.cardio' ? 'Cardiología' : ROLES[r].n}</span>
+        <AnimatePresence mode="wait" initial={false}>
+          {paso === 'elige' && <Eleccion key="elige" onPersonal={() => setPaso('pin')} />}
+          {paso === 'pin' && <PinPersonal key="pin" onOk={() => { marcarPersonal(true); setPaso('login'); }} onVolver={() => setPaso('elige')} />}
+          {paso === 'login' && (
+            <m.div key="login" className="expediente" {...entrada}>
+              {/* Las pestañas del expediente: una por área; la elegida se une a la hoja */}
+              <div className="exp-pestanas" role="group" aria-label="Área de trabajo">
+                {AREAS_LOGIN.map(([k, n]) => (
+                  <button key={k} type="button" className="area-btn" data-role={k} aria-pressed={role === k} onClick={() => pickArea(k)} disabled={locked}>
+                    <Icono name={ROLES[k].icon} size={18} />
+                    <span>{n}</span>
                   </button>
                 ))}
               </div>
-            </div>
-          ) : (
-            <p className="sec-note"><Lock aria-hidden="true" /> Conexión cifrada · la sesión se cierra tras 15 min sin uso</p>
+              <div className="login-card exp-hoja">
+                <span className="exp-sello" aria-hidden="true">{visita ? 'Modo visita' : 'Expediente del personal'}</span>
+                <div className="who" aria-live="polite">
+                  <span className="who-av">
+                    <AnimatePresence mode="popLayout" initial={false}>
+                      <m.span key={role || 'none'} {...cambio}>
+                        <Icono name={R ? R.icon : 'hospital'} size={56} />
+                      </m.span>
+                    </AnimatePresence>
+                  </span>
+                  <h1>{R ? R.n : 'Bienvenido'}</h1>
+                  <p>{R ? R.tag : 'Elija su área en las pestañas o escriba su usuario'}</p>
+                </div>
+
+                {visita && <Msg tone="info"><b>Modo visita.</b> Entre con cualquier cuenta de prueba: lo que haga queda solo en este navegador.</Msg>}
+                {err && (locked || !lockUntil) && (
+                  <Msg tone="crit">{err}{locked && ` Reintente en ${Math.ceil((lockUntil - now) / 1000)} s.`}</Msg>
+                )}
+                <form onSubmit={submit} noValidate className="stack">
+                  <Field label="Usuario">
+                    {(a) => (
+                      <input
+                        {...a} ref={userRef} value={u} onChange={(e) => setU(e.target.value)} placeholder="Elija su área o escriba su usuario"
+                        // En equipos compartidos el navegador no debe sugerir los usuarios que otros escribieron
+                        autoComplete="off" autoCapitalize="none" spellCheck="false" autoFocus disabled={locked}
+                      />
+                    )}
+                  </Field>
+                  <Field label="Contraseña">
+                    {(a) => (
+                      <div className="pw">
+                        <input {...a} type={show ? 'text' : 'password'} value={p} onChange={(e) => setP(e.target.value)} autoComplete="current-password" disabled={locked} />
+                        <button type="button" className="icon-btn sm" onClick={() => setShow((s) => !s)} aria-label={show ? 'Ocultar contraseña' : 'Mostrar contraseña'}>
+                          {show ? <EyeOff /> : <Eye />}
+                        </button>
+                      </div>
+                    )}
+                  </Field>
+                  <button className="btn lg full" disabled={locked || busy || !u || !p}>
+                    <LogIn /> {busy ? 'Verificando…' : R ? `Ingresar a ${R.n}` : 'Ingresar'}
+                  </button>
+                </form>
+
+                {local ? (
+                  <div className="demo-box">
+                    <span className="note">Cuentas de prueba · clave <code>{DEMO_PASSWORD}</code></span>
+                    <div className="quick">
+                      {DEV_USERS.map(([x, r]) => (
+                        <button key={x} type="button" className="qbtn" data-role={r} title={x} aria-pressed={u === x} onClick={() => { setU(x); setP(DEMO_PASSWORD); }}>
+                          <Icono name={ROLES[r].icon} size={20} />
+                          <span>{x === 'm.cardio' ? 'Cardiología' : ROLES[r].n}</span>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                ) : (
+                  <p className="sec-note"><Lock aria-hidden="true" /> Conexión cifrada · la sesión se cierra tras 15 min sin uso</p>
+                )}
+                <div className="exp-pie">
+                  {visita
+                    ? <button type="button" className="linkbtn" onClick={salirVisita}>Salir del modo visita</button>
+                    : <button type="button" className="linkbtn" onClick={volver}>¿No es personal del centro? Volver</button>}
+                </div>
+              </div>
+            </m.div>
           )}
-        </m.div>
+        </AnimatePresence>
       </main>
     </div>
   );

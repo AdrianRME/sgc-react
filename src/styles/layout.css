@@ -138,6 +138,11 @@
 .conn { display: inline-flex; align-items: center; gap: 7px; height: 28px; padding: 0 10px; border-radius: var(--r-sm); font-size: var(--fs-xs); font-weight: 600; color: var(--good-text); background: var(--good-bg); white-space: nowrap; }
 .conn.bad { color: var(--crit-text); background: var(--crit-bg); }
 .idle { margin: 16px 28px 0; }
+/* Modo visita: una franja tranquila bajo la barra superior, siempre a la vista */
+.visita-band { display: flex; align-items: center; flex-wrap: wrap; gap: 8px 12px; margin: 14px 28px 0; padding: 9px 12px 9px 14px; border-radius: var(--r-panel); border: 1px dashed color-mix(in oklab, var(--brand) 55%, var(--line)); background: color-mix(in oklab, var(--brand) 7%, var(--surface)); font-size: var(--fs-sm); }
+.visita-band > svg { width: 18px; height: 18px; flex: none; color: var(--brand); }
+.visita-band > span { flex: 1 1 260px; }
+.visita-band b { color: var(--brand-strong); }
 
 /* Supervisión de pacientes sensibles (escalada automática) */
 .superv { margin: 16px 28px 0; padding: 12px 16px; border-radius: var(--r-panel); background: var(--crit-bg); border: 1px solid color-mix(in srgb, var(--crit) 35%, transparent); border-left: 4px solid var(--crit); color: var(--ink); }
@@ -163,6 +168,6 @@
   .sim-btn { width: 36px; padding: 0; justify-content: center; }
   .sim-btn .txt { display: none; }
   .page { padding: 16px 16px 48px; }
-  .idle, .superv { margin: 12px 16px 0; }
+  .idle, .superv, .visita-band { margin: 12px 16px 0; }
 }
 @media (max-width: 560px) { .conn .txt, .crumbs span, .crumbs i { display: none; } }

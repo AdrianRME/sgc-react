@@ -46,7 +46,7 @@ export function ChangePassword({ forced = false, onClose = () => {} }) {
         ? 'Está usando una contraseña temporal. Por seguridad, defina una contraseña personal antes de continuar.'
         : 'La nueva contraseña reemplaza a la actual en todos sus equipos.'}</p>
       <form onSubmit={submit} noValidate className="stack">
-        {repo.kind === 'local' && <Msg tone="warn">En modo local las contraseñas no se guardan por usuario.</Msg>}
+        {['local', 'visita'].includes(repo.kind) && <Msg tone="warn">En modo {repo.kind} las contraseñas no se guardan por usuario.</Msg>}
         {err && <Msg tone="crit">{err}</Msg>}
         <Field label="Nueva contraseña" error={weak ? PASSWORD_RULE.text : undefined} hint={!weak ? PASSWORD_RULE.text : undefined}>
           {(a) => <input {...a} type="password" value={p1} onChange={(e) => setP1(e.target.value)} autoComplete="new-password" />}

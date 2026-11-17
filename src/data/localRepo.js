@@ -16,10 +16,10 @@ const dayStart = (iso) => new Date(`${iso}T00:00:00`).getTime();
  * Supabase: la carga trae los turnos de trabajo y la historia y los indicadores se consultan aparte.
  * El inicio de sesión es de demostración: una contraseña común comprobada en el navegador.
  */
-export function createLocalRepo() {
+export function createLocalRepo({ key = KEY, sessionKey = SESSION, kind = 'local', label = 'Modo local (solo desarrollo)' } = {}) {
   const read = () => {
     try {
-      const raw = localStorage.getItem(KEY);
+      const raw = localStorage.getItem(key);
       return raw ? { ...EMPTY_DB, ...JSON.parse(raw) } : null;
     } catch {
       return null;
@@ -27,7 +27,7 @@ export function createLocalRepo() {
   };
   const write = (db) => {
     try {
-      localStorage.setItem(KEY, JSON.stringify(db));
+      localStorage.setItem(key, JSON.stringify(db));
     } catch {
       /* almacenamiento lleno o bloqueado: la app sigue en memoria */
     }
@@ -47,8 +47,8 @@ export function createLocalRepo() {
   const listeners = new Set();
   const setSession = (auth) => {
     try {
-      if (auth) sessionStorage.setItem(SESSION, JSON.stringify(auth));
-      else sessionStorage.removeItem(SESSION);
+      if (auth) sessionStorage.setItem(sessionKey, JSON.stringify(auth));
+      else sessionStorage.removeItem(sessionKey);
     } catch {
       /* sin sessionStorage */
     }
@@ -56,11 +56,11 @@ export function createLocalRepo() {
   };
 
   return {
-    kind: 'local',
-    label: 'Modo local (solo desarrollo)',
+    kind,
+    label,
     async getSession() {
       try {
-        return JSON.parse(sessionStorage.getItem(SESSION)) || null;
+        return JSON.parse(sessionStorage.getItem(sessionKey)) || null;
       } catch {
         return null;
       }
@@ -177,7 +177,7 @@ export function createLocalRepo() {
       return resumenPaciente({ patient, turns: db.turns, users: db.users });
     },
     subscribe(onChange) {
-      const h = (e) => e.key === KEY && onChange();
+      const h = (e) => e.key === key && onChange();
       window.addEventListener('storage', h);
       return () => window.removeEventListener('storage', h);
     },

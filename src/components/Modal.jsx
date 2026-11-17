@@ -1,4 +1,5 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { m } from 'motion/react';
 import { X } from 'lucide-react';
 import { fade, pop } from '../lib/motion.js';
@@ -10,6 +11,10 @@ const FOCUSABLE = 'a[href], button:not([disabled]), input:not([disabled]), selec
 /**
  * Diálogo modal accesible: atrapa el foco, cierra con Escape o clic fuera y devuelve el foco al salir.
  * Para animar la salida, el padre lo envuelve en <AnimatePresence>.
+ *
+ * Se dibuja directamente en <body>, fuera del marco de la app: así, al imprimir un documento (ticket, receta,
+ * boleta), se oculta todo lo demás y sale solo el documento. Conserva el color de la estación desde la que se
+ * abrió (data-role del ancestro más cercano).
  */
 export function Modal({ label, onClose, children, size = 'md', className = '', dismissible = true }) {
   const ref = useRef(null);
@@ -37,8 +42,17 @@ export function Modal({ label, onClose, children, size = 'md', className = '', d
       prev?.focus?.();
     };
   }, []);
+  // El color de la estación lo toma del lugar donde se abrió, antes de pintarse (sin parpadeo)
+  const ancla = useRef(null);
+  const [rol, setRol] = useState(undefined);
+  useLayoutEffect(() => {
+    setRol(ancla.current?.closest('[data-role]')?.dataset.role);
+  }, []);
   return (
-    <m.div className="overlay" {...fade} onMouseDown={(e) => e.target === e.currentTarget && closeRef.current()}>
+    <>
+      <span ref={ancla} hidden />
+      {createPortal(
+    <m.div className="overlay" data-role={rol} {...fade} onMouseDown={(e) => e.target === e.currentTarget && closeRef.current()}>
       <m.div {...pop} className={`dialog ${size} ${className}`} role="dialog" aria-modal="true" aria-label={label} ref={ref}>
         {dismissible && (
           <button className="icon-btn sm dialog-x no-print" onClick={onClose} aria-label="Cerrar">
@@ -47,7 +61,10 @@ export function Modal({ label, onClose, children, size = 'md', className = '', d
         )}
         {children}
       </m.div>
-    </m.div>
+    </m.div>,
+        document.body,
+      )}
+    </>
   );
 }
 

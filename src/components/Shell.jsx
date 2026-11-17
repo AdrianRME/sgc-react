@@ -1,7 +1,7 @@
 import { lazy, Suspense, useCallback, useEffect, useMemo, useState } from 'react';
 import { AnimatePresence, m } from 'motion/react';
 import {
-  CirclePlay, PanelLeftClose, PanelLeftOpen, ExternalLink, KeyRound, LogOut, Menu, Moon, PhoneCall, RotateCcw, Search, Sun, Tv, LayoutGrid,
+  CirclePlay, Eye, PanelLeftClose, PanelLeftOpen, ExternalLink, KeyRound, LogOut, Menu, Moon, PhoneCall, RotateCcw, Search, Sun, Tv, LayoutGrid,
 } from 'lucide-react';
 import { useStore } from '../store/useStore.js';
 import { ACTIVE_STATES, QUEUE, ROLES } from '../lib/constants.js';
@@ -19,6 +19,7 @@ import { AnimatedNumber, Avatar, Kbd, Msg } from './ui.jsx';
 import { Icono } from './Icono.jsx';
 import { BrandMark } from './BrandMark.jsx';
 import { BotonAnimaciones } from './BotonAnimaciones.jsx';
+import { salirVisita } from '../lib/entrada.js';
 import { ChangePassword } from './ChangePassword.jsx';
 import { CommandPalette } from './CommandPalette.jsx';
 import { Notifications } from './Notifications.jsx';
@@ -48,11 +49,12 @@ const leerMenu = () => {
   }
 };
 /** Texto del indicador de conexión y de la sesión según dónde se guardan los datos. */
-const CONEXION = { supabase: 'En línea', local: 'Local', sim: 'Simulación' };
+const CONEXION = { supabase: 'En línea', local: 'Local', sim: 'Simulación', visita: 'Modo visita' };
 const SESION = {
   supabase: 'Sesión segura: se cierra tras 15 minutos sin actividad.',
   local: 'Modo local de desarrollo.',
   sim: 'Simulación: datos de prueba, no se guarda nada en la base real.',
+  visita: 'Modo visita: los cambios quedan solo en este navegador; no tocan el sistema real.',
 };
 const isMac = typeof navigator !== 'undefined' && /Mac|iPhone|iPad/.test(navigator.platform);
 
@@ -230,6 +232,13 @@ export function Shell({ section, children }) {
             <span className="txt">{status.ok ? (CONEXION[repo.kind] ?? CONEXION.local) : 'Sin conexión'}</span>
           </span>
         </header>
+        {repo.kind === 'visita' && (
+          <div className="visita-band" role="status">
+            <Eye aria-hidden="true" />
+            <span><b>Modo visita.</b> Puede usar todo el sistema: los cambios quedan solo en este navegador y no afectan al sistema real.</span>
+            <button type="button" className="btn sec sm" onClick={salirVisita}><LogOut /> Salir del modo visita</button>
+          </div>
+        )}
         {!status.ok && (
           <div className="idle">
             <Msg tone="crit" role="alert">

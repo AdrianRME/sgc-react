@@ -12,7 +12,7 @@
 
 @media print {
   .dialog:has(> .ps) > :not(.ps) { display: none !important; }
-  .dialog:has(> .ps) { transform: none !important; opacity: 1 !important; border-radius: 0; background: #fff; overflow: visible; }
+  .dialog:has(> .ps) { transform: none !important; opacity: 1 !important; border: 0; border-radius: 0; background: #fff; overflow: visible; animation: none !important; clip-path: none !important; }
   .overlay:has(.ps) { transform: none !important; opacity: 1 !important; }
 
   .ps {

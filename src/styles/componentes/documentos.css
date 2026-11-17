@@ -59,8 +59,10 @@
 .trend b small { font-weight: 400; color: var(--muted); font-size: var(--fs-xs); }
 .trend .spark { grid-row: 1 / 3; grid-column: 2; }
 
+/* Al imprimir con un documento abierto sale solo el documento: la app entera (#root) se oculta y la ventana,
+   que se dibuja en <body> (components/Modal.jsx), queda sola en la página */
 @media print {
-  .app, .toasts { display: none !important; }
+  body:has(> .overlay) > #root, .toasts { display: none !important; }
   .overlay { position: static; background: none; backdrop-filter: none; padding: 0; display: block; }
   .dialog { box-shadow: none; max-height: none; width: 100%; padding: 0; }
 }

@@ -42,3 +42,5 @@
 .palette .opt .k { margin-left: auto; font-size: var(--fs-xs); color: var(--muted); }
 .palette .p-foot { display: flex; gap: 16px; padding: 10px 16px; border-top: 1px solid var(--line); font-size: var(--fs-xs); color: var(--muted); }
 .palette .p-foot span { display: inline-flex; align-items: center; gap: 6px; }
+/* En el celular los avisos ocupan el ancho de la pantalla, abajo y con margen de 12 px */
+@media (max-width: 560px) { .toasts { left: 12px; right: 12px; bottom: 12px; width: auto; } }
