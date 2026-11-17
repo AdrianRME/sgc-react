@@ -13,7 +13,7 @@ import { useDocuments } from '../hooks/useDocuments.jsx';
 import { useVerMas } from '../hooks/useVerMas.jsx';
 import { SectionHero } from '../components/SectionHero.jsx';
 import { Help } from '../components/WorkspaceHeader.jsx';
-import { Badge, Empty, Field, Msg, Panel, SisBadge, TurnCode, WaitTime } from '../components/ui.jsx';
+import { AnimatedNumber, Badge, Empty, Field, Msg, Panel, SisBadge, TurnCode, WaitTime } from '../components/ui.jsx';
 import '../styles/vistas/estaciones.css';
 
 const METODOS = [['EFECTIVO', Banknote], ['TARJETA', CreditCard], ['BILLETERA', Smartphone]];
@@ -185,9 +185,9 @@ export default function Caja() {
         <div className="figs cash-figs">
           {[['EFECTIVO'], ['TARJETA'], ['BILLETERA']].map(([k]) => {
             const list = cobros.filter((t) => t.pago.metodo === k);
-            return <div className="fig" key={k}><span>{METODOS_PAGO[k]} ({list.length})</span><b>{fmtSoles(total(list))}</b></div>;
+            return <div className="fig" key={k}><span>{METODOS_PAGO[k]} ({list.length})</span><b><AnimatedNumber value={total(list)} format={fmtSoles} /></b></div>;
           })}
-          <div className="fig"><span>Total recaudado</span><b>{fmtSoles(total(cobros))}</b></div>
+          <div className="fig"><span>Total recaudado</span><b><AnimatedNumber value={total(cobros)} format={fmtSoles} /></b></div>
         </div>
         {(ver === 'cobros' ? cobros : sis).length ? (
           <ul className="queue">

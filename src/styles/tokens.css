@@ -104,10 +104,15 @@
     0 1px 4px light-dark(rgb(19 32 29 / 0.1), rgb(0 0 0 / 0.3));
 
   /* Movimiento (los valores de Motion están en lib/motion.js y usan estos mismos tiempos) */
-  --ease: cubic-bezier(0.2, 0.8, 0.2, 1);
-  --t-fast: 0.12s;
-  --t-base: 0.18s;
-  --t-slow: 0.3s;
+  /* Curvas: salida suave para lo que entra o responde (expo), entrada para lo que se va y un rebote corto
+     para lo que se toca. Ninguna transición del sitio usa la curva «ease» por omisión. */
+  --ease: cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-in: cubic-bezier(0.55, 0, 0.75, 0.2);
+  --ease-inout: cubic-bezier(0.65, 0, 0.35, 1);
+  --ease-rebote: cubic-bezier(0.34, 1.56, 0.64, 1);
+  --t-fast: 0.14s;
+  --t-base: 0.24s;
+  --t-slow: 0.42s;
 }
 
 /* Especialidades: color de la hora en las tarjetas de cita. Cada rama tiene su familia de tonos:

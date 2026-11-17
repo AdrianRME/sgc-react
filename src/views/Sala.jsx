@@ -10,6 +10,7 @@ import { beep, announce } from '../lib/sound.js';
 import { cambio, fila, llamado, pantalla } from '../lib/motion.js';
 import { useNow } from '../hooks/useNow.js';
 import { BrandMark } from '../components/BrandMark.jsx';
+import { AnimatedNumber } from '../components/ui.jsx';
 import '../styles/vistas/sala.css';
 
 /**
@@ -351,7 +352,7 @@ function FilaZona({ z, espera }) {
         </AnimatePresence>
         {resto > 0 && <li className="mas">+{resto}</li>}
       </ol>
-      <div className="fz-n"><b>{z.waiting.length}</b><small>en espera</small></div>
+      <div className="fz-n"><b><AnimatedNumber value={z.waiting.length} /></b><small>en espera</small></div>
     </m.div>
   );
 }
@@ -364,7 +365,7 @@ function ColaUnica({ z, espera }) {
     <section className={`sala-tabla sala-cola z-${z.kind}`} aria-label={`Siguen en ${z.title}`}>
       <div className="tabla-h">
         <span className="fz-est"><Ficha z={z} /> {z.title}</span>
-        <span className="fz-n"><b>{z.waiting.length}</b><small>en espera</small></span>
+        <span className="fz-n"><b><AnimatedNumber value={z.waiting.length} /></b><small>en espera</small></span>
       </div>
       {z.waiting.length ? (
         <ol className="cola-lista">

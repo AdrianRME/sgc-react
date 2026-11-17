@@ -127,13 +127,10 @@
 .ticket .tk-n { animation: estampa 0.4s var(--ease) 0.55s backwards; }
 
 /* ---------- Detalles que responden ---------- */
-/* Botones: se hunden al pulsar y su ícono hace un gesto al pasar el cursor */
 .btn:active:not(:disabled) { transform: scale(0.97); }
-@keyframes gesto { 30% { transform: rotate(-12deg) scale(1.12); } 60% { transform: rotate(8deg); } }
-.btn:hover:not(:disabled) > svg, .icon-btn:hover > svg { animation: gesto 0.45s var(--ease); }
 /* La campana suena cuando hay avisos sin leer, y el triángulo de supervisión tiembla cada tanto */
 @keyframes campana { 10%, 50% { transform: rotate(14deg); } 30%, 70% { transform: rotate(-12deg); } 90% { transform: rotate(4deg); } }
-.bell:has(.badge-n) > svg { transform-origin: 50% 10%; animation: campana 0.9s ease-in-out 2; }
+.bell > .icon-btn:has(.badge-n) > svg { transform-origin: 50% 10%; animation: campana 0.9s ease-in-out 2; }
 @keyframes tiembla { 0%, 86%, 100% { transform: none; } 89%, 95% { transform: rotate(-9deg); } 92%, 98% { transform: rotate(9deg); } }
 .superv header .ico svg { animation: tiembla 4s ease-in-out infinite; }
 /* Avisos emergentes: el ícono aparece con un pequeño estallido */

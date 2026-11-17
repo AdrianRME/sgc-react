@@ -21,7 +21,7 @@
 .brand { display: flex; align-items: center; gap: 10px; }
 .side .brand { padding: 16px 12px 14px 16px; border-bottom: 1px solid var(--m-line); }
 .side .brand > div { flex: 1; min-width: 0; }
-.side .plegar { display: grid; place-items: center; flex: none; width: 30px; height: 30px; border: 0; border-radius: var(--r-ctl); background: none; color: var(--m-mut); transition: background-color var(--t-base), color var(--t-base); }
+.side .plegar { display: grid; place-items: center; flex: none; width: 30px; height: 30px; border: 0; border-radius: var(--r-ctl); background: none; color: var(--m-mut); transition: background-color var(--t-base) var(--ease), color var(--t-base) var(--ease); }
 .side .plegar:hover { background: rgb(255 255 255 / 0.1); color: #fff; }
 .side .plegar svg { width: 17px; height: 17px; }
 .side .brand-mark { --brand: #ffffff; --surface: color-mix(in oklab, var(--role) 70%, #07100e); }
@@ -59,11 +59,11 @@
 .side .nb {
   position: relative; display: flex; align-items: center; gap: 10px; min-height: 46px; padding: 5px 8px;
   border-radius: var(--r-ctl); color: var(--m-mut); text-decoration: none; font-size: var(--fs-sm);
-  transition: color var(--t-base), background-color var(--t-base);
+  transition: color var(--t-base) var(--ease), background-color var(--t-base) var(--ease);
 }
 .side .nb > * { position: relative; }
 .side .nb .nb-on { position: absolute; inset: 0; border-radius: inherit; background: rgb(255 255 255 / 0.14); box-shadow: inset 3px 0 0 var(--m-luz); }
-.side .nb-ico { display: grid; place-items: center; flex: none; width: 32px; height: 32px; border-radius: var(--r-ctl); background: rgb(255 255 255 / 0.07); box-shadow: inset 0 0 0 1px var(--m-line); transition: background-color var(--t-base), box-shadow var(--t-base), transform var(--t-base) var(--ease); }
+.side .nb-ico { display: grid; place-items: center; flex: none; width: 32px; height: 32px; border-radius: var(--r-ctl); background: rgb(255 255 255 / 0.07); box-shadow: inset 0 0 0 1px var(--m-line); transition: background-color var(--t-base) var(--ease), box-shadow var(--t-base) var(--ease), transform var(--t-base) var(--ease); }
 .side .nb-ico > svg { width: 15px; height: 15px; }
 .side .nb:hover { color: var(--m-ink); background: rgb(255 255 255 / 0.06); }
 .side .nb:hover .nb-ico { transform: translateX(2px); background: rgb(255 255 255 / 0.12); }
@@ -78,7 +78,7 @@
 .side .nb.ext .nb-ico { width: 32px; height: 26px; background: none; box-shadow: none; }
 
 /* Atajo al buscador */
-.side .atajo { display: flex; align-items: center; gap: 8px; margin: 2px 12px 12px; height: 36px; padding: 0 10px; border: 1px dashed var(--m-line); border-radius: var(--r-ctl); background: none; color: var(--m-mut); font-size: var(--fs-xs); text-align: left; transition: background-color var(--t-base), color var(--t-base), border-color var(--t-base); }
+.side .atajo { display: flex; align-items: center; gap: 8px; margin: 2px 12px 12px; height: 36px; padding: 0 10px; border: 1px dashed var(--m-line); border-radius: var(--r-ctl); background: none; color: var(--m-mut); font-size: var(--fs-xs); text-align: left; transition: background-color var(--t-base) var(--ease), color var(--t-base) var(--ease), border-color var(--t-base) var(--ease); }
 .side .atajo:hover { background: rgb(255 255 255 / 0.07); color: #fff; border-color: var(--m-luz); }
 .side .atajo svg { width: 15px; height: 15px; flex: none; }
 .side .atajo span { flex: 1; }
@@ -93,7 +93,7 @@
 .side .me-av i.on { background: #4ade80; }
 .side .me-card div > b { display: block; font-size: var(--fs-sm); font-weight: 600; line-height: 1.25; }
 .side .me-card div > span { display: block; font: 500 var(--fs-xs) / 1.3 var(--mono); color: var(--m-mut); overflow: hidden; text-overflow: ellipsis; }
-.side .me .lnk { display: flex; align-items: center; gap: 10px; width: 100%; height: 30px; padding: 0 8px; border: 0; border-radius: var(--r-ctl); background: none; color: var(--m-mut); font-size: var(--fs-xs); font-weight: 500; text-align: left; transition: background-color var(--t-base), color var(--t-base); }
+.side .me .lnk { display: flex; align-items: center; gap: 10px; width: 100%; height: 30px; padding: 0 8px; border: 0; border-radius: var(--r-ctl); background: none; color: var(--m-mut); font-size: var(--fs-xs); font-weight: 500; text-align: left; transition: background-color var(--t-base) var(--ease), color var(--t-base) var(--ease); }
 .side .me .lnk:hover { background: rgb(255 255 255 / 0.08); color: #fff; }
 .side .me .lnk:last-of-type:hover { background: rgb(208 59 59 / 0.3); color: #ffc4be; }
 .side .me .lnk svg { width: 15px; height: 15px; flex: none; }

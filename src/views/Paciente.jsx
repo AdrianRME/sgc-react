@@ -9,7 +9,7 @@ import { age, fmtCitaDia, fmtD, fmtHora, fmtLongDay, isoDay } from '../lib/forma
 import { listItem } from '../lib/motion.js';
 import { useNow } from '../hooks/useNow.js';
 import { useVerMas } from '../hooks/useVerMas.jsx';
-import { Badge, Empty, Field, Msg, SisBadge, Tabs } from '../components/ui.jsx';
+import { AnimatedNumber, Badge, Empty, Field, Msg, SisBadge, Tabs } from '../components/ui.jsx';
 import { Acordeon, Grupo } from '../components/Acordeon.jsx';
 import { Modal } from '../components/Modal.jsx';
 import { Icono } from '../components/Icono.jsx';
@@ -243,9 +243,9 @@ function Portal({ datos, onSalir }) {
       {pac.alg && <Msg tone="crit"><b>Alergia registrada:</b> {pac.alg}. Recuérdela siempre al personal de salud.</Msg>}
 
       <div className="figs pp-figs">
-        <div className="fig"><span>Atenciones</span><b>{atenciones.length}</b></div>
+        <div className="fig"><span>Atenciones</span><b><AnimatedNumber value={atenciones.length} /></b></div>
         <div className="fig"><span>Última atención</span><b>{ultima ? fmtD(ultima.t) : '—'}</b></div>
-        <div className="fig"><span>Recetas</span><b>{recetas.length}</b></div>
+        <div className="fig"><span>Recetas</span><b><AnimatedNumber value={recetas.length} /></b></div>
         <div className="fig"><span>Próxima cita</span><b>{activa?.cita ? fmtD(activa.cita.at) : '—'}</b></div>
       </div>
 

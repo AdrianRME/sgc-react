@@ -6,7 +6,7 @@
   height: 38px; padding: 0 16px; border: 1px solid transparent; border-radius: var(--r-ctl);
   background: var(--b-bg); color: var(--b-fg);
   font-weight: 600; font-size: var(--fs-sm); white-space: nowrap;
-  transition: filter var(--t-base), background-color var(--t-base), border-color var(--t-base), transform var(--t-fast) var(--ease);
+  transition: filter var(--t-base) var(--ease), background-color var(--t-base) var(--ease), border-color var(--t-base) var(--ease), transform var(--t-fast) var(--ease);
 }
 .btn:hover:not(:disabled) { filter: brightness(1.1); }
 .btn:active:not(:disabled) { filter: brightness(0.94); }
@@ -27,7 +27,7 @@
 .icon-btn {
   display: inline-grid; place-items: center; width: 36px; height: 36px; flex: none;
   border: 1px solid transparent; border-radius: var(--r-ctl); background: transparent; color: var(--ink-2);
-  transition: background-color var(--t-base), color var(--t-base);
+  transition: background-color var(--t-base) var(--ease), color var(--t-base) var(--ease);
 }
 .icon-btn:hover { background: var(--sunken); color: var(--ink); }
 .icon-btn svg { width: 18px; height: 18px; }

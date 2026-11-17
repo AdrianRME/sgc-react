@@ -1,7 +1,7 @@
 /* ---------- Tablero gerencial ---------- */
 .filters { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 14px; }
 .filters .period { flex: 1; min-width: 200px; font-size: var(--fs-sm); color: var(--muted); }
-.dash { display: flex; flex-direction: column; gap: 20px; transition: opacity 0.2s; }
+.dash { display: flex; flex-direction: column; gap: 20px; transition: opacity 0.2s var(--ease); }
 .dash.refetch { opacity: 0.6; }
 
 .kpis { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 14px; }
@@ -79,7 +79,7 @@
 .dash-tabs { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 10px; margin-bottom: 18px; }
 .dash-tab {
   display: flex; align-items: center; gap: 10px; padding: 12px 14px; border-radius: var(--r-panel); border: 1px solid var(--line);
-  background: var(--surface); font: inherit; text-align: left; cursor: pointer; transition: border-color var(--t-base), background-color var(--t-base);
+  background: var(--surface); font: inherit; text-align: left; cursor: pointer; transition: border-color var(--t-base) var(--ease), background-color var(--t-base) var(--ease);
 }
 .dash-tab span { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
 .dash-tab b { font-size: var(--fs-sm); }

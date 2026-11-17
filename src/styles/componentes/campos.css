@@ -5,7 +5,7 @@
   width: 100%; min-height: 40px; padding: 8px 12px;
   border: 1px solid var(--line-strong); border-radius: var(--r-ctl);
   background: var(--surface); color: var(--ink);
-  transition: border-color var(--t-base), box-shadow var(--t-base);
+  transition: border-color var(--t-base) var(--ease), box-shadow var(--t-base) var(--ease);
 }
 .field textarea { resize: vertical; line-height: 1.5; }
 .field input:focus, .field select:focus, .field textarea:focus, .input:focus {
@@ -35,7 +35,7 @@
 /* Medidor de contraseña */
 .pw-meter { display: flex; align-items: center; gap: 12px; margin-top: -6px; font-size: var(--fs-xs); color: var(--ink-2); font-weight: 600; }
 .pw-meter .track { flex: 1; display: grid; grid-template-columns: repeat(4, 1fr); gap: 4px; }
-.pw-meter i { height: 4px; border-radius: 2px; background: var(--sunken); transition: background-color var(--t-base); }
+.pw-meter i { height: 4px; border-radius: 2px; background: var(--sunken); transition: background-color var(--t-base) var(--ease); }
 .pw-meter i.on.l1 { background: var(--crit); }
 .pw-meter i.on.l2 { background: var(--warn); }
 .pw-meter i.on.l3, .pw-meter i.on.l4 { background: var(--good); }

@@ -159,7 +159,7 @@ export function Shell({ section, children }) {
       {current[0] === k && <m.i className="nb-on" layoutId="nb-on" transition={soft} aria-hidden="true" />}
       <span className="nb-ico"><Icono name={icon} size={18} /></span>
       <span className="lbl"><b>{l}</b><small>{SECCION_SUB[k]}</small></span>
-      {count > 0 && <span key={count} className="cnt" title="Pacientes en espera en su etapa">{count}</span>}
+      {count > 0 && <span className="cnt" title="Pacientes en espera en su etapa"><AnimatedNumber value={count} /></span>}
     </a>
   );
 

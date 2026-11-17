@@ -14,7 +14,7 @@
 .sim-esc-b {
   display: flex; align-items: flex-start; gap: 10px; width: 100%; padding: 10px; text-align: left;
   border: 1px solid var(--line); border-radius: var(--r-ctl); background: var(--surface); color: var(--ink); cursor: pointer;
-  transition: background 0.15s, border-color 0.15s;
+  transition: background 0.15s var(--ease), border-color 0.15s var(--ease);
 }
 .sim-esc-b:hover { background: var(--surface-2); }
 .sim-esc-b[aria-pressed='true'] { border-color: var(--brand, var(--st-med)); background: color-mix(in oklab, var(--brand, var(--st-med)) 9%, var(--surface)); box-shadow: inset 3px 0 0 var(--brand, var(--st-med)); }
@@ -28,7 +28,7 @@
 .sim-top { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
 .sim-route { display: flex; gap: 4px; margin: 0; padding: 0; list-style: none; flex: 1; min-width: 0; }
 .sim-route li { flex: 1; display: flex; flex-direction: column; gap: 6px; min-width: 0; font-size: var(--fs-xs); font-weight: 600; color: var(--ink-2); }
-.sim-route li i { height: 6px; border-radius: var(--r-pill); background: var(--sunken); transition: background 0.3s; }
+.sim-route li i { height: 6px; border-radius: var(--r-pill); background: var(--sunken); transition: background 0.3s var(--ease); }
 .sim-route li span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .sim-route li.done i { background: color-mix(in oklab, var(--c) 55%, var(--sunken)); }
 .sim-route li.now i { background: var(--c); box-shadow: 0 0 0 3px color-mix(in oklab, var(--c) 25%, transparent); }
@@ -75,7 +75,7 @@
 /* Controles */
 .sim-ctl { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
 .sim-dots { display: flex; flex-wrap: wrap; gap: 5px; }
-.sim-dots button { width: 22px; height: 8px; padding: 0; border: 0; border-radius: var(--r-pill); background: color-mix(in oklab, var(--c) 30%, var(--sunken)); cursor: pointer; transition: width 0.2s, background 0.2s; }
+.sim-dots button { width: 22px; height: 8px; padding: 0; border: 0; border-radius: var(--r-pill); background: color-mix(in oklab, var(--c) 30%, var(--sunken)); cursor: pointer; transition: width 0.2s var(--ease), background 0.2s var(--ease); }
 .sim-dots button.on { width: 36px; background: var(--c); }
 .sim-dots button.bad { outline: 2px solid var(--crit); outline-offset: 1px; }
 .sim-btns { display: flex; gap: 8px; flex-wrap: wrap; }
@@ -113,7 +113,7 @@
 .simv-paso p { margin: 2px 0 0; font-size: var(--fs-xs); line-height: 1.4; color: var(--ink-2); display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
 .simv-ctl { display: flex; flex-direction: column; align-items: flex-end; gap: 8px; }
 .simv-ctl .sim-dots { justify-content: flex-end; max-width: 380px; gap: 3px; }
-.simv-ctl .sim-dots span { width: 10px; height: 6px; border-radius: var(--r-pill); background: var(--sunken); transition: width 0.2s, background 0.2s; }
+.simv-ctl .sim-dots span { width: 10px; height: 6px; border-radius: var(--r-pill); background: var(--sunken); transition: width 0.2s var(--ease), background 0.2s var(--ease); }
 .simv-ctl .sim-dots span.done { background: color-mix(in oklab, var(--good) 60%, var(--sunken)); }
 .simv-ctl .sim-dots span.on { width: 22px; background: var(--crit); }
 .simv-ctl .sim-dots span.bad { outline: 1.5px solid var(--crit); outline-offset: 1px; }
@@ -130,7 +130,7 @@
 .simv-cursor { position: fixed; left: 0; top: 0; z-index: 99; pointer-events: none; transition: transform 0.55s cubic-bezier(0.22, 1, 0.36, 1); }
 .simv-cursor svg { display: block; fill: #111; stroke: #fff; stroke-width: 1.6; filter: drop-shadow(0 2px 3px rgb(0 0 0 / 0.35)); }
 .simv-clic { position: absolute; left: -14px; top: -14px; width: 32px; height: 32px; border-radius: 50%; border: 3px solid var(--crit); opacity: 0; animation: onda 0.5s ease-out; }
-.sim-foco { outline: 3px solid color-mix(in oklab, var(--crit) 70%, transparent) !important; outline-offset: 2px; transition: outline 0.15s; }
+.sim-foco { outline: 3px solid color-mix(in oklab, var(--crit) 70%, transparent) !important; outline-offset: 2px; transition: outline 0.15s var(--ease); }
 .simv-nota {
   position: fixed; z-index: 98; max-width: 290px; padding: 8px 12px; border-radius: var(--r-ctl); pointer-events: none;
   background: #111827; color: #fff; font-size: var(--fs-sm); font-weight: 600; line-height: 1.35; box-shadow: var(--shadow-float);

@@ -3,7 +3,7 @@
 .rooms + .rooms-libres { margin-top: 10px; }
 .rooms-libres { font-size: var(--fs-sm); color: var(--ink-2); }
 .rooms-libres b { font-weight: 600; color: var(--ink); }
-.room { display: flex; align-items: center; gap: 12px; padding: 12px 14px; border: 1px solid var(--line); border-left: 4px solid var(--line-strong); border-radius: var(--r-panel); background: var(--surface); transition: background-color 0.3s, border-color 0.3s; }
+.room { display: flex; align-items: center; gap: 12px; padding: 12px 14px; border: 1px solid var(--line); border-left: 4px solid var(--line-strong); border-radius: var(--r-panel); background: var(--surface); transition: background-color 0.3s var(--ease), border-color 0.3s var(--ease); }
 .room.busy { border-color: var(--role-line); border-left-color: var(--role); background: var(--role-soft); }
 .room-st { padding: 3px 10px; border-radius: var(--r-panel); background: var(--surface-2); }
 .room-st.on { background: var(--role); color: var(--on-strong) !important; }

@@ -14,10 +14,10 @@
 .grupo-h {
   position: relative; display: flex; align-items: center; gap: 12px; width: 100%; min-height: 48px; padding: 8px 14px 8px 16px;
   border: 0; background: none; text-align: left; color: var(--ink);
-  transition: background-color var(--t-base);
+  transition: background-color var(--t-base) var(--ease);
 }
 .grupo-h:hover { background: var(--surface-2); }
-.grupo-h::before { content: ''; position: absolute; left: 0; top: 0; bottom: 0; width: 4px; background: var(--c, var(--role, var(--line-strong))); opacity: 0.35; transition: opacity var(--t-base); }
+.grupo-h::before { content: ''; position: absolute; left: 0; top: 0; bottom: 0; width: 4px; background: var(--c, var(--role, var(--line-strong))); opacity: 0.35; transition: opacity var(--t-base) var(--ease); }
 .grupo[data-abierto] > .grupo-h { background: var(--surface-2); }
 .grupo[data-abierto] > .grupo-h::before { opacity: 1; }
 .grupo-flecha { width: 16px; height: 16px; flex: none; color: var(--muted); transition: transform var(--t-base) var(--ease); }

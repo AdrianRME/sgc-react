@@ -2,6 +2,7 @@ import { createContext, useContext, useId, useState } from 'react';
 import { AnimatePresence, m } from 'motion/react';
 import { ChevronRight, ChevronsDownUp, ChevronsUpDown } from 'lucide-react';
 import { plegar } from '../lib/motion.js';
+import { AnimatedNumber } from './ui.jsx';
 
 /**
  * Acordeón: para las listas que crecen con el centro (personal, especialidades, consultorios, días de agenda).
@@ -67,7 +68,7 @@ export function Grupo({ titulo, sub, cuenta, color, abierto = false, forzar = fa
         </span>
         <span className="grupo-x">
           {extra}
-          {cuenta != null && <span className="count">{cuenta}</span>}
+          {cuenta != null && <span className="count"><AnimatedNumber value={cuenta} /></span>}
         </span>
       </button>
       <AnimatePresence initial={false}>

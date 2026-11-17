@@ -19,7 +19,7 @@
   /* La tinta: una línea del color de la estación que se dibuja de izquierda a derecha al entrar al campo */
   background-image: linear-gradient(var(--tinta), var(--tinta)); background-repeat: no-repeat; background-position: 0 100%; background-size: 0 2px;
   font-weight: 500;
-  transition: background-size var(--t-slow) var(--ease), background-color var(--t-base);
+  transition: background-size var(--t-slow) var(--ease), background-color var(--t-base) var(--ease);
 }
 .papel .field :is(input:not([type='checkbox'], [type='radio']), select):focus, .papel .medrow input:focus {
   outline: none; box-shadow: none; border-color: var(--line-strong);

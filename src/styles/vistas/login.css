@@ -29,7 +29,7 @@
 .login-bg { position: absolute; inset: 0; z-index: -1; pointer-events: none; color-scheme: dark; }
 .login .mon { position: absolute; inset: 0 var(--vitals-w, 0) 0 0; width: calc(100% - var(--vitals-w, 0px)); height: 100%; }
 .login .tr { fill: none; stroke-width: 2.5; stroke-linejoin: round; stroke-linecap: round; vector-effect: non-scaling-stroke; }
-.login .tr-ecg { stroke: var(--tone); filter: drop-shadow(0 0 4px var(--tone)); transition: stroke 0.4s; }
+.login .tr-ecg { stroke: var(--tone); filter: drop-shadow(0 0 4px var(--tone)); transition: stroke 0.4s var(--ease); }
 .login .tr-pleth { stroke: var(--mon-pleth); filter: drop-shadow(0 0 4px var(--mon-pleth)); opacity: 0.85; }
 .login .tr-resp { stroke: var(--mon-resp); filter: drop-shadow(0 0 3px var(--mon-resp)); opacity: 0.7; }
 /* La barra de barrido recorre la pantalla y borra el trazo, como en un monitor real */
@@ -51,7 +51,7 @@
 .login .vt dd { margin: 2px 0 0; display: flex; align-items: baseline; gap: 6px; }
 .login .vt b { font: 500 2.3rem / 1 var(--mono); letter-spacing: -0.05em; }
 .login .vt small { font-size: var(--fs-xs); opacity: 0.7; }
-.login .vt-fc { color: var(--tone); transition: color 0.4s; }
+.login .vt-fc { color: var(--tone); transition: color 0.4s var(--ease); }
 .login .vt-fc b { font-size: 3.2rem; }
 .login .vt-spo2 { color: var(--mon-pleth); }
 .login .vt-pa { color: var(--mon-pa); }
@@ -83,7 +83,7 @@
   background: color-mix(in oklab, var(--surface) 93%, transparent);
   backdrop-filter: blur(18px) saturate(1.2); -webkit-backdrop-filter: blur(18px) saturate(1.2);
   box-shadow: 0 40px 80px -40px color-mix(in oklab, var(--tone) 55%, rgb(0 0 0 / 0.5)), 0 2px 6px rgb(0 0 0 / 0.06);
-  transition: border-color 0.4s, box-shadow 0.4s;
+  transition: border-color 0.4s var(--ease), box-shadow 0.4s var(--ease);
 }
 
 .login .who { display: flex; flex-direction: column; align-items: center; text-align: center; gap: 6px; }
@@ -92,7 +92,7 @@
   background: radial-gradient(circle at 35% 30%, var(--surface), color-mix(in oklab, var(--tone) 16%, var(--surface)));
   border: 4px solid color-mix(in oklab, var(--tone) 70%, var(--surface));
   box-shadow: 0 0 0 8px color-mix(in oklab, var(--tone) 10%, transparent);
-  transition: border-color 0.4s, box-shadow 0.4s;
+  transition: border-color 0.4s var(--ease), box-shadow 0.4s var(--ease);
 }
 .login .who-av > span { display: grid; place-items: center; }
 .login .who h1 { font: 500 clamp(1.7rem, 3vw, 2rem) / 1.1 var(--serif); }
@@ -103,7 +103,7 @@
 .login .area-btn {
   display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 8px 2px 7px; border-radius: var(--r-ctl);
   border: 1px solid var(--line); background: var(--surface); color: var(--ink-2); font-size: var(--fs-xs); font-weight: 600;
-  transition: border-color 0.15s, background-color 0.15s, color 0.15s, background-color 0.15s;
+  transition: border-color 0.15s var(--ease), background-color 0.15s var(--ease), color 0.15s var(--ease), background-color 0.15s var(--ease);
 }
 .login .area-btn:hover:not(:disabled) { border-color: var(--role-line); background: var(--surface-2); }
 .login .area-btn[aria-pressed='true'] { border-color: var(--role); background: var(--role-soft); color: var(--role-strong); box-shadow: inset 0 0 0 1px var(--role); }
@@ -120,7 +120,7 @@
 .login .qbtn {
   display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 8px 4px; border: 1px solid var(--line); border-radius: var(--r-ctl);
   background: color-mix(in oklab, var(--surface) 70%, transparent); font-size: var(--fs-xs); font-weight: 600; color: var(--ink-2);
-  transition: border-color 0.15s, background-color 0.15s, background-color 0.15s;
+  transition: border-color 0.15s var(--ease), background-color 0.15s var(--ease), background-color 0.15s var(--ease);
 }
 .login .qbtn:hover, .login .qbtn[aria-pressed='true'] { border-color: var(--role-line); background: var(--role-soft); color: var(--ink); }
 .login .sec-note { display: flex; align-items: center; justify-content: center; gap: 8px; font-size: var(--fs-xs); color: var(--muted); }
@@ -144,7 +144,7 @@
 .login .area-btn .ico, .login .qbtn .ico { color: var(--role-strong); }
 
 /* La luz del barrido toma el color del trazo principal */
-.login .sweep-luz { color: var(--tone); transition: color 0.4s; }
+.login .sweep-luz { color: var(--tone); transition: color 0.4s var(--ease); }
 /* El círculo del área late con el corazón del monitor, y el borde de la tarjeta respira en su color */
 .login .who-av { position: relative; }
 .login .who-av::after { content: ''; position: absolute; inset: -4px; border-radius: 50%; border: 2px solid var(--tone); opacity: 0; pointer-events: none; }

@@ -30,7 +30,7 @@
 .cw-esp {
   display: flex; flex-direction: column; align-items: flex-start; gap: 6px; padding: 14px; border-radius: var(--r-ctl); text-align: left;
   border: 1px solid var(--line-strong); border-left: 4px solid var(--e); background: var(--surface);
-  transition: background-color var(--t-base), border-color var(--t-base);
+  transition: background-color var(--t-base) var(--ease), border-color var(--t-base) var(--ease);
 }
 .cw-esp:hover:not(:disabled) { background: color-mix(in oklab, var(--e) 7%, var(--surface)); border-color: var(--e); }
 .cw-esp b { font: 600 var(--fs-lg) / 1.2 var(--font); color: var(--ink); }

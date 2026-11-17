@@ -1,11 +1,12 @@
-import { useEffect, useId, useRef } from 'react';
-import { animate, m, useReducedMotion } from 'motion/react';
+import { useEffect, useId, useRef, useState } from 'react';
+import { animate, m } from 'motion/react';
 import { CircleCheck, ChevronsUp, Clock, Info, TriangleAlert } from 'lucide-react';
 import { STATE, PRIO, SIS, ROUTE, ESP_POR_RAMA, PREFERENTE } from '../lib/constants.js';
 import { waitInfo } from '../lib/clinical.js';
 import { fmtNum, initials } from '../lib/format.js';
 import { spring } from '../lib/motion.js';
 import { Icono } from './Icono.jsx';
+import { useMovimiento } from '../hooks/useMovimiento.js';
 
 /* ---------- Etiquetas ---------- */
 
@@ -52,7 +53,7 @@ export function Panel({ title, sub, icon, count, actions, children, className = 
         <header className="panel-h">
           {icon && <Icono name={icon} size={30} />}
           <div className="titles">
-            {title && <h2>{title}{count != null && <span className="count">{count}</span>}</h2>}
+            {title && <h2>{title}{count != null && <span className="count"><AnimatedNumber value={count} /></span>}</h2>}
             {sub && <span className="sub">{sub}</span>}
           </div>
           {actions && <div className="panel-a">{actions}</div>}
@@ -163,24 +164,44 @@ export const Avatar = ({ name, title }) => <span className="avatar" title={title
 export const Kbd = ({ children }) => <kbd className="kbd">{children}</kbd>;
 
 /**
- * Número que se anima cuando cambia su valor (o desde cero, con `fromZero`, al aparecer).
- * Los valores no numéricos se muestran tal cual.
+ * Número animado como un odómetro de monitor: cuenta de forma progresiva hasta su valor (desde cero al aparecer,
+ * salvo `fromZero={false}`) y cada dígito rueda en su propia columna, así un cambio de 12 a 13 no parpadea:
+ * gira la cifra de las unidades. Sirve con cualquier formato (S/ 80.00, 94 %, 1 h 05 min): los dígitos ruedan
+ * y el resto del texto queda fijo. Los valores que no son números se muestran tal cual.
+ * Con movimiento reducido salta directo al valor. El lector de pantalla lee solo el valor final.
  */
-export function AnimatedNumber({ value, format = (v) => fmtNum(Math.round(v)), fromZero = false }) {
-  const ref = useRef(null);
-  const prev = useRef(fromZero ? 0 : value);
-  const reduce = useReducedMotion();
+export function AnimatedNumber({ value, format = (v) => fmtNum(Math.round(v)), fromZero = true, duration = 0.9 }) {
+  const { reducido } = useMovimiento();
+  const esNum = typeof value === 'number' && Number.isFinite(value);
+  const [shown, setShown] = useState(() => (esNum && fromZero && !reducido ? 0 : value));
+  const desde = useRef(shown);
   useEffect(() => {
-    const el = ref.current;
-    if (!el) return undefined;
-    if (typeof value !== 'number' || reduce || typeof prev.current !== 'number') {
-      el.textContent = typeof value === 'number' ? format(value) : value ?? '—';
-      prev.current = value;
+    if (!esNum || reducido || typeof desde.current !== 'number') {
+      desde.current = value;
+      setShown(value);
       return undefined;
     }
-    const ctl = animate(prev.current, value, { duration: 0.7, ease: [0.2, 0.8, 0.2, 1], onUpdate: (v) => { el.textContent = format(v); } });
-    prev.current = value;
+    const ctl = animate(desde.current, value, {
+      duration, ease: [0.16, 1, 0.3, 1],
+      onUpdate: (v) => { desde.current = v; setShown(v); },
+    });
     return () => ctl.stop();
-  }, [value, format, reduce]);
-  return <span ref={ref}>{typeof value === 'number' ? format(fromZero ? 0 : value) : value ?? '—'}</span>;
+  }, [value, esNum, reducido, duration]);
+  const final = esNum ? format(value) : value ?? '—';
+  const texto = typeof shown === 'number' ? format(shown) : final;
+  const chars = [...String(texto)];
+  return (
+    <span className="odo">
+      <span className="sr-only">{final}</span>
+      <span className="odo-v" aria-hidden="true">
+        {chars.map((c, i) => {
+          const pos = chars.length - i; // desde la derecha: las unidades conservan su columna aunque crezca el número
+          return /\d/.test(c)
+            ? <span key={`d${pos}`} className="odo-d"><span className="odo-t" style={{ '--d': +c }}>{DIGITOS}</span></span>
+            : <span key={`c${pos}${c}`} className="odo-c">{c}</span>;
+        })}
+      </span>
+    </span>
+  );
 }
+const DIGITOS = Array.from({ length: 10 }, (_, d) => <span key={d}>{d}</span>);

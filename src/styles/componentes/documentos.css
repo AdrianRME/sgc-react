@@ -66,7 +66,7 @@
 }
 
 /* Atenciones según el día: las de días anteriores atenuadas y la de hoy resaltada */
-.timeline > li { transition: opacity 0.2s, filter 0.2s; }
+.timeline > li { transition: opacity 0.2s var(--ease), filter 0.2s var(--ease); }
 .timeline > li[data-dia='pasado'] { opacity: 0.55; filter: grayscale(0.8); }
 .timeline > li[data-dia='pasado']:is(:hover, :focus-within) { opacity: 1; filter: none; }
 .timeline > li[data-dia='hoy'] .tl-body { padding: 10px 12px 10px 22px; border-radius: var(--r-ctl); background: var(--role-soft, color-mix(in oklab, var(--st-med) 10%, var(--surface))); }

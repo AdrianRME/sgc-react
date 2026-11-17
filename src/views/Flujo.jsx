@@ -11,7 +11,7 @@ import { useNow } from '../hooks/useNow.js';
 import { SectionHero } from '../components/SectionHero.jsx';
 import { Help } from '../components/WorkspaceHeader.jsx';
 import { Acordeon, Grupo } from '../components/Acordeon.jsx';
-import { Empty, Msg, PrioBadge, TurnCode, WaitTime } from '../components/ui.jsx';
+import { AnimatedNumber, Empty, Msg, PrioBadge, TurnCode, WaitTime } from '../components/ui.jsx';
 import { Icono } from '../components/Icono.jsx';
 import '../styles/vistas/flujo.css';
 
@@ -123,7 +123,7 @@ export default function Flujo() {
               <header className={s.wait ? 'wait' : ''}>
                 <i aria-hidden="true" />
                 <h2>{s.n}</h2>
-                <span className="count">{g[s.k].length}</span>
+                <span className="count"><AnimatedNumber value={g[s.k].length} /></span>
               </header>
               <div className="cards">
                 <AnimatePresence initial={false}>

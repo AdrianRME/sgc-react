@@ -10,8 +10,8 @@
 .hs-doc b { display: block; font-size: var(--fs-sm); font-weight: 600; line-height: 1.2; }
 .hs-doc small { display: block; font-size: var(--fs-xs); color: var(--muted); }
 .hs-av { display: grid; place-items: center; flex: none; width: 32px; height: 32px; border-radius: var(--r-ctl); background: color-mix(in oklab, var(--e) 12%, var(--surface)); color: var(--e); font: 600 var(--fs-xs) / 1 var(--mono); }
-.hs-cell { display: flex; flex-direction: column; gap: 4px; padding: 4px; border-radius: var(--r-ctl); background: var(--surface-2); min-height: 60px; transition: opacity var(--t-base), filter var(--t-base); }
-.hs-head span { transition: opacity var(--t-base); }
+.hs-cell { display: flex; flex-direction: column; gap: 4px; padding: 4px; border-radius: var(--r-ctl); background: var(--surface-2); min-height: 60px; transition: opacity var(--t-base) var(--ease), filter var(--t-base) var(--ease); }
+.hs-head span { transition: opacity var(--t-base) var(--ease); }
 .hs-b { position: relative; display: flex; flex-direction: column; gap: 4px; padding: 6px 8px; border-radius: var(--r-sm); background: var(--surface); border: 1px solid var(--line); border-left: 3px solid var(--e); }
 .hs-b b { font: 600 var(--fs-xs) / 1.2 var(--mono); letter-spacing: -0.02em; }
 .hs-b small { font-size: 11px; color: var(--muted); font-weight: 500; }
@@ -21,7 +21,7 @@
 .hs-b.live small { color: var(--e); font-weight: 600; }
 .hs-b.live small::before { content: ''; display: inline-block; width: 7px; height: 7px; margin-right: 5px; border-radius: 50%; background: var(--e); }
 .hs-off { margin: auto; font-size: var(--fs-xs); color: var(--muted); opacity: 0.7; }
-.hs-x { position: absolute; top: 3px; right: 3px; display: grid; place-items: center; width: 20px; height: 20px; border: 0; border-radius: var(--r-sm); background: transparent; color: var(--muted); opacity: 0; transition: opacity var(--t-base), background-color var(--t-base); }
+.hs-x { position: absolute; top: 3px; right: 3px; display: grid; place-items: center; width: 20px; height: 20px; border: 0; border-radius: var(--r-sm); background: transparent; color: var(--muted); opacity: 0; transition: opacity var(--t-base) var(--ease), background-color var(--t-base) var(--ease); }
 .hs-b:hover .hs-x, .hs-x:focus-visible { opacity: 1; }
 .hs-x:hover { background: var(--crit-bg); color: var(--crit-text); }
 .hs-x svg { width: 13px; height: 13px; }

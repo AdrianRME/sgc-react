@@ -1,4 +1,6 @@
+import { useEffect } from 'react';
 import { LazyMotion, MotionConfig, domMax } from 'motion/react';
+import { activarLuz } from './lib/luz.js';
 import App from './App.jsx';
 import { useMovimiento } from './hooks/useMovimiento.js';
 
@@ -8,6 +10,7 @@ import { useMovimiento } from './hooks/useMovimiento.js';
  */
 export function Raiz() {
   const { motionConfig } = useMovimiento();
+  useEffect(() => activarLuz(), []);
   return (
     <MotionConfig reducedMotion={motionConfig}>
       <LazyMotion features={domMax} strict>

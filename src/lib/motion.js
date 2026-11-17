@@ -8,10 +8,11 @@
  */
 
 /* ---------- Curvas y tiempos ---------- */
-export const ease = [0.2, 0.8, 0.2, 1]; // la misma curva que --ease en tokens.css
-export const spring = { type: 'spring', stiffness: 520, damping: 40, mass: 0.9 };
-export const soft = { type: 'spring', stiffness: 260, damping: 30 };
-export const quick = { duration: 0.18, ease };
+export const ease = [0.16, 1, 0.3, 1]; // la misma curva que --ease en tokens.css
+export const easeIn = [0.55, 0, 0.75, 0.2]; // --ease-in: para lo que se va
+export const spring = { type: 'spring', stiffness: 420, damping: 36, mass: 0.9 };
+export const soft = { type: 'spring', stiffness: 220, damping: 28 };
+export const quick = { duration: 0.16, ease: easeIn };
 
 /* ---------- Entradas y salidas generales ---------- */
 
@@ -24,9 +25,9 @@ export const fade = { initial: { opacity: 0 }, animate: { opacity: 1, transition
  * porque una transformación en la vista descolocaría los diálogos, que se fijan a la pantalla.
  */
 export const page = {
-  initial: { opacity: 0, x: 34 },
-  animate: { opacity: 1, x: 0, transition: { duration: 0.34, ease } },
-  exit: { opacity: 0, x: -24, transition: { duration: 0.14 } },
+  initial: { opacity: 0, x: 18 },
+  animate: { opacity: 1, x: 0, transition: { duration: 0.5, ease } },
+  exit: { opacity: 0, x: -10, transition: { duration: 0.12, ease: easeIn } },
 };
 
 /** Primera aparición de un bloque principal (formulario de ingreso). */

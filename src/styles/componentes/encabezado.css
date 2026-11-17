@@ -47,7 +47,7 @@
 .hero-kpi {
   position: relative; display: flex; flex-direction: column; gap: 4px; padding: 11px 16px 12px; text-align: left;
   border: 0; border-left: 1px solid var(--line); background: none; color: var(--ink);
-  transition: background-color var(--t-base);
+  transition: background-color var(--t-base) var(--ease);
 }
 .hero-kpi:first-child { border-left: 0; }
 .hero-kpi-l { display: flex; align-items: center; gap: 6px; font: var(--label); letter-spacing: var(--label-track); text-transform: uppercase; color: var(--ink-2); }
