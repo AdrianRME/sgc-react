@@ -18,6 +18,7 @@ import { useConfirm } from '../hooks/useConfirm.jsx';
 import { AnimatedNumber, Avatar, Kbd, Msg } from './ui.jsx';
 import { Icono } from './Icono.jsx';
 import { BrandMark } from './BrandMark.jsx';
+import { BotonAnimaciones } from './BotonAnimaciones.jsx';
 import { ChangePassword } from './ChangePassword.jsx';
 import { CommandPalette } from './CommandPalette.jsx';
 import { Notifications } from './Notifications.jsx';
@@ -220,6 +221,7 @@ export function Shell({ section, children }) {
             </button>
           )}
           <Notifications feed={feed} />
+          <BotonAnimaciones conTexto={false} />
           <button className="icon-btn" onClick={toggle} aria-label={effective === 'dark' ? 'Usar tema claro' : 'Usar tema oscuro'}>
             {effective === 'dark' ? <Sun /> : <Moon />}
           </button>

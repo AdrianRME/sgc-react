@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
+import { movimientoReducido } from './useMovimiento.js';
 
 const KEY = 'sgc-theme';
 const read = () => {
@@ -37,7 +38,7 @@ export function useTheme() {
       apply(next); // de inmediato, para que la transición capture ya el tema nuevo
       setThemeState(next);
     };
-    const quieto = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
+    const quieto = movimientoReducido();
     if (!document.startViewTransition || quieto || document.hidden) {
       cambiar();
       return;

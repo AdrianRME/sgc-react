@@ -7,7 +7,9 @@ import { cambio, entrada } from '../lib/motion.js';
 import { Field, Msg } from '../components/ui.jsx';
 import { Icono } from '../components/Icono.jsx';
 import { BrandMark } from '../components/BrandMark.jsx';
+import { BotonAnimaciones } from '../components/BotonAnimaciones.jsx';
 import { useNow } from '../hooks/useNow.js';
+import { useMovimiento } from '../hooks/useMovimiento.js';
 import '../styles/vistas/login.css';
 
 // El simulador no necesita sesión: corre sobre una copia de prueba de los datos
@@ -49,9 +51,10 @@ const CENTRO = VITALES.map(([, , , c, , dec]) => (Array.isArray(c) ? c.join('/')
  * Son decorativas. Con «reducir movimiento» se quedan fijas en su valor central.
  */
 function useVitales() {
+  const { reducido } = useMovimiento();
   const [v, setV] = useState(CENTRO);
   useEffect(() => {
-    if (window.matchMedia?.('(prefers-reduced-motion: reduce)').matches) return undefined;
+    if (reducido) return undefined;
     let n = 0;
     const id = setInterval(() => {
       n += 1;
@@ -59,7 +62,7 @@ function useVitales() {
       setV((prev) => prev.map((x, i) => ((n + i) % 3 === 0 || i === 0 ? leer(VITALES[i]) : x)));
     }, 1700);
     return () => clearInterval(id);
-  }, []);
+  }, [reducido]);
   return v;
 }
 
@@ -171,6 +174,7 @@ export function Login() {
           <a className="sala-link" href="#/paciente"><UserRound aria-hidden="true" /> Mi atención</a>
           <a className="sala-link" href="#/sala"><Tv aria-hidden="true" /> Pantalla de sala</a>
           <button type="button" className="sala-link" onClick={() => setSim(true)}><CirclePlay aria-hidden="true" /> Simulación</button>
+          <BotonAnimaciones className="sala-link" />
         </nav>
       </header>
       {sim && <Suspense fallback={null}><Simulador onClose={() => setSim(false)} /></Suspense>}

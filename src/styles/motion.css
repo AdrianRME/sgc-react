@@ -189,7 +189,13 @@
 .splash-ecg path { fill: none; stroke: var(--brand); stroke-width: 2.5; stroke-linecap: round; stroke-linejoin: round; stroke-dasharray: 300; stroke-dashoffset: 300; animation: late 1.7s ease-in-out infinite; }
 @keyframes late { 55% { stroke-dashoffset: 0; } 100% { stroke-dashoffset: -300; } }
 
-/* Quien pidió menos movimiento solo conserva los fundidos */
+/* Quien pidió menos movimiento solo conserva los fundidos. Manda la elección del botón de animaciones
+   (data-motion en <html>, hooks/useMovimiento.js); sin elección, la del sistema operativo. */
 @media (prefers-reduced-motion: reduce) {
-  *, *::before, *::after { animation-duration: 0.01ms !important; animation-iteration-count: 1 !important; transition-duration: 0.01ms !important; scroll-behavior: auto !important; }
+  :root:not([data-motion='completo']) *, :root:not([data-motion='completo']) *::before, :root:not([data-motion='completo']) *::after {
+    animation-duration: 0.01ms !important; animation-iteration-count: 1 !important; transition-duration: 0.01ms !important; scroll-behavior: auto !important;
+  }
+}
+:root[data-motion='reducido'] *, :root[data-motion='reducido'] *::before, :root[data-motion='reducido'] *::after {
+  animation-duration: 0.01ms !important; animation-iteration-count: 1 !important; transition-duration: 0.01ms !important; scroll-behavior: auto !important;
 }
