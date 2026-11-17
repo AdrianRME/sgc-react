@@ -30,6 +30,11 @@ create table if not exists sgc_interno.codigo_portal (
     intentos     smallint    not null default 0
 );
 
+-- La tabla es interna: nadie la lee ni la escribe desde la aplicación, solo las dos funciones de abajo
+-- (igual que sgc_interno.intento_cita). Se le quitan los permisos y se le activa la seguridad por filas.
+revoke all on sgc_interno.codigo_portal from public, anon, authenticated;
+alter table sgc_interno.codigo_portal enable row level security;
+
 -- 2. Paso 1: identifica al paciente y genera su código ------------------------------------------------
 -- Reutiliza sgc_interno.verificar_paciente: tras 5 intentos fallidos en 15 minutos el DNI se bloquea.
 create or replace function public.sgc_portal_codigo(p_dni text, p_nac date) returns jsonb
