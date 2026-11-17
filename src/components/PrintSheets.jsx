@@ -3,7 +3,7 @@ import { CENTRO, CONCEPTO_PAGO, DAY, IGV, METODOS_PAGO, SIS, VIGENCIA_RECETA_DIA
 import { age, ageAt, cap, enLetras, fmtD, fmtDT, fmtHora, fmtLongDay, fmtSoles, fmtT, fullName, maskDni, solesEnLetras } from '../lib/format.js';
 import { especialidad } from '../lib/agenda.js';
 import { useNow } from '../hooks/useNow.js';
-import './print.css';
+import '../styles/componentes/impresion.css';
 
 /*
  * Formatos de impresión, uno por tipo de documento. En pantalla no se ven: al imprimir reemplazan a la

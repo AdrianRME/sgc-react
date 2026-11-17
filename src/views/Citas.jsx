@@ -4,19 +4,22 @@ import { PhoneCall } from 'lucide-react';
 import { useStore } from '../store/useStore.js';
 import { byPriority, turnKey } from '../lib/clinical.js';
 import { QUEUE } from '../lib/constants.js';
-import { citasDelDia, porDia, sameDay } from '../lib/agenda.js';
+import { citasDelDia, especialidad, porDia, sameDay } from '../lib/agenda.js';
 import { fmtCitaDia, fullName, initials, startOfDay } from '../lib/format.js';
 import { listItem } from '../lib/motion.js';
 import { useNow } from '../hooks/useNow.js';
 import { useDocuments } from '../hooks/useDocuments.jsx';
 import { useCitaAcciones } from '../hooks/useCitaAcciones.jsx';
 import { SectionHero } from '../components/SectionHero.jsx';
+import { Help } from '../components/WorkspaceHeader.jsx';
+import { Acordeon, Grupo } from '../components/Acordeon.jsx';
+import { useVerMas } from '../hooks/useVerMas.jsx';
 import { CitaForm, CitaRow } from '../components/CitaForm.jsx';
 import { Empty, EspOptions, Panel, PrioBadge, TurnCode, WaitTime } from '../components/ui.jsx';
 import { HorarioSemanal } from '../components/HorarioSemanal.jsx';
 import { Modal } from '../components/Modal.jsx';
 import { ReservaCita } from './CitaWeb.jsx';
-import './workspaces.css';
+import '../styles/vistas/estaciones.css';
 
 /** Color de cada prioridad en las tarjetas (el de su etiqueta). */
 const PRIO_C = { CRITICA: 'var(--crit)', PRIORITARIA: 'var(--warn)', NORMAL: 'var(--good)' };
@@ -46,6 +49,7 @@ export default function Citas() {
   const count = (k) => (k === 'todos' ? pend.length : k === 'dadas' ? dadas.length : pend.filter((t) => t.prio === k).length);
   const lista = filter === 'todos' || filter === 'dadas' ? pend : pend.filter((t) => t.prio === filter);
   const sel = lista.find((t) => t.id === selId) || lista[0];
+  const [pendVisibles, pendMas] = useVerMas(lista);
   const done = (t) => {
     setSelId(null);
     docs.openCita(t);
@@ -62,6 +66,7 @@ export default function Citas() {
         active={filter}
         onPick={setFilter}
         label="Pacientes por prioridad"
+        actions={<Help role="adm" />}
       />
       {filter === 'dadas' ? (
         <Panel title="Citas dadas hoy" count={dadas.length} icon="calendar" sub="Por Enfermería al terminar el triaje o aquí, en Admisión">
@@ -77,9 +82,10 @@ export default function Citas() {
         <div className="grid-2 citas-grid">
           <Panel title="Terminaron el triaje" count={lista.length} icon="clipboard" sub="Los críticos y prioritarios primero" className="adm-list">
             {lista.length ? (
+              <>
               <ul className="pacs">
                 <AnimatePresence initial={false}>
-                  {lista.map((t) => {
+                  {pendVisibles.map((t) => {
                     const p = patient(t.dni);
                     return (
                       <m.li key={t.id} {...listItem} layout>
@@ -100,9 +106,11 @@ export default function Citas() {
                   })}
                 </AnimatePresence>
               </ul>
+              {pendMas}
+              </>
             ) : <Empty icon="check" title="Nadie espera su cita">Enfermería da la cita al terminar el triaje.</Empty>}
           </Panel>
-          <Panel title="Asignar cita" icon="sparkles" className="adm-reg">
+          <Panel title="Asignar cita" icon="sparkles" className="adm-reg papel papel-ficha">
             <AnimatePresence mode="wait">
               {sel ? (
                 <m.div key={sel.id} {...listItem}>
@@ -131,6 +139,11 @@ const FILTROS_AGENDA = [
   { k: 'proximas', n: 'Próximos días', icon: 'clipboard', c: 'enf' },
   { k: 'vencidas', n: 'Vencidas', icon: 'warning', c: 'crit' },
 ];
+/** Resumen de un día cerrado: las especialidades con cita, de la más pedida a la menos. */
+const espDelDia = (cupos) => {
+  const n = cupos.reduce((mp, { t }) => mp.set(t.cita.esp, (mp.get(t.cita.esp) || 0) + 1), new Map());
+  return [...n].sort((a, b) => b[1] - a[1]).map(([k, c]) => `${especialidad(k)?.n ?? k} (${c})`).join(' · ');
+};
 const AGENDA_SUB = {
   hoy: 'Todas las citas de hoy. Al llegar el paciente, registre su llegada: pasa a la espera de su médico.',
   llegan: 'Tienen cita hoy y todavía no se presentan.',
@@ -159,6 +172,8 @@ export function Agenda() {
   const f = FILTROS_AGENDA.find((x) => x.k === filter);
   const lista = listas[filter];
   const card = (t) => <CitaRow key={turnKey(t)} t={t} now={now} actions={t.state === 'CITADO' ? acts(t) : null} />;
+  const dias = filter === 'proximas' ? porDia(lista.map((t) => ({ at: t.cita.at, t }))) : [];
+  const [visibles, verMas] = useVerMas(lista, 12);
 
   return (
     <>
@@ -171,22 +186,26 @@ export function Agenda() {
         active={filter}
         onPick={setFilter}
         label="Citas por estado"
-        actions={<button type="button" className="btn" onClick={() => setTel(true)}><PhoneCall /> Cita por teléfono</button>}
+        actions={<><button type="button" className="btn" onClick={() => setTel(true)}><PhoneCall /> Cita por teléfono</button><Help role="adm" /></>}
       />
       <Panel title={f.n} count={lista.length} icon={f.icon} sub={AGENDA_SUB[filter]} className="adm-list" data-role={f.c}>
         {!lista.length ? (
           <Empty icon="check" title="No hay citas en esta lista" />
         ) : filter === 'proximas' ? (
-          porDia(lista.map((t) => ({ at: t.cita.at, t }))).map(({ day, cupos }) => (
-            <section key={day}>
-              <h3 className="cita-day">{fmtCitaDia(day, now)} <small>{cupos.length} {cupos.length === 1 ? 'cita' : 'citas'}</small></h3>
-              <ul className="cita-list">{cupos.map(({ t }) => card(t))}</ul>
-            </section>
-          ))
+          <Acordeon rotulo={`${dias.length} ${dias.length === 1 ? 'día' : 'días'} con citas`} barra={dias.length > 1}>
+            {dias.map(({ day, cupos }, i) => (
+              <Grupo key={day} titulo={<span className="cita-day">{fmtCitaDia(day, now)}</span>} sub={espDelDia(cupos)} cuenta={cupos.length} abierto={i === 0}>
+                <ul className="cita-list">{cupos.map(({ t }) => card(t))}</ul>
+              </Grupo>
+            ))}
+          </Acordeon>
         ) : (
-          <ul className="cita-list">
-            <AnimatePresence initial={false}>{lista.map(card)}</AnimatePresence>
-          </ul>
+          <>
+            <ul className="cita-list">
+              <AnimatePresence initial={false}>{visibles.map(card)}</AnimatePresence>
+            </ul>
+            {verMas}
+          </>
         )}
       </Panel>
 

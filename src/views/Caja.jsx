@@ -10,10 +10,11 @@ import { listItem } from '../lib/motion.js';
 import { useNow } from '../hooks/useNow.js';
 import { useConfirm } from '../hooks/useConfirm.jsx';
 import { useDocuments } from '../hooks/useDocuments.jsx';
+import { useVerMas } from '../hooks/useVerMas.jsx';
 import { SectionHero } from '../components/SectionHero.jsx';
 import { Help } from '../components/WorkspaceHeader.jsx';
 import { Badge, Empty, Field, Msg, Panel, SisBadge, TurnCode, WaitTime } from '../components/ui.jsx';
-import './workspaces.css';
+import '../styles/vistas/estaciones.css';
 
 const METODOS = [['EFECTIVO', Banknote], ['TARJETA', CreditCard], ['BILLETERA', Smartphone]];
 const BILLETES = [20, 50, 100];
@@ -90,6 +91,7 @@ export default function Caja() {
   const [selId, setSelId] = useState(null);
   const urgencias = db.turns.filter(porCobrarDespues).sort(byArrival);
   const queue = [...db.turns.filter((t) => QUEUE.caj.includes(t.state)).sort(byArrival), ...urgencias];
+  const [colaVisible, colaMas] = useVerMas(queue);
   const sel = queue.find((t) => t.id === selId) || queue[0];
   const today = startOfToday();
   const pagos = db.turns.filter((t) => t.pago && t.pago.t >= today).sort((a, b) => b.pago.t - a.pago.t);
@@ -129,9 +131,10 @@ export default function Caja() {
       <div className="grid-2 caj-grid">
         <Panel title="Por cobrar" count={queue.length} icon="hourglass" sub="Sin seguro: pagan antes del triaje, en orden de llegada. Las urgencias pagan después de su atención." className="caj-panel" data-role="caj">
           {queue.length ? (
+            <>
             <ul className="pacs">
               <AnimatePresence initial={false}>
-                {queue.map((t, i) => {
+                {colaVisible.map((t, i) => {
                   const p = patient(t.dni);
                   return (
                     <m.li key={t.id} {...listItem} layout style={{ '--c': 'var(--st-caj)' }}>
@@ -152,9 +155,11 @@ export default function Caja() {
                 })}
               </AnimatePresence>
             </ul>
+            {colaMas}
+            </>
           ) : <Empty icon="check" title="No hay pagos pendientes" />}
         </Panel>
-        <Panel title="Cobro de la consulta" icon="scroll" className="caj-panel" data-role="caj">
+        <Panel title="Cobro de la consulta" icon="scroll" className="caj-panel papel papel-ticket" data-role="caj">
           <AnimatePresence mode="wait">
             {sel ? (
               <m.div key={sel.id} {...listItem}>

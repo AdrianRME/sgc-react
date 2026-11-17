@@ -4,6 +4,7 @@ import { isCurrent } from '../lib/clinical.js';
 import { toFacts } from '../lib/analytics.js';
 import { lastComprobante, lastRecipe, uid } from '../lib/ids.js';
 import { citaActivaDe, pacienteVerificado, reservarCita } from '../store/actions.js';
+import { CODIGO_MIN, comprobarCodigo, mascaraTel, nuevoCodigo, resumenPaciente, venceEn } from '../lib/portal.js';
 
 // v4: pago, cita y horarios médicos (los datos guardados con versiones anteriores se vuelven a sembrar)
 const KEY = 'sgc-db-v4';
@@ -41,6 +42,8 @@ export function createLocalRepo() {
     }
     return db;
   };
+  // Códigos de un solo uso del portal del paciente, por DNI (viven en memoria: se pierden al recargar)
+  const codigos = new Map();
   const listeners = new Set();
   const setSession = (auth) => {
     try {
@@ -145,6 +148,33 @@ export function createLocalRepo() {
       const next = applyChanges(db, r.changes);
       write(next);
       return citaActivaDe(next, r.result.dni);
+    },
+    /* Portal del paciente (en Supabase: sgc_portal_codigo y sgc_portal_entrar) */
+    async portalCodigo(dni, nac) {
+      const db = await ensure();
+      const p = pacienteVerificado(db, dni, nac);
+      if (!p) throw new Error('No encontramos un paciente con ese DNI y esa fecha de nacimiento. Si es su primera atención, acérquese a Admisión para abrir su historia clínica.');
+      const tel = mascaraTel(p.tel);
+      if (!tel) throw new Error('No tiene un celular registrado. Acérquese a Admisión con su DNI para registrarlo.');
+      const codigo = nuevoCodigo();
+      codigos.set(p.dni, { codigo, vence: venceEn(Date.now()), intentos: 0 });
+      // En modo local no hay proveedor de SMS: el código se devuelve para mostrarlo como «mensaje simulado»
+      return { tel, min: CODIGO_MIN, demo: codigo };
+    },
+    async portalEntrar(dni, codigo) {
+      const envio = codigos.get(dni);
+      const r = comprobarCodigo(envio, codigo, Date.now());
+      if (!r.ok) {
+        if (r.agotado) codigos.delete(dni);
+        else envio.intentos += 1;
+        throw Object.assign(new Error(r.error), { agotado: r.agotado });
+      }
+      codigos.delete(dni); // un solo uso
+      const db = await ensure();
+      const patient = db.patients.find((p) => p.dni === dni);
+      // Cada ingreso al portal queda en la auditoría, igual que la lectura de una historia por el personal
+      write(applyChanges(db, { audit: [{ id: uid(), t: Date.now(), u: 'paciente', a: 'HC_CONSULTADA', d: `${patient.hc} consultada por el propio paciente (portal)`, ip: '' }] }));
+      return resumenPaciente({ patient, turns: db.turns, users: db.users });
     },
     subscribe(onChange) {
       const h = (e) => e.key === KEY && onChange();

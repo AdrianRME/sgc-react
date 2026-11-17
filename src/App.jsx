@@ -15,6 +15,7 @@ import { Login } from './views/Login.jsx';
 /* Cada sección se descarga recién cuando se abre: un rol nunca descarga el código de los demás. */
 const Sala = lazy(() => import('./views/Sala.jsx'));
 const CitaWeb = lazy(() => import('./views/CitaWeb.jsx'));
+const Paciente = lazy(() => import('./views/Paciente.jsx'));
 const Flujo = lazy(() => import('./views/Flujo.jsx'));
 const SimEnVivo = lazy(() => import('./components/SimEnVivo.jsx'));
 const HoraPunta = lazy(() => import('./components/HoraPunta.jsx'));
@@ -42,7 +43,15 @@ function Splash({ title, text, action }) {
   return (
     <div className="splash">
       <BrandMark className="brand-mark lg" />
-      {title ? <h1>{title}</h1> : <p className="note">Cargando…</p>}
+      {title ? <h1>{title}</h1> : (
+        <>
+          {/* Mientras carga, un latido se dibuja y se borra (styles/motion.css: «late») */}
+          <svg className="splash-ecg" viewBox="0 0 220 44" aria-hidden="true">
+            <path d="M2 26 h52 q6 -8 12 0 h10 l5 7 l8 -30 l8 38 l5 -15 h14 q8 -10 16 0 h58" />
+          </svg>
+          <p className="note">Cargando…</p>
+        </>
+      )}
       {text && <p className="note">{text}</p>}
       {action}
     </div>
@@ -65,7 +74,7 @@ function Router() {
 
   // Cada rol trabaja solo en su espacio: otra dirección lo devuelve al suyo.
   useEffect(() => {
-    if (!role || hash === '#/sala' || hash === '#/cita' || (route === role.slug && section)) return;
+    if (!role || hash === '#/sala' || hash === '#/cita' || hash === '#/paciente' || (route === role.slug && section)) return;
     if (route !== role.slug && Object.values(ROLES).some((r) => r.slug === route)) {
       toast('info', `Acceso restringido: su espacio es ${role.space}.`);
     }
@@ -76,6 +85,8 @@ function Router() {
   if (hash === '#/sala') return <Suspense fallback={<Splash />}><Sala standalone /></Suspense>;
   // Página pública para que el paciente saque su cita con su DNI y su fecha de nacimiento
   if (hash === '#/cita') return <Suspense fallback={<Splash />}><CitaWeb /></Suspense>;
+  // Portal del paciente: su cita, sus atenciones y sus recetas, con un código enviado a su celular
+  if (hash === '#/paciente') return <Suspense fallback={<Splash />}><Paciente /></Suspense>;
   if (auth === undefined) return <Splash />;
   if (!auth) return <Login />;
   // Con contraseña temporal no se carga ningún dato: primero hay que definir una propia

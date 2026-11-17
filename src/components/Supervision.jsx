@@ -3,7 +3,7 @@ import { AnimatePresence, m } from 'motion/react';
 import { escalaciones, escalacionesPara } from '../lib/supervision.js';
 import { listItem } from '../lib/motion.js';
 import { useNow } from '../hooks/useNow.js';
-import { Icon3D } from './Icon3D.jsx';
+import { Icono } from './Icono.jsx';
 
 const MAX = 3;
 
@@ -26,7 +26,7 @@ export function Supervision({ turns, user, onNueva }) {
   return (
     <section className="superv" role="alert" aria-label="Supervisión de pacientes">
       <header>
-        <Icon3D name="warning" size={26} />
+        <Icono name="warning" size={26} />
         <b>Supervisión: {lista.length} paciente{lista.length > 1 ? 's' : ''} sobre su tiempo objetivo</b>
       </header>
       <ul>

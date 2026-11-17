@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { AnimatePresence, m } from 'motion/react';
-import { ArrowLeft, CalendarCheck, Check, LogIn, Printer, Search } from 'lucide-react';
+import { ArrowLeft, CalendarCheck, Check, LogIn, Printer, Search, UserRound } from 'lucide-react';
 import { useStore } from '../store/useStore.js';
 import { ESPECIALIDADES, ESP_POR_RAMA } from '../lib/constants.js';
 import { agendaPublica as agendaDe, cuposLibres, diasDeAtencion, listaDias, porDia } from '../lib/agenda.js';
@@ -8,9 +8,9 @@ import { fmtCitaDia, fmtHora, fmtLongDay, isoDay, tonoDia } from '../lib/format.
 import { listItem } from '../lib/motion.js';
 import { useNow } from '../hooks/useNow.js';
 import { Field, Msg } from '../components/ui.jsx';
-import { Icon3D } from '../components/Icon3D.jsx';
+import { Icono } from '../components/Icono.jsx';
 import { BrandMark } from '../components/BrandMark.jsx';
-import './citaweb.css';
+import '../styles/vistas/citaweb.css';
 
 const DAYS_SHOWN = 10;
 const PASOS = ['Identifíquese', 'Especialidad', 'Día y hora', 'Listo'];
@@ -140,11 +140,11 @@ export function ReservaCita({ telefono = false, onDone }) {
             <p className="cw-lead">Hola, <b>{pac.nom}</b>. ¿Con qué especialidad desea su cita?</p>
             {ESP_POR_RAMA.map((r) => (
               <section key={r.k} className="cw-rama" aria-label={r.n}>
-                <h3 className="cw-rama-h"><Icon3D name={r.icon} size={22} /> {r.n}</h3>
+                <h3 className="cw-rama-h"><Icono name={r.icon} size={22} /> {r.n}</h3>
                 <div className="cw-esps">
                   {r.esps.map((e) => (
                     <button key={e.k} type="button" className="cw-esp" style={{ '--e': `var(--esp-${e.k})` }} onClick={() => elegirEsp(e.k)} disabled={busy}>
-                      <Icon3D name={e.icon} size={40} />
+                      <Icono name={e.icon} size={40} />
                       <b>{e.n}</b>
                       <small>Citas de {e.dur} min</small>
                     </button>
@@ -236,11 +236,14 @@ export default function CitaWeb() {
           <BrandMark />
           <div><b>SGC</b><span>Centro de Salud</span></div>
         </div>
-        <a className="cw-link" href="#/"><LogIn aria-hidden="true" /> Personal del centro</a>
+        <nav className="cw-links" aria-label="Otras páginas">
+          <a className="cw-link" href="#/paciente"><UserRound aria-hidden="true" /> Mi atención</a>
+          <a className="cw-link" href="#/"><LogIn aria-hidden="true" /> Personal del centro</a>
+        </nav>
       </header>
       <main className="cw-main">
         <section className="cw-hero">
-          <Icon3D name="calendar" size={72} />
+          <Icono name="calendar" size={72} />
           <div>
             <h1>Saque su cita</h1>
             <p>Elija la especialidad, el día y la hora según el horario de los médicos. Puede tener una cita a la vez.</p>

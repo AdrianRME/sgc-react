@@ -1,0 +1,37 @@
+/* ---------- Botones ---------- */
+.btn {
+  --b-bg: var(--role-strong, var(--brand));
+  --b-fg: var(--on-strong);
+  display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+  height: 38px; padding: 0 16px; border: 1px solid transparent; border-radius: var(--r-ctl);
+  background: var(--b-bg); color: var(--b-fg);
+  font-weight: 600; font-size: var(--fs-sm); white-space: nowrap;
+  transition: filter var(--t-base), background-color var(--t-base), border-color var(--t-base), transform var(--t-fast) var(--ease);
+}
+.btn:hover:not(:disabled) { filter: brightness(1.1); }
+.btn:active:not(:disabled) { filter: brightness(0.94); }
+.btn:disabled { opacity: 0.45; }
+.btn svg { width: 16px; height: 16px; flex: none; }
+.btn.sm { height: 32px; padding: 0 12px; font-size: var(--fs-xs); gap: 6px; }
+.btn.lg { height: 46px; padding: 0 22px; font-size: var(--fs-md); }
+.btn.full { width: 100%; }
+.btn.sec { --b-bg: var(--surface); --b-fg: var(--ink); border-color: var(--line-strong); }
+.btn.sec:hover:not(:disabled) { filter: none; background: var(--surface-2); border-color: var(--ink-2); }
+.btn.ghost { --b-bg: transparent; --b-fg: var(--ink-2); }
+.btn.ghost:hover:not(:disabled) { filter: none; background: var(--sunken); color: var(--ink); }
+.btn.dng { --b-bg: transparent; --b-fg: var(--crit-text); border-color: color-mix(in oklab, var(--crit) 35%, var(--line)); }
+.btn.dng:hover:not(:disabled) { filter: none; background: var(--crit-bg); }
+.btn.dng-solid { --b-bg: var(--crit); --b-fg: #fff; }
+.btn.dng-txt { color: var(--crit-text); }
+
+.icon-btn {
+  display: inline-grid; place-items: center; width: 36px; height: 36px; flex: none;
+  border: 1px solid transparent; border-radius: var(--r-ctl); background: transparent; color: var(--ink-2);
+  transition: background-color var(--t-base), color var(--t-base);
+}
+.icon-btn:hover { background: var(--sunken); color: var(--ink); }
+.icon-btn svg { width: 18px; height: 18px; }
+.icon-btn.sm { width: 30px; height: 30px; }
+.linkbtn { border: 0; background: none; padding: 0; color: var(--info-text); font-weight: 600; text-decoration: underline; text-underline-offset: 3px; }
+.row-icons { display: inline-flex; gap: 2px; }
+.row-icons .dng:hover { color: var(--crit-text); background: var(--crit-bg); }

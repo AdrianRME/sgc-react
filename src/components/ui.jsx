@@ -5,7 +5,7 @@ import { STATE, PRIO, SIS, ROUTE, ESP_POR_RAMA, PREFERENTE } from '../lib/consta
 import { waitInfo } from '../lib/clinical.js';
 import { fmtNum, initials } from '../lib/format.js';
 import { spring } from '../lib/motion.js';
-import { Icon3D } from './Icon3D.jsx';
+import { Icono } from './Icono.jsx';
 
 /* ---------- Etiquetas ---------- */
 
@@ -50,7 +50,7 @@ export function Panel({ title, sub, icon, count, actions, children, className = 
     <section className={`panel ${className}`} {...rest}>
       {(title || actions) && (
         <header className="panel-h">
-          {icon && <Icon3D name={icon} size={30} />}
+          {icon && <Icono name={icon} size={30} />}
           <div className="titles">
             {title && <h2>{title}{count != null && <span className="count">{count}</span>}</h2>}
             {sub && <span className="sub">{sub}</span>}
@@ -65,7 +65,7 @@ export function Panel({ title, sub, icon, count, actions, children, className = 
 
 export const Empty = ({ icon = 'sparkles', title, children }) => (
   <div className="empty">
-    <Icon3D name={icon} size={56} />
+    <Icono name={icon} size={56} />
     {title && <b>{title}</b>}
     {children && <span>{children}</span>}
   </div>

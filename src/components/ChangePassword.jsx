@@ -3,7 +3,7 @@ import { useStore } from '../store/useStore.js';
 import { PASSWORD_RULE } from '../lib/constants.js';
 import { Field, Msg } from './ui.jsx';
 import { Modal } from './Modal.jsx';
-import { Icon3D } from './Icon3D.jsx';
+import { Icono } from './Icono.jsx';
 
 /** Fuerza de la contraseña: cuántas reglas cumple (longitud, letras, números, largo extra o símbolos). */
 const strength = (p) => [p.length >= 8, /[A-Za-z]/.test(p) && /\d/.test(p), p.length >= 12, /[^A-Za-z0-9]/.test(p)].filter(Boolean).length;
@@ -40,7 +40,7 @@ export function ChangePassword({ forced = false, onClose = () => {} }) {
 
   return (
     <Modal label="Cambiar contraseña" onClose={onClose} size="sm" dismissible={!forced}>
-      <Icon3D name="locked" size={48} className="head-icon" />
+      <Icono name="locked" size={48} className="head-icon" />
       <h3>{forced ? 'Defina su contraseña' : 'Cambiar contraseña'}</h3>
       <p>{forced
         ? 'Está usando una contraseña temporal. Por seguridad, defina una contraseña personal antes de continuar.'

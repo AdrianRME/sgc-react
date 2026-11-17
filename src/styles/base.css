@@ -9,9 +9,9 @@ body {
   text-rendering: optimizeLegibility;
 }
 h1, h2, h3, h4 { margin: 0; line-height: 1.2; text-wrap: balance; }
-h1 { font: 650 var(--fs-2xl) / 1.1 var(--display); letter-spacing: -0.015em; font-optical-sizing: auto; }
-h2 { font-size: var(--fs-lg); font-weight: 650; }
-h3 { font-size: var(--fs-md); font-weight: 650; }
+h1 { font: 500 var(--fs-2xl) / 1.12 var(--serif); letter-spacing: -0.01em; }
+h2 { font-size: var(--fs-lg); font-weight: 600; }
+h3 { font-size: var(--fs-md); font-weight: 600; }
 p { margin: 0; text-wrap: pretty; }
 a { color: var(--info-text); text-underline-offset: 3px; }
 img { max-width: 100%; }
@@ -19,12 +19,12 @@ button, input, select, textarea { font: inherit; color: inherit; }
 button { cursor: pointer; }
 button:disabled { cursor: not-allowed; }
 table { border-collapse: collapse; }
-::selection { background: color-mix(in oklab, var(--role, var(--st-med)) 30%, transparent); }
+::selection { background: color-mix(in oklab, var(--role, var(--brand)) 26%, transparent); }
 
 :focus-visible {
-  outline: 2px solid var(--role-strong, var(--st-med-strong));
+  outline: 2px solid var(--role-strong, var(--brand-strong));
   outline-offset: 2px;
-  border-radius: 4px;
+  border-radius: var(--r-sm);
 }
 
 .sr-only {
@@ -35,26 +35,20 @@ table { border-collapse: collapse; }
 .muted { color: var(--muted); }
 .note { color: var(--ink-2); font-size: var(--fs-sm); }
 .hint { color: var(--muted); font-size: var(--fs-xs); }
-.err { color: var(--crit-text); font-size: var(--fs-xs); font-weight: 550; }
+.err { color: var(--crit-text); font-size: var(--fs-xs); font-weight: 600; }
 
-/* Código de turno: el «carácter» del dominio, siempre en la fuente de títulos */
+/* Rótulo de sección (versalitas): encabeza grupos, casillas y columnas */
+.rotulo { font: var(--label); letter-spacing: var(--label-track); text-transform: uppercase; color: var(--muted); }
+
+/* Código de turno: el «carácter» del dominio, siempre en monoespaciada como en el ticket impreso */
 .tcode {
-  font-family: var(--display);
-  font-weight: 700;
+  font-family: var(--mono);
+  font-weight: 600;
   font-variant-numeric: tabular-nums;
-  letter-spacing: -0.01em;
+  letter-spacing: -0.02em;
   white-space: nowrap;
 }
-.code { font-variant-numeric: tabular-nums; font-weight: 600; letter-spacing: 0.01em; }
-
-.i3d { flex: none; object-fit: contain; user-select: none; -webkit-user-drag: none; }
-
-/* Animaciones CSS mínimas (las de interfaz las maneja Motion, que respeta la preferencia del sistema) */
-@keyframes shimmer { from { background-position: 200% 0; } to { background-position: -200% 0; } }
-@keyframes pulse-ring { 0% { box-shadow: 0 0 0 0 color-mix(in oklab, var(--crit) 55%, transparent); } 100% { box-shadow: 0 0 0 10px transparent; } }
-@media (prefers-reduced-motion: reduce) {
-  *, *::before, *::after { animation-duration: 0.01ms !important; animation-iteration-count: 1 !important; transition-duration: 0.01ms !important; scroll-behavior: auto !important; }
-}
+.code { font-family: var(--mono); font-size: 0.94em; font-weight: 500; letter-spacing: -0.01em; }
 
 @media print {
   body { background: #fff; color: #000; }

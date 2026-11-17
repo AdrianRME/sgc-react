@@ -7,19 +7,20 @@ import { useStore } from '../store/useStore.js';
 import { callTurn, callNext, startTriage, saveTriage, returnToQueue, cancelTurn } from '../store/actions.js';
 import { evalTriage, validateVitals, imcCategory, byTriaje, turnKey } from '../lib/clinical.js';
 import { age, cap, fmtD, fmtLongDay, fmtT, fullName, saludo, startOfToday } from '../lib/format.js';
-import { listItem, spring } from '../lib/motion.js';
+import { cambio, listItem, nota } from '../lib/motion.js';
 import { CANCEL, QUEUE, TRIAGE_MODULES } from '../lib/constants.js';
 import { useNow } from '../hooks/useNow.js';
 import { usePatientHistory } from '../hooks/usePatientHistory.js';
 import { Help } from '../components/WorkspaceHeader.jsx';
 import { Badge, Empty, Field, Msg, Panel, PrioBadge, TurnCode, WaitTime } from '../components/ui.jsx';
 import { noShowDialog, useConfirm } from '../hooks/useConfirm.jsx';
-import { Icon3D } from '../components/Icon3D.jsx';
+import { Icono } from '../components/Icono.jsx';
 import { VitalTrends } from '../components/PatientTimeline.jsx';
 import { CitaForm } from '../components/CitaForm.jsx';
 import { useDocuments } from '../hooks/useDocuments.jsx';
-import '../components/charts/charts.css';
-import './workspaces.css';
+import { useVerMas } from '../hooks/useVerMas.jsx';
+import '../styles/componentes/graficos.css';
+import '../styles/vistas/estaciones.css';
 
 const EMPTY = { pa: '', fc: '', fr: '', t: '', spo2: '', peso: '', talla: '', motivo: '' };
 
@@ -69,7 +70,7 @@ function TriageForm({ turn, patient, onSaved }) {
         </div>
         <AnimatePresence mode="popLayout">
           {anyVital && (
-            <m.span key={r.prio} initial={{ scale: 0.6, opacity: 0 }} animate={{ scale: 1, opacity: 1, transition: spring }} exit={{ scale: 0.6, opacity: 0 }}>
+            <m.span key={r.prio} {...cambio}>
               <PrioBadge prio={r.prio} />
             </m.span>
           )}
@@ -87,13 +88,13 @@ function TriageForm({ turn, patient, onSaved }) {
           const st = r.status[k];
           return (
             <div key={k} className={`vtile ${st ? `v-${st}` : ''}`}>
-              <Icon3D name={icon} size={30} />
+              <Icono name={icon} size={30} />
               <Field label={label} error={errs[k]} hint={!errs[k] ? rule(th) : undefined}>
                 {(a) => <input {...a} {...props} value={v[k]} onChange={set(k)} />}
               </Field>
               <AnimatePresence>
                 {st && (
-                  <m.span className={`vstate ${st}`} initial={{ opacity: 0, y: -4 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}>
+                  <m.span className={`vstate ${st}`} {...nota}>
                     {STATUS_TXT[st]}
                   </m.span>
                 )}
@@ -147,6 +148,7 @@ export default function Triaje() {
   // Al terminar el triaje, la cita se da aquí mismo: el paciente no vuelve a Admisión
   const [citaFor, setCitaFor] = useState(null);
   const queue = db.turns.filter((t) => QUEUE.enf.includes(t.state)).sort(byTriaje);
+  const [colaVisible, colaMas] = useVerMas(queue);
   // Cada enfermera trabaja en su módulo: solo su paciente en triaje y sus llamados son suyos
   const current = db.turns.find((t) => t.state === 'EN_TRIAJE' && t.dest === area);
   const enOtros = db.turns.filter((t) => t.state === 'EN_TRIAJE' && t.dest !== area).length;
@@ -213,9 +215,10 @@ export default function Triaje() {
           data-role="enf"
         >
           {queue.length ? (
+            <>
             <ul className="pacs">
               <AnimatePresence initial={false}>
-                {queue.map((t) => {
+                {colaVisible.map((t) => {
                   const called = t.state === 'LLAMADO_TRIAJE';
                   return (
                     <PacCard
@@ -234,12 +237,14 @@ export default function Triaje() {
                 })}
               </AnimatePresence>
             </ul>
+            {colaMas}
+            </>
           ) : <Empty icon="check" title="No hay pacientes en espera de triaje">Los pacientes llegan aquí al pagar en Caja o, si tienen SIS, al registrarse en Admisión.</Empty>}
         </Panel>
         <Panel
           title={current ? 'Registro de signos vitales' : porCitar ? 'Último paso: su cita' : 'Ahora'}
           icon={!current && porCitar ? 'calendar' : 'thermometer'}
-          className="ws-panel"
+          className="ws-panel papel papel-cuadricula"
           data-role="enf"
         >
           <AnimatePresence mode="wait">

@@ -3,7 +3,7 @@ import { m } from 'motion/react';
 import { X } from 'lucide-react';
 import { fade, pop } from '../lib/motion.js';
 import { Field } from './ui.jsx';
-import { Icon3D } from './Icon3D.jsx';
+import { Icono } from './Icono.jsx';
 
 const FOCUSABLE = 'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])';
 
@@ -56,7 +56,7 @@ export function ConfirmDialog({ title, text, icon = 'warning', confirmLabel = 'C
   const [opt, setOpt] = useState(options?.[0] || '');
   return (
     <Modal label={title} onClose={onCancel} size="sm">
-      <Icon3D name={icon} size={48} className="head-icon" />
+      <Icono name={icon} size={48} className="head-icon" />
       <h3>{title}</h3>
       <p>{text}</p>
       {options && (

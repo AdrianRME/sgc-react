@@ -8,8 +8,8 @@ import { downloadText } from '../../lib/download.js';
 import { WorkspaceHeader } from '../../components/WorkspaceHeader.jsx';
 import { Badge, Empty, Field, Panel } from '../../components/ui.jsx';
 import { BarList } from '../../components/charts/BarList.jsx';
-import '../../components/charts/charts.css';
-import './jefatura.css';
+import '../../styles/componentes/graficos.css';
+import '../../styles/vistas/jefatura.css';
 
 /** Tono de cada acción auditada (las que tocan datos clínicos o credenciales se destacan). */
 const TONE = {

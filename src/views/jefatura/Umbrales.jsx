@@ -7,8 +7,8 @@ import { TH_FIELDS } from '../../lib/constants.js';
 import { fmtD } from '../../lib/format.js';
 import { WorkspaceHeader } from '../../components/WorkspaceHeader.jsx';
 import { Badge, Field, Msg, Panel } from '../../components/ui.jsx';
-import '../../components/charts/charts.css';
-import './jefatura.css';
+import '../../styles/componentes/graficos.css';
+import '../../styles/vistas/jefatura.css';
 
 /**
  * Escala visual de cada signo con sus zonas (normal, alerta, crítico) según los valores que se editan.
@@ -54,7 +54,7 @@ export default function Umbrales() {
         lead="Valores con los que el sistema asigna la prioridad de triaje (RF-08). Cada cambio necesita la aprobación de un médico y deja una versión en el historial."
       />
       <div className="grid-2 side-r">
-        <Panel title="Versión de trabajo" sub="Las zonas se actualizan mientras edita">
+        <Panel title="Versión de trabajo" sub="Las zonas se actualizan mientras edita" className="papel papel-ficha">
           <Msg tone="warn">Los valores deben ser definidos y aprobados por el responsable clínico. Los de este prototipo son de demostración.</Msg>
           <form onSubmit={(e) => { e.preventDefault(); run(saveThresholds, nums, by); }} noValidate className="stack">
             <div>

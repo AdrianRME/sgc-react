@@ -22,14 +22,31 @@ export function useTheme() {
   const [theme, setThemeState] = useState(read);
   useEffect(() => apply(theme), [theme]);
   const effective = theme || (window.matchMedia?.('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
-  const toggle = useCallback(() => {
+  /**
+   * Cambia el tema. Si el navegador lo permite, el tema nuevo se abre como un círculo que crece desde donde se
+   * pulsó (View Transitions; la animación «revela» está en styles/motion.css). `e` es el clic, si lo hubo.
+   */
+  const toggle = useCallback((e) => {
     const next = effective === 'dark' ? 'light' : 'dark';
     try {
       localStorage.setItem(KEY, next);
     } catch {
       /* sin almacenamiento: el tema dura hasta recargar */
     }
-    setThemeState(next);
+    const cambiar = () => {
+      apply(next); // de inmediato, para que la transición capture ya el tema nuevo
+      setThemeState(next);
+    };
+    const quieto = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
+    if (!document.startViewTransition || quieto || document.hidden) {
+      cambiar();
+      return;
+    }
+    const root = document.documentElement;
+    root.style.setProperty('--vt-x', `${e?.clientX ?? window.innerWidth - 90}px`);
+    root.style.setProperty('--vt-y', `${e?.clientY ?? 28}px`);
+    // Si la transición se interrumpe (pestaña en segundo plano), el tema ya cambió: no hay nada que avisar
+    document.startViewTransition(cambiar).ready.catch(() => {});
   }, [effective]);
   return { theme, effective, toggle };
 }

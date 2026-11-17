@@ -16,6 +16,7 @@ Hecho con **React 19 + Vite**, publicado en **Vercel**, con **Supabase** (Postgr
 | Consulta (`#/consulta`) | Médicos y demás profesionales de consulta. Solo sus pacientes con cita que ya llegaron, por prioridad y hora de la cita; agenda del día; ficha, CIE-10, receta con control de alergias y destino; historias clínicas |
 | Jefatura (`#/jefatura`) | Tablero gerencial, flujo en vivo (solo códigos), usuarios, **horarios médicos**, auditoría y umbrales clínicos |
 | Sacar cita (`#/cita`, pública) | El paciente con historia reserva su cita con su DNI y su fecha de nacimiento: especialidad, día y hora según el horario del médico. Una cita activa a la vez; tras 5 intentos fallidos el DNI se bloquea 15 min. Admisión usa la misma pantalla para las citas por teléfono |
+| Mi atención (`#/paciente`, pública) | Portal del paciente: su turno de hoy, su próxima cita, sus atenciones (fecha, profesional, diagnóstico y signos) y sus recetas para imprimir. Entra con DNI y fecha de nacimiento más un código de un solo uso enviado a su celular (5 minutos, 3 intentos; en el prototipo el mensaje se simula en pantalla). Es de solo lectura, nunca muestra las notas clínicas del médico, se cierra sola tras 5 minutos sin uso y cada ingreso queda en la auditoría. Requiere `supabase/actualizacion-v3.0.sql` |
 | Sala (`#/sala`, pública) | Llamado actual con tono y voz, próximos turnos con su **espera aproximada**; nunca muestra nombres ni DNI |
 
 **Cartera de servicios de primer nivel (I-3/I-4)**, agrupada por ramas, con 8 consultorios y su color en la sala:

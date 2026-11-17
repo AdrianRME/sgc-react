@@ -12,16 +12,16 @@ import { WorkspaceHeader } from '../components/WorkspaceHeader.jsx';
 import { Empty, Field, Msg, Panel, SisBadge } from '../components/ui.jsx';
 import { useDocuments } from '../hooks/useDocuments.jsx';
 import { PatientTimeline, VitalTrends } from '../components/PatientTimeline.jsx';
-import { Icon3D } from '../components/Icon3D.jsx';
-import '../components/charts/charts.css';
-import './workspaces.css';
+import { Icono } from '../components/Icono.jsx';
+import '../styles/componentes/graficos.css';
+import '../styles/vistas/estaciones.css';
 
 function Record({ patient, docs }) {
   const h = usePatientHistory(patient.dni);
   return (
     <m.div {...listItem} className="stack">
       <div className="patient-card">
-        <Icon3D name="folder" size={44} />
+        <Icono name="folder" size={44} />
         <div className="pc-main">
           <b>{fullName(patient)}</b>
           <small>{patient.hc}, {age(patient.nac)} años, {patient.sexo === 'F' ? 'femenino' : 'masculino'}, DNI {patient.dni}</small>
@@ -126,7 +126,7 @@ export default function Historias() {
             </ul>
           ) : nq.length >= 3 && <Empty icon="search" title="Sin coincidencias" />}
         </Panel>
-        <Panel title="Historia clínica" icon="clipboard">
+        <Panel title="Historia clínica" icon="clipboard" className="papel papel-ficha">
           <AnimatePresence mode="wait">
             {patient && !libre ? (
               <Justificar

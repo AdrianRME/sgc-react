@@ -1,12 +1,9 @@
 import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 import { LazyMotion, MotionConfig, domMax } from 'motion/react';
-import '@fontsource-variable/onest';
-import '@fontsource-variable/bricolage-grotesque/opsz.css';
-import './styles/tokens.css';
-import './styles/base.css';
-import './styles/ui.css';
-import './styles/shell.css';
+
+
+import './styles/index.css';
 import App from './App.jsx';
 import { applyStoredTheme } from './hooks/useTheme.js';
 

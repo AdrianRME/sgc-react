@@ -1,27 +1,22 @@
-import { Icon3D } from './Icon3D.jsx';
+import { Icono } from './Icono.jsx';
 import { AnimatedNumber } from './ui.jsx';
 
 const entero = (x) => String(Math.round(x));
-// Trazo de ECG decorativo del encabezado (la identidad de monitor del sistema)
-const TRAZO = Array.from({ length: 5 }, () => 'l60 0 q6 -8 12 0 l8 0 l4 6 l6 -32 l6 40 l4 -14 l10 0 q8 -12 16 0').join(' ');
 
 /**
- * Encabezado de color de una sección: ícono, título y unas tarjetas con cifras. Cada tarjeta lleva el color de
- * su estación (`c`). Con `onPick`, las tarjetas son filtros: la elegida queda marcada (`active`); las que llevan
- * `pick: false` solo informan. `format` cambia cómo se escribe la cifra (por omisión, un entero).
+ * Encabezado de una sección: la cabecera de una hoja del expediente. Rótulo del área, título, texto de apoyo y
+ * una fila de casillas con cifras. Cada casilla lleva el color de su estación (`c`). Con `onPick`, las casillas
+ * son filtros: la elegida queda marcada (`active`); las que llevan `pick: false` solo informan.
+ * `format` cambia cómo se escribe la cifra (por omisión, un entero).
  * tiles: [{ k, n, icon, c, value, format?, pick? }]
  */
 export function SectionHero({ icon, kicker, title, text, tiles = [], active, onPick, label = 'Resumen', actions }) {
   return (
     <section className="hero">
-      {/* Las capas decorativas van recortadas aparte, para que la ayuda y los menús del encabezado no se corten */}
-      <div className="hero-bg" aria-hidden="true">
-        <svg className="hero-ecg" viewBox="0 0 600 60" preserveAspectRatio="none">
-          <path d={`M0 40 ${TRAZO}`} />
-        </svg>
-      </div>
+      {/* La trama de la hoja va recortada aparte, para que la ayuda y los menús del encabezado no se corten */}
+      <div className="hero-bg" aria-hidden="true" />
       <div className="hero-t">
-        <Icon3D name={icon} size={64} />
+        <Icono name={icon} size={46} />
         <div>
           {kicker && <small>{kicker}</small>}
           <h1>{title}</h1>
@@ -34,9 +29,8 @@ export function SectionHero({ icon, kicker, title, text, tiles = [], active, onP
           {tiles.map((t) => {
             const body = (
               <>
-                <Icon3D name={t.icon} size={30} />
+                <span className="hero-kpi-l"><Icono name={t.icon} size={14} />{t.n}</span>
                 <b><AnimatedNumber value={t.value} format={t.format ?? entero} /></b>
-                <span className="hero-kpi-l">{t.n}</span>
               </>
             );
             return onPick && t.pick !== false ? (

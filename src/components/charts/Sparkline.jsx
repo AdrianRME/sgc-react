@@ -11,8 +11,8 @@ export function Sparkline({ values, width = 96, height = 28, label }) {
   const [li, lv] = pts[pts.length - 1];
   return (
     <svg className="spark" width={width} height={height} viewBox={`0 0 ${width} ${height}`} role="img" aria-label={label}>
-      <path d={d} fill="none" stroke="var(--muted)" strokeWidth="1.5" strokeLinejoin="round" strokeLinecap="round" />
-      <circle cx={x(li)} cy={y(lv)} r="3.5" fill="var(--role, var(--st-med))" stroke="var(--surface)" strokeWidth="2" />
+      <path className="linea" pathLength="1" d={d} fill="none" stroke="var(--muted)" strokeWidth="1.5" strokeLinejoin="round" strokeLinecap="round" />
+      <circle cx={x(li)} cy={y(lv)} r="3.5" className="punto" fill="var(--role, var(--st-med))" stroke="var(--surface)" strokeWidth="2" />
     </svg>
   );
 }

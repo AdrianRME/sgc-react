@@ -1,0 +1,41 @@
+/* ---------- Campos de formulario ---------- */
+.field { display: flex; flex-direction: column; gap: 5px; min-width: 0; }
+.field > label { font-size: var(--fs-xs); font-weight: 600; color: var(--ink-2); }
+.field input, .field select, .field textarea, .input {
+  width: 100%; min-height: 40px; padding: 8px 12px;
+  border: 1px solid var(--line-strong); border-radius: var(--r-ctl);
+  background: var(--surface); color: var(--ink);
+  transition: border-color var(--t-base), box-shadow var(--t-base);
+}
+.field textarea { resize: vertical; line-height: 1.5; }
+.field input:focus, .field select:focus, .field textarea:focus, .input:focus {
+  outline: none; border-color: var(--role-strong, var(--brand));
+  box-shadow: 0 0 0 3px color-mix(in oklab, var(--role, var(--brand)) 20%, transparent);
+}
+.field input[readonly], .field select:disabled, .field input:disabled { background: var(--surface-2); color: var(--ink-2); }
+.field.has-err input, .field.has-err select, .field.has-err textarea { border-color: var(--crit); }
+.check { display: inline-flex; align-items: center; gap: 8px; font-size: var(--fs-sm); color: var(--ink-2); cursor: pointer; }
+.check input { width: 16px; height: 16px; accent-color: var(--role-strong, var(--brand)); }
+.chk { display: flex; align-items: center; gap: 10px; padding: 9px 12px; border: 1px solid var(--line); border-radius: var(--r-ctl); background: var(--surface); cursor: pointer; }
+.chk:has(input:checked) { border-color: var(--role-strong, var(--brand)); background: var(--role-soft); }
+.sm-select { width: auto; min-height: 36px; padding: 6px 10px; font-size: var(--fs-sm); }
+.search-sm { width: 230px; max-width: 100%; }
+.row { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 14px; }
+.stack { display: flex; flex-direction: column; gap: 14px; }
+.actions { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; }
+.actions.end { justify-content: flex-end; }
+.toolbar { display: flex; flex-wrap: wrap; align-items: end; gap: 12px; }
+.toolbar .field { min-width: 180px; flex: 1; }
+
+/* Búsqueda con lupa */
+.search-in { position: relative; }
+.search-in svg { position: absolute; left: 12px; top: 50%; transform: translateY(-50%); width: 17px; height: 17px; color: var(--muted); pointer-events: none; }
+.field .search-in input, .search-in input { padding-left: 38px; }
+
+/* Medidor de contraseña */
+.pw-meter { display: flex; align-items: center; gap: 12px; margin-top: -6px; font-size: var(--fs-xs); color: var(--ink-2); font-weight: 600; }
+.pw-meter .track { flex: 1; display: grid; grid-template-columns: repeat(4, 1fr); gap: 4px; }
+.pw-meter i { height: 4px; border-radius: 2px; background: var(--sunken); transition: background-color var(--t-base); }
+.pw-meter i.on.l1 { background: var(--crit); }
+.pw-meter i.on.l2 { background: var(--warn); }
+.pw-meter i.on.l3, .pw-meter i.on.l4 { background: var(--good); }

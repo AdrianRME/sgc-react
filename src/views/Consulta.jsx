@@ -16,11 +16,12 @@ import { PacCard, Siguiente } from '../components/Cola.jsx';
 import { Badge, Empty, Field, Msg, Panel, PrioBadge, Segmented, SisBadge, StateBadge, TurnCode, WaitTime } from '../components/ui.jsx';
 import { noShowDialog, useConfirm } from '../hooks/useConfirm.jsx';
 import { useDocuments } from '../hooks/useDocuments.jsx';
+import { useVerMas } from '../hooks/useVerMas.jsx';
 import { CiePicker } from '../components/CiePicker.jsx';
-import { Icon3D } from '../components/Icon3D.jsx';
+import { Icono } from '../components/Icono.jsx';
 import { PatientTimeline } from '../components/PatientTimeline.jsx';
-import '../components/charts/charts.css';
-import './workspaces.css';
+import '../styles/componentes/graficos.css';
+import '../styles/vistas/estaciones.css';
 
 const emptyMed = () => ({ key: Math.random().toString(36).slice(2), n: '', dosis: '', frec: '', dias: '', cant: '' });
 const RECIPES_SHOWN = 8;
@@ -34,7 +35,7 @@ function Vitals({ tri, th }) {
     <div className="vread">
       {VITAL_ROWS.map(([k, label, fmt, icon]) => (
         <div key={k} className={`vr ${r.status[k] && r.status[k] !== 'ok' ? `v-${r.status[k]}` : ''}`}>
-          <Icon3D name={icon} size={24} />
+          <Icono name={icon} size={24} />
           <span>{label}</span>
           <b>{fmt(tri)}</b>
         </div>
@@ -50,7 +51,7 @@ function PatientSummary({ turn, patient, docs }) {
   const hist = usePatientHistory(patient.dni);
   const prev = hist.attended;
   return (
-    <Panel title="Paciente en consulta" icon="folder" className="ws-panel" data-role="med">
+    <Panel title="Paciente en consulta" icon="folder" className="ws-panel papel papel-ficha" data-role="med">
       <div className="patient-card">
         <TurnCode id={turn.id} className="big" />
         <div className="pc-main">
@@ -213,7 +214,7 @@ function ConsultForm({ turn, patient, onDone }) {
           {DESTINOS.map((d) => (
             <label key={d} className={`dest-opt ${dest === d ? 'on' : ''}`}>
               <input type="radio" name={`dest-${turn.id}`} value={d} checked={dest === d} onChange={() => { setDest(d); setDestx(''); }} />
-              <Icon3D name={DEST_ICON[d]} size={32} />
+              <Icono name={DEST_ICON[d]} size={32} />
               <span>{d}</span>
             </label>
           ))}
@@ -280,6 +281,8 @@ export default function Consulta() {
   const mine = (t) => !t.cita || t.cita.med === user.u;
   const queue = db.turns.filter((t) => [...QUEUE.med, 'EN_CONSULTA'].includes(t.state) && t.tri && mine(t)).sort(byConsulta);
   const agenda = citasDelDia(db.turns, now, user.u);
+  const [colaVisible, colaMas] = useVerMas(queue);
+  const [agendaVisible, agendaMas] = useVerMas(agenda);
   const proximas = db.turns.filter((t) => t.state === 'CITADO' && t.cita.med === user.u && t.cita.at >= startOfDay(now) + DAY).length;
   const current = db.turns.find((t) => t.state === 'EN_CONSULTA' && t.dest === area);
   const today = db.turns.filter((t) => t.consult && t.consult.t >= startOfToday()).sort((a, b) => b.consult.t - a.consult.t);
@@ -352,7 +355,7 @@ export default function Consulta() {
         {current && (
           <m.div key={current.id} {...listItem} className="grid-2 consult">
             <PatientSummary turn={current} patient={pat(current)} docs={docs} />
-            <Panel title={`Atención en curso en ${area}`} icon="stethoscope" className="ws-panel" data-role="med">
+            <Panel title={`Atención en curso en ${area}`} icon="stethoscope" className="ws-panel papel papel-cuaderno" data-role="med">
               <ConsultForm key={current.id} turn={current} patient={pat(current)} onDone={docs.openRecipe} />
             </Panel>
           </m.div>
@@ -372,8 +375,9 @@ export default function Consulta() {
         >
           {ver === 'agenda' ? (
             agenda.length ? (
+              <>
               <ul className="pacs">
-                {agenda.map((t) => (
+                {agendaVisible.map((t) => (
                   <PacCard
                     key={turnKey(t)}
                     turn={t}
@@ -385,11 +389,14 @@ export default function Consulta() {
                   />
                 ))}
               </ul>
+              {agendaMas}
+              </>
             ) : <Empty icon="calendar" title="No tiene citas hoy" />
           ) : queue.length ? (
+            <>
             <ul className="pacs">
               <AnimatePresence initial={false}>
-                {queue.map((t) => (
+                {colaVisible.map((t) => (
                   <PacCard
                     key={t.id}
                     turn={t}
@@ -404,6 +411,8 @@ export default function Consulta() {
                 ))}
               </AnimatePresence>
             </ul>
+            {colaMas}
+            </>
           ) : <Empty icon="check" title="No hay pacientes en espera de consulta">Aparecen aquí cuando un paciente con cita con usted termina su triaje.</Empty>}
         </Panel>
 

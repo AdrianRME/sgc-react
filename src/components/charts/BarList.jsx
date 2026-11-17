@@ -9,9 +9,10 @@ export function BarList({ rows, color = 'var(--st-med)', format = (v) => v, tota
   const max = Math.max(1, ...rows.map((r) => r.value));
   return (
     <ul className="barlist">
-      {rows.map((r) => (
+      {rows.map((r, i) => (
         <li
           key={r.k}
+          style={{ '--i': i }}
           className={hover && hover !== r.k ? 'dim' : ''}
           onPointerEnter={() => setHover(r.k)}
           onPointerLeave={() => setHover(null)}

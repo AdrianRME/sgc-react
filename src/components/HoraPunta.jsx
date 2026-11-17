@@ -10,7 +10,7 @@ import { ahoraReal, fijarReloj } from '../lib/reloj.js';
 import { detenerVivo, iniciarVivo } from '../lib/simVivo.js';
 import { currentThresholds } from '../store/actions.js';
 import { fmtHora } from '../lib/format.js';
-import './simulador.css';
+import '../styles/componentes/simulador.css';
 
 const Flujo = lazy(() => import('../views/Flujo.jsx'));
 const Sala = lazy(() => import('../views/Sala.jsx'));

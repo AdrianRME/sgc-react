@@ -1,7 +1,7 @@
 import { AnimatePresence, m } from 'motion/react';
 import { CircleCheck, Info, TriangleAlert, X } from 'lucide-react';
 import { useStore } from '../store/useStore.js';
-import { spring, quick } from '../lib/motion.js';
+import { aviso } from '../lib/motion.js';
 
 const ICON = { ok: CircleCheck, crit: TriangleAlert, warn: TriangleAlert, info: Info };
 
@@ -16,9 +16,7 @@ export function Toasts() {
             <m.div
               key={t.id}
               layout
-              initial={{ opacity: 0, x: 40, scale: 0.98 }}
-              animate={{ opacity: 1, x: 0, scale: 1, transition: spring }}
-              exit={{ opacity: 0, x: 40, transition: quick }}
+              {...aviso}
               className={`toast ${t.tone}`}
               role={t.tone === 'crit' ? 'alert' : 'status'}
             >

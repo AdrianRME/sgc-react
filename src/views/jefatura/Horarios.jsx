@@ -8,7 +8,7 @@ import { WorkspaceHeader } from '../../components/WorkspaceHeader.jsx';
 import { Field, Msg, Panel } from '../../components/ui.jsx';
 import { HorarioSemanal } from '../../components/HorarioSemanal.jsx';
 import { useConfirm } from '../../hooks/useConfirm.jsx';
-import './jefatura.css';
+import '../../styles/vistas/jefatura.css';
 
 const EMPTY = { med: '', dow: 1, ini: '08:00', fin: '13:00', area: AREAS[0] };
 
@@ -45,7 +45,7 @@ export default function Horarios() {
     <>
       <WorkspaceHeader title="Horarios médicos" icon="calendar"
         lead="Defina qué días y a qué hora atiende cada médico. Con este horario el sistema calcula los cupos de cita y sabe, por ejemplo, que un especialista que no atiende los martes no puede recibir citas ese día." />
-      <Panel title="Agregar bloque" icon="sparkles" className="horario-form">
+      <Panel title="Agregar bloque" icon="sparkles" className="horario-form papel papel-ficha">
         <form onSubmit={submit} noValidate className="horario-grid">
           <Field label="Profesional" hint={e ? `${e.n}: citas de ${e.dur} min` : 'Médicos y demás profesionales de consulta activos'}>
             {(a) => (

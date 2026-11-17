@@ -1,0 +1,100 @@
+/*
+ * Papeles: cada formulario se llena sobre el papel que le corresponde en un centro de salud.
+ *
+ *   .papel-ficha       ficha de archivador, con su pestaña y sus dos perforaciones → Admisión, Jefatura, historia
+ *   .papel-ticket      ticket de caja, con el borde inferior dentado y la línea de corte → Caja
+ *   .papel-cuadricula  hoja cuadriculada en una tablilla con sujetapapeles → Triaje (signos vitales)
+ *   .papel-cuaderno    cuaderno de espiral, con margen y renglones → Consulta (nota de evolución y receta)
+ *
+ * Se usan junto a .panel:  <Panel className="papel papel-ticket">. El llenado es común a todos: en vez de
+ * cajas, cada campo es un renglón con su rótulo impreso encima, y al escribir la tinta recorre el renglón.
+ */
+.papel { --tinta: var(--role-strong, var(--brand-strong)); position: relative; }
+
+/* ---------- Llenado: renglones en vez de cajas ---------- */
+.papel .field > label { font: var(--label); letter-spacing: var(--label-track); text-transform: uppercase; color: var(--muted); }
+.papel .field :is(input:not([type='checkbox'], [type='radio']), select), .papel .medrow input {
+  border: 0; border-bottom: 1.5px solid var(--line-strong); border-radius: 0; padding-left: 6px; padding-right: 6px;
+  background-color: color-mix(in oklab, var(--tinta) 3%, transparent);
+  /* La tinta: una línea del color de la estación que se dibuja de izquierda a derecha al entrar al campo */
+  background-image: linear-gradient(var(--tinta), var(--tinta)); background-repeat: no-repeat; background-position: 0 100%; background-size: 0 2px;
+  font-weight: 500;
+  transition: background-size var(--t-slow) var(--ease), background-color var(--t-base);
+}
+.papel .field :is(input:not([type='checkbox'], [type='radio']), select):focus, .papel .medrow input:focus {
+  outline: none; box-shadow: none; border-color: var(--line-strong);
+  background-color: color-mix(in oklab, var(--tinta) 7%, transparent); background-size: 100% 2px;
+}
+.papel .field.has-err :is(input, select) { border-bottom-color: var(--crit); }
+.papel .field .search-in input { padding-left: 38px; }
+.papel .field :is(input[readonly], input:disabled, select:disabled) { background-color: transparent; border-bottom-style: dashed; }
+/* Texto largo: papel rayado, cada línea escrita cae sobre un renglón */
+.papel .field textarea {
+  border: 1px solid var(--line); border-radius: var(--r-sm); padding: 4px 12px 0; line-height: 28px; min-height: 120px;
+  background-color: var(--surface); background-attachment: local;
+  background-image: repeating-linear-gradient(transparent 0 27px, color-mix(in oklab, var(--tinta) 22%, var(--line)) 27px 28px);
+}
+.papel .field textarea:focus { box-shadow: 0 0 0 3px color-mix(in oklab, var(--tinta) 14%, transparent); border-color: var(--tinta); }
+
+/* ---------- Ficha de archivador ---------- */
+.panel.papel-ficha {
+  margin-top: 14px; padding-left: 40px; border-top: 3px solid var(--role, var(--brand));
+  /* Dos perforaciones en el canto izquierdo, por donde entra al archivador */
+  background:
+    radial-gradient(circle, var(--paper) 5.5px, var(--line) 6px 6.8px, transparent 7.2px) 9px 26% / 16px 16px no-repeat,
+    radial-gradient(circle, var(--paper) 5.5px, var(--line) 6px 6.8px, transparent 7.2px) 9px 74% / 16px 16px no-repeat,
+    var(--surface);
+}
+.panel.papel-ficha::before {
+  content: ''; position: absolute; left: 22px; top: -15px; width: 132px; height: 13px;
+  border-radius: 7px 7px 0 0; background: var(--role, var(--brand)); clip-path: polygon(0 100%, 9px 0, calc(100% - 9px) 0, 100% 100%);
+}
+
+/* ---------- Ticket de caja ---------- */
+.panel.papel-ticket { border-bottom: 0; border-radius: var(--r-panel) var(--r-panel) 0 0; padding-bottom: 28px; margin-bottom: 10px; }
+/* Borde inferior dentado: triángulos del color de la página que muerden el papel */
+.panel.papel-ticket::after {
+  content: ''; position: absolute; left: -1px; right: -1px; bottom: -1px; height: 9px;
+  background: linear-gradient(-45deg, var(--paper) 6px, transparent 0) 0 0 / 12px 9px repeat-x, linear-gradient(45deg, var(--paper) 6px, transparent 0) 0 0 / 12px 9px repeat-x;
+}
+/* Línea de corte bajo el encabezado, con las dos muescas del papel a los lados */
+.papel-ticket > .panel-h { position: relative; border-bottom: 2px dashed var(--line-strong); }
+.papel-ticket > .panel-h::before, .papel-ticket > .panel-h::after { content: ''; position: absolute; bottom: -8px; width: 14px; height: 14px; border-radius: 50%; background: var(--paper); box-shadow: inset 0 0 0 1px var(--line); }
+.papel-ticket > .panel-h::before { left: -26px; }
+.papel-ticket > .panel-h::after { right: -26px; }
+.papel-ticket .charge { border-style: dashed; border-radius: 0; border-left: 0; border-right: 0; background: none; }
+
+/* ---------- Hoja cuadriculada en tablilla (triaje) ---------- */
+.panel.papel-cuadricula {
+  margin-top: 14px; padding-top: 26px;
+  background:
+    linear-gradient(color-mix(in oklab, var(--tinta) 7%, transparent) 1px, transparent 1px) 0 0 / 100% 18px,
+    linear-gradient(90deg, color-mix(in oklab, var(--tinta) 7%, transparent) 1px, transparent 1px) 0 0 / 18px 100%,
+    var(--surface);
+}
+/* El sujetapapeles de la tablilla */
+.panel.papel-cuadricula::before {
+  content: ''; position: absolute; left: 50%; top: -12px; width: 108px; height: 24px; margin-left: -54px;
+  border-radius: 8px 8px 4px 4px; border: 1px solid var(--line-strong);
+  background: linear-gradient(var(--surface-2), var(--sunken)); box-shadow: inset 0 -5px 0 color-mix(in oklab, var(--ink) 12%, transparent), 0 1px 0 var(--surface);
+}
+.papel-cuadricula .vtile, .papel-cuadricula .imc { background-color: var(--surface); }
+
+/* ---------- Cuaderno de espiral (consulta) ---------- */
+.panel.papel-cuaderno {
+  padding-top: 34px; padding-left: 44px;
+  /* Margen rojo a la izquierda, como en una hoja de evolución */
+  background: linear-gradient(90deg, transparent 29px, color-mix(in oklab, var(--crit) 38%, transparent) 29px 30px, transparent 30px), var(--surface);
+}
+/* La espiral: una fila de perforaciones con su anillo */
+.panel.papel-cuaderno::before {
+  content: ''; position: absolute; left: 14px; right: 14px; top: 7px; height: 16px;
+  background: radial-gradient(circle at 50% 60%, var(--paper) 3.6px, var(--line-strong) 4px 5.2px, transparent 5.6px) 0 0 / 24px 16px repeat-x;
+}
+
+@media (max-width: 560px) {
+  .panel.papel-ficha { padding-left: 30px; }
+  .panel.papel-cuaderno { padding-left: 34px; }
+  .panel.papel-cuaderno { background: linear-gradient(90deg, transparent 21px, color-mix(in oklab, var(--crit) 38%, transparent) 21px 22px, transparent 22px), var(--surface); }
+}
+@media print { .papel::before, .papel::after { display: none; } }

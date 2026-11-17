@@ -31,7 +31,7 @@ export function Heatmap({ data, ariaLabel }) {
                 const y = r * cellH;
                 return (
                   <g key={c.h} onPointerEnter={() => setHover({ c, x: x + cellW / 2, y })}>
-                    <rect className={`hc s${s} ${hover?.c === c ? 'on' : ''}`} x={x + 1} y={y + 1} width={cellW - 2} height={cellH - 2} rx="4" />
+                    <rect style={{ '--i': i + r }} className={`hc s${s} ${hover?.c === c ? 'on' : ''}`} x={x + 1} y={y + 1} width={cellW - 2} height={cellH - 2} rx="4" />
                     {showText && c.avg > 0 && <text className={`hv s${s}`} x={x + cellW / 2} y={y + cellH / 2} dy="0.32em" textAnchor="middle">{fmt1(c.avg)}</text>}
                   </g>
                 );

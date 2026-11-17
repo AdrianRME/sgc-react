@@ -6,41 +6,75 @@ import { AREAS, STAGES, TRIAGE_MODULES, modulosTriaje } from '../lib/constants.j
 import { byStage, turnKey, waitInfo } from '../lib/clinical.js';
 import { estimarEsperas, rangoEspera } from '../lib/espera.js';
 import { fullName } from '../lib/format.js';
-import { spring } from '../lib/motion.js';
+import { tarjeta } from '../lib/motion.js';
 import { useNow } from '../hooks/useNow.js';
 import { SectionHero } from '../components/SectionHero.jsx';
+import { Help } from '../components/WorkspaceHeader.jsx';
+import { Acordeon, Grupo } from '../components/Acordeon.jsx';
 import { Empty, Msg, PrioBadge, TurnCode, WaitTime } from '../components/ui.jsx';
-import { Icon3D } from '../components/Icon3D.jsx';
-import './flujo.css';
+import { Icono } from '../components/Icono.jsx';
+import '../styles/vistas/flujo.css';
 
-/** Ocupación de cada sala: quién está siendo atendido y a quién se está llamando. */
+/**
+ * Ocupación de las salas: quién está siendo atendido y a quién se está llamando. Las salas se agrupan por
+ * estación (módulos de triaje y consultorios) en un acordeón: cada grupo resume cuántas están ocupadas y,
+ * abierto, muestra solo las que tienen actividad; las libres van en una línea. Así el bloque no crece con
+ * cada consultorio que se abra.
+ */
 function Rooms({ turns, users, now }) {
   // Un módulo de triaje por enfermera activa (y los que tengan un paciente, aunque sean más)
   const enUso = new Set(turns.filter((t) => ['EN_TRIAJE', 'LLAMADO_TRIAJE'].includes(t.state)).map((t) => t.dest));
   const modulos = TRIAGE_MODULES.filter((m, i) => i < modulosTriaje(users) || enUso.has(m));
-  const rooms = [...modulos.map((m) => [m, 'thermometer', 'EN_TRIAJE', 'LLAMADO_TRIAJE']), ...AREAS.map((a) => [a, 'stethoscope', 'EN_CONSULTA', 'LLAMADO_CONSULTA'])];
+  const estado = (room, busyState, callState) => {
+    const busy = turns.find((t) => t.state === busyState && t.dest === room);
+    return { room, busy, calling: turns.filter((t) => t.state === callState && t.dest === room) };
+  };
+  const grupos = [
+    { k: 'enf', n: 'Módulos de triaje', icon: 'thermometer', rooms: modulos.map((x) => estado(x, 'EN_TRIAJE', 'LLAMADO_TRIAJE')) },
+    { k: 'med', n: 'Consultorios', icon: 'stethoscope', rooms: AREAS.map((x) => estado(x, 'EN_CONSULTA', 'LLAMADO_CONSULTA')) },
+  ];
   return (
-    <div className="rooms">
-      {rooms.map(([room, icon, busyState, callState]) => {
-        const busy = turns.find((t) => t.state === busyState && t.dest === room);
-        const calling = turns.filter((t) => t.state === callState && t.dest === room);
-        const who = busy && users.find((u) => u.u === (busy.med || busy.enf))?.n;
-        const since = busy ? Math.max(0, Math.round((now - (busy.tMedCall || busy.tTriCall || busy.t0)) / 60000)) : 0;
+    <Acordeon barra={false}>
+      {grupos.map((g) => {
+        const activas = g.rooms.filter((r) => r.busy || r.calling.length);
+        const libres = g.rooms.filter((r) => !r.busy && !r.calling.length);
+        const ocupadas = g.rooms.filter((r) => r.busy).length;
+        const llamando = g.rooms.filter((r) => r.calling.length).length;
         return (
-          <div className={`room ${busy ? 'busy' : ''}`} key={room} data-role={icon === 'thermometer' ? 'enf' : 'med'}>
-            <Icon3D name={icon} size={36} />
-            <div className="room-b">
-              <b>{room}</b>
-              {busy
-                ? <span>Atendiendo <TurnCode id={busy.id} /> desde hace {since} min{who ? `, ${who}` : ''}</span>
-                : <span>Sin paciente en atención</span>}
-              {calling.length > 0 && <span className="calling">Llamando a {calling.map((t) => t.id).join(', ')}</span>}
-            </div>
-            <span className={`room-st ${busy ? 'on' : ''}`}>{busy ? 'Ocupado' : 'Libre'}</span>
-          </div>
+          <Grupo
+            key={g.k}
+            titulo={g.n}
+            sub={`${ocupadas} ${ocupadas === 1 ? 'ocupado' : 'ocupados'} · ${llamando} llamando · ${libres.length} ${libres.length === 1 ? 'libre' : 'libres'}`}
+            cuenta={g.rooms.length}
+            color={`var(--st-${g.k})`}
+            abierto={activas.length > 0}
+          >
+            {activas.length > 0 && (
+              <div className="rooms" data-role={g.k}>
+                {activas.map(({ room, busy, calling }) => {
+                  const who = busy && users.find((u) => u.u === (busy.med || busy.enf))?.n;
+                  const since = busy ? Math.max(0, Math.round((now - (busy.tMedCall || busy.tTriCall || busy.t0)) / 60000)) : 0;
+                  return (
+                    <div className={`room ${busy ? 'busy' : ''}`} key={room}>
+                      <Icono name={g.icon} size={36} />
+                      <div className="room-b">
+                        <b>{room}</b>
+                        {busy
+                          ? <span>Atendiendo <TurnCode id={busy.id} /> desde hace {since} min{who ? `, ${who}` : ''}</span>
+                          : <span>Sin paciente en atención</span>}
+                        {calling.length > 0 && <span className="calling">Llamando a {calling.map((t) => t.id).join(', ')}</span>}
+                      </div>
+                      <span className={`room-st ${busy ? 'on' : ''}`}>{busy ? 'Ocupado' : 'Llamando'}</span>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+            {libres.length > 0 && <p className="rooms-libres"><b>Libres:</b> {libres.map((r) => r.room).join(' · ')}</p>}
+          </Grupo>
         );
       })}
-    </div>
+    </Acordeon>
   );
 }
 
@@ -78,6 +112,7 @@ export default function Flujo() {
         active={filter}
         onPick={setFilter}
         label="Filtrar el tablero"
+        actions={<Help role={user.role} />}
       />
       <Rooms turns={db.turns} users={db.users} now={now} />
       {citados > 0 && <Msg tone="info">Además, {citados} {citados === 1 ? 'paciente tiene' : 'pacientes tienen'} cita para más tarde u otro día: no {citados === 1 ? 'está' : 'están'} en el centro hasta que Admisión registre su llegada.</Msg>}
@@ -100,10 +135,7 @@ export default function Flujo() {
                         key={t.id}
                         layout
                         layoutId={`card-${t.id}`}
-                        transition={spring}
-                        initial={{ opacity: 0, scale: 0.94 }}
-                        animate={{ opacity: 1, scale: 1 }}
-                        exit={{ opacity: 0, scale: 0.94 }}
+                        {...tarjeta}
                         className={`card ${t.prio === 'CRITICA' ? 'crit' : ''} ${late ? 'late' : ''}`}
                       >
                         <div className="card-h">

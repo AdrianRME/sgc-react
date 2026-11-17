@@ -13,10 +13,12 @@ import { Empty, Field, Msg, Panel, SisBadge, StateBadge, TurnCode, TurnFlags, Wa
 import { useConfirm } from '../hooks/useConfirm.jsx';
 import { useDocuments } from '../hooks/useDocuments.jsx';
 import { useCitaAcciones } from '../hooks/useCitaAcciones.jsx';
+import { useVerMas } from '../hooks/useVerMas.jsx';
 import { CitaRow } from '../components/CitaForm.jsx';
-import { Icon3D } from '../components/Icon3D.jsx';
+import { Icono } from '../components/Icono.jsx';
 import { SectionHero } from '../components/SectionHero.jsx';
-import './workspaces.css';
+import { Help } from '../components/WorkspaceHeader.jsx';
+import '../styles/vistas/estaciones.css';
 
 const EMPTY_FORM = { nom: '', ape: '', nac: '', sexo: 'F', tel: '' };
 /** Pacientes que están en el centro (los citados para otro día se ven en la sección de citas). */
@@ -114,7 +116,7 @@ function Registro() {
   return (
     <Panel
       title="Registro de paciente"
-      className="adm-reg"
+      className="adm-reg papel papel-ficha"
       icon="idcard"
       actions={(
         <label className="sis-test" title="Simula que el servicio del SIS no responde (modo contingencia, Regla 6)">
@@ -161,14 +163,14 @@ function Registro() {
 
       {loading && (
         <div className="sis-check" role="status">
-          <Icon3D name="shield" size={36} />
+          <Icono name="shield" size={36} />
           <span><b>Consultando el SIS…</b><small>DNI {q}</small></span>
         </div>
       )}
 
       {!loading && !found && !byName && (
         <div className="adm-empty">
-          <Icon3D name="idcard" size={64} />
+          <Icono name="idcard" size={64} />
           <p>Pida el DNI al paciente y búsquelo.</p>
           <div className="adm-ex">
             {EJEMPLOS.map(([dni, n]) => (
@@ -186,7 +188,7 @@ function Registro() {
             )}
 
             <div className={`ficha ${isNew ? 'new' : ''}`}>
-              <span className="ficha-av" aria-hidden="true">{isNew ? <Icon3D name="sparkles" size={34} /> : initials(found.p)}</span>
+              <span className="ficha-av" aria-hidden="true">{isNew ? <Icono name="sparkles" size={34} /> : initials(found.p)}</span>
               <div className="ficha-main">
                 <b>{isNew ? 'Paciente nuevo' : fullName(found.p)}</b>
                 <ul className="ficha-tags">
@@ -203,7 +205,7 @@ function Registro() {
               <SisBadge sis={found.sis} />
             </div>
             {!isNew && found.p.alg && (
-              <div className="ficha-alg" role="alert"><Icon3D name="warning" size={22} /><span><b>Alergia:</b> {found.p.alg}</span></div>
+              <div className="ficha-alg" role="alert"><Icono name="warning" size={22} /><span><b>Alergia:</b> {found.p.alg}</span></div>
             )}
 
             {dup && dup.state === 'CITADO' ? (
@@ -218,7 +220,7 @@ function Registro() {
               <Msg tone="crit">Ya tiene el turno <b>{dup.id}</b> activo ({STATE[dup.state][0].toLowerCase()}). No se genera otro.</Msg>
             ) : (
               <div className="next-step" data-role={exonerado || urg ? 'enf' : 'caj'}>
-                <Icon3D name={urg ? 'warning' : exonerado ? 'thermometer' : 'scroll'} size={34} />
+                <Icono name={urg ? 'warning' : exonerado ? 'thermometer' : 'scroll'} size={34} />
                 <span>
                   <small>Siguiente paso</small>
                   <b>{urg
@@ -329,6 +331,7 @@ function Pacientes({ filter, lists }) {
   const [ask, dialog] = useConfirm();
   const f = FILTROS.find((x) => x.k === filter);
   const list = lists[filter];
+  const [visibles, verMas] = useVerMas(list, 10);
   const pat = (t) => patient(t.dni);
   const cancel = (t) =>
     ask({
@@ -347,13 +350,13 @@ function Pacientes({ filter, lists }) {
       ) : filter === 'llegan' ? (
         <ul className="cita-list one">
           <AnimatePresence initial={false}>
-            {list.map((t) => <CitaRow key={t.id} t={t} now={now} actions={citas.acts(t)} />)}
+            {visibles.map((t) => <CitaRow key={t.id} t={t} now={now} actions={citas.acts(t)} />)}
           </AnimatePresence>
         </ul>
       ) : (
         <ul className="pacs">
           <AnimatePresence initial={false}>
-            {list.map((t) => {
+            {visibles.map((t) => {
               const p = pat(t);
               const st = estacion(t.state);
               return (
@@ -381,6 +384,7 @@ function Pacientes({ filter, lists }) {
           </AnimatePresence>
         </ul>
       )}
+      {verMas}
       {docs.element}
       {citas.element}
       {dialog}
@@ -405,6 +409,7 @@ export default function Admision() {
         active={filter}
         onPick={setFilter}
         label="Pacientes por etapa"
+        actions={<Help role="adm" />}
       />
       <div className="grid-2 adm-grid">
         <Registro />

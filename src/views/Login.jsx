@@ -1,13 +1,14 @@
-import { lazy, Suspense, useRef, useState } from 'react';
+import { lazy, Suspense, useEffect, useRef, useState } from 'react';
 import { AnimatePresence, m } from 'motion/react';
-import { CalendarPlus, CirclePlay, Eye, EyeOff, Lock, LogIn, Tv } from 'lucide-react';
+import { CalendarPlus, CirclePlay, Eye, EyeOff, Lock, LogIn, Tv, UserRound } from 'lucide-react';
 import { useStore } from '../store/useStore.js';
 import { DEMO_PASSWORD, MAX_LOGIN_ATTEMPTS, LOCK_MS, ROLES, roleFromUsername } from '../lib/constants.js';
+import { cambio, entrada } from '../lib/motion.js';
 import { Field, Msg } from '../components/ui.jsx';
-import { Icon3D } from '../components/Icon3D.jsx';
+import { Icono } from '../components/Icono.jsx';
 import { BrandMark } from '../components/BrandMark.jsx';
 import { useNow } from '../hooks/useNow.js';
-import './login.css';
+import '../styles/vistas/login.css';
 
 // El simulador no necesita sesión: corre sobre una copia de prueba de los datos
 const Simulador = lazy(() => import('../components/Simulador.jsx'));
@@ -16,7 +17,7 @@ const Simulador = lazy(() => import('../components/Simulador.jsx'));
 const DEV_USERS = [['a.admision', 'adm'], ['c.caja', 'caj'], ['e.triaje', 'enf'], ['m.consulta', 'med'], ['m.cardio', 'med'], ['j.jefatura', 'jef']];
 
 /*
- * Fondo: la pantalla de un monitor de signos vitales. Tres trazos (ECG en derivación II, pletismografía de
+ * Fondo (animaciones en styles/motion.css): la pantalla de un monitor de signos vitales. Tres trazos (ECG en derivación II, pletismografía de
  * la oximetría y respiración) con la barra de barrido que los va borrando, y las cifras a la derecha.
  * Son decorativos: no muestran datos de ningún paciente.
  */
@@ -31,15 +32,39 @@ const TRAZOS = [
 /** Áreas que se pueden elegir para no escribir el prefijo (no revelan ninguna cuenta: las áreas son públicas). */
 const AREAS_LOGIN = [['adm', 'Admisión'], ['caj', 'Caja'], ['enf', 'Triaje'], ['med', 'Consulta'], ['jef', 'Jefatura']];
 
+/** Signos del monitor: [clave, rótulo, unidad, valor central, variación, decimales]. La PA lleva dos cifras. */
 const VITALES = [
-  ['fc', 'FC', '72', 'lpm'],
-  ['spo2', 'SpO₂', '98', '%'],
-  ['pa', 'PA', '118/76', 'mmHg'],
-  ['fr', 'FR', '16', 'rpm'],
-  ['t', 'T°', '36.8', '°C'],
+  ['fc', 'FC', 'lpm', 72, 3, 0],
+  ['spo2', 'SpO₂', '%', 98, 1, 0],
+  ['pa', 'PA', 'mmHg', [118, 76], 3, 0],
+  ['fr', 'FR', 'rpm', 16, 1, 0],
+  ['t', 'T°', '°C', 36.8, 0.1, 1],
 ];
+const vaiven = (centro, d, dec) => (centro + (Math.random() * 2 - 1) * d).toFixed(dec);
+const leer = ([, , , centro, d, dec]) => (Array.isArray(centro) ? centro.map((c) => vaiven(c, d, dec)).join('/') : vaiven(centro, d, dec));
+const CENTRO = VITALES.map(([, , , c, , dec]) => (Array.isArray(c) ? c.join('/') : c.toFixed(dec)));
+
+/**
+ * Las cifras del monitor varían un poco cada par de segundos, como en un monitor real (cada una a su ritmo).
+ * Son decorativas. Con «reducir movimiento» se quedan fijas en su valor central.
+ */
+function useVitales() {
+  const [v, setV] = useState(CENTRO);
+  useEffect(() => {
+    if (window.matchMedia?.('(prefers-reduced-motion: reduce)').matches) return undefined;
+    let n = 0;
+    const id = setInterval(() => {
+      n += 1;
+      // En cada tic cambia uno o dos signos, no todos a la vez
+      setV((prev) => prev.map((x, i) => ((n + i) % 3 === 0 || i === 0 ? leer(VITALES[i]) : x)));
+    }, 1700);
+    return () => clearInterval(id);
+  }, []);
+  return v;
+}
 
 function Monitor() {
+  const valores = useVitales();
   return (
     <div className="login-bg" aria-hidden="true">
       <svg className="mon" viewBox="0 0 1200 600" preserveAspectRatio="none">
@@ -54,19 +79,26 @@ function Monitor() {
             <rect x="-100" y="0" width="1400" height="600" fill="#fff" />
             <rect className="sweep" x="0" y="0" width="60" height="600" fill="url(#sweep-fade)" />
           </mask>
+          <linearGradient id="sweep-luz" x1="0" x2="1">
+            <stop offset="0" stopColor="currentColor" stopOpacity="0" />
+            <stop offset="1" stopColor="currentColor" stopOpacity="0.5" />
+          </linearGradient>
         </defs>
         <g mask="url(#sweep-mask)">
           {TRAZOS.map((t) => <path key={t.k} className={`tr tr-${t.k}`} d={t.d} />)}
         </g>
+        {/* La luz del barrido: una franja tenue que va justo delante de lo que se borra */}
+        <rect className="sweep sweep-luz" x="-30" y="0" width="30" height="600" fill="url(#sweep-luz)" />
       </svg>
       {TRAZOS.map((t) => (
         <span key={t.k} className={`tr-l tr-${t.k}`} style={{ top: `${(t.y - 90) / 6}%` }}>{t.label}</span>
       ))}
       <dl className="vitals">
-        {VITALES.map(([k, n, v, u]) => (
+        {VITALES.map(([k, n, u], i) => (
           <div key={k} className={`vt vt-${k}`}>
             <dt>{n}{k === 'fc' && <i className="beat">♥</i>}</dt>
-            <dd><b>{v}</b><small>{u}</small></dd>
+            {/* La clave cambia con el valor: así la cifra nueva entra con su animación */}
+            <dd><b key={valores[i]}>{valores[i]}</b><small>{u}</small></dd>
           </div>
         ))}
       </dl>
@@ -136,6 +168,7 @@ export function Login() {
         </div>
         <nav className="top-links">
           <a className="sala-link cita" href="#/cita"><CalendarPlus aria-hidden="true" /> Sacar cita</a>
+          <a className="sala-link" href="#/paciente"><UserRound aria-hidden="true" /> Mi atención</a>
           <a className="sala-link" href="#/sala"><Tv aria-hidden="true" /> Pantalla de sala</a>
           <button type="button" className="sala-link" onClick={() => setSim(true)}><CirclePlay aria-hidden="true" /> Simulación</button>
         </nav>
@@ -143,18 +176,12 @@ export function Login() {
       {sim && <Suspense fallback={null}><Simulador onClose={() => setSim(false)} /></Suspense>}
 
       <main className="login-main">
-        <m.div className="login-card" initial={{ opacity: 0, y: 18, scale: 0.98 }} animate={{ opacity: 1, y: 0, scale: 1 }} transition={{ type: 'spring', stiffness: 260, damping: 26 }}>
+        <m.div className="login-card" {...entrada}>
           <div className="who" aria-live="polite">
             <span className="who-av">
               <AnimatePresence mode="popLayout" initial={false}>
-                <m.span
-                  key={role || 'none'}
-                  initial={{ scale: 0.4, opacity: 0, rotate: -12 }}
-                  animate={{ scale: 1, opacity: 1, rotate: 0 }}
-                  exit={{ scale: 0.4, opacity: 0 }}
-                  transition={{ type: 'spring', stiffness: 480, damping: 24 }}
-                >
-                  <Icon3D name={R ? R.icon : 'hospital'} size={58} />
+                <m.span key={role || 'none'} {...cambio}>
+                  <Icono name={R ? R.icon : 'hospital'} size={56} />
                 </m.span>
               </AnimatePresence>
             </span>
@@ -169,7 +196,7 @@ export function Login() {
             <div className="areas" role="group" aria-label="Área de trabajo">
               {AREAS_LOGIN.map(([k, n]) => (
                 <button key={k} type="button" className="area-btn" data-role={k} aria-pressed={role === k} onClick={() => pickArea(k)} disabled={locked}>
-                  <Icon3D name={ROLES[k].icon} size={26} />
+                  <Icono name={ROLES[k].icon} size={20} />
                   <span>{n}</span>
                 </button>
               ))}
@@ -204,7 +231,7 @@ export function Login() {
               <div className="quick">
                 {DEV_USERS.map(([x, r]) => (
                   <button key={x} type="button" className="qbtn" data-role={r} title={x} aria-pressed={u === x} onClick={() => { setU(x); setP(DEMO_PASSWORD); }}>
-                    <Icon3D name={ROLES[r].icon} size={26} />
+                    <Icono name={ROLES[r].icon} size={20} />
                     <span>{x === 'm.cardio' ? 'Cardiología' : ROLES[r].n}</span>
                   </button>
                 ))}

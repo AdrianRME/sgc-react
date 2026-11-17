@@ -1,0 +1,35 @@
+/*
+ * Estilos globales, en orden: tipografía → tokens → base → movimiento → marco → componentes.
+ * Las hojas de cada pantalla (styles/vistas/*.css) las importa su vista, para que cada rol descargue solo
+ * lo que usa. Mapa de la carpeta:
+ *
+ *   tokens.css        colores, tipografía, radios y tiempos (lo único que se toca para cambiar el estilo)
+ *   base.css          elementos HTML y utilidades de texto
+ *   motion.css        todas las animaciones con @keyframes
+ *   layout.css        barra lateral, barra superior y página
+ *   componentes/      una hoja por familia de componentes
+ *   vistas/           una hoja por pantalla o grupo de pantallas
+ */
+@import '@fontsource/ibm-plex-sans/400.css';
+@import '@fontsource/ibm-plex-sans/500.css';
+@import '@fontsource/ibm-plex-sans/600.css';
+@import '@fontsource/ibm-plex-serif/500.css';
+@import '@fontsource/ibm-plex-serif/600.css';
+@import '@fontsource/ibm-plex-mono/500.css';
+@import '@fontsource/ibm-plex-mono/600.css';
+
+@import './tokens.css';
+@import './base.css';
+@import './motion.css';
+@import './layout.css';
+@import './componentes/botones.css';
+@import './componentes/campos.css';
+@import './componentes/etiquetas.css';
+@import './componentes/paneles.css';
+@import './componentes/tablas.css';
+@import './componentes/navegacion.css';
+@import './componentes/flotantes.css';
+@import './componentes/encabezado.css';
+@import './componentes/acordeon.css';
+@import './componentes/horario.css';
+@import './componentes/papeles.css';

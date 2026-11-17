@@ -1,0 +1,69 @@
+/*
+ * Encabezado de cada sección: la cabecera de una hoja del expediente. Arriba el rótulo del área, el título
+ * con serifa y la ayuda; abajo, una fila de casillas con las cifras (que también son filtros).
+ *
+ * Cada estación es una hoja distinta y lo dice su trama, dibujada solo con CSS en el lado derecho:
+ *   Admisión  → renglones punteados de una ficha de filiación
+ *   Caja      → rayado diagonal del papel de seguridad de una boleta
+ *   Triaje    → papel milimetrado de la hoja de signos vitales
+ *   Consulta  → hoja rayada con margen de la nota de evolución
+ *   Jefatura  → cuadrícula de puntos de un informe estadístico
+ */
+.hero {
+  --trama: color-mix(in oklab, var(--role) 26%, transparent);
+  position: relative; z-index: 2; display: flex; flex-direction: column;
+  border: 1px solid var(--line); border-top: 3px solid var(--role); border-radius: var(--r-panel); background: var(--surface);
+}
+.hero > * { position: relative; }
+.hero-bg {
+  position: absolute !important; inset: 0; border-radius: inherit; overflow: hidden; pointer-events: none;
+  -webkit-mask-image: linear-gradient(90deg, transparent 38%, #000); mask-image: linear-gradient(90deg, transparent 38%, #000);
+  /* Por omisión (Jefatura): cuadrícula de puntos */
+  background: radial-gradient(circle, var(--trama) 1.1px, transparent 1.4px) 0 0 / 16px 16px;
+}
+[data-role='adm'] .hero-bg { background: radial-gradient(circle, var(--trama) 1px, transparent 1.3px) 0 11px / 7px 26px repeat; }
+[data-role='caj'] .hero-bg { background: repeating-linear-gradient(135deg, var(--trama) 0 1px, transparent 1px 9px); }
+[data-role='enf'] .hero-bg {
+  background:
+    linear-gradient(var(--trama) 1px, transparent 1px) 0 -1px / 100% 50px, linear-gradient(90deg, var(--trama) 1px, transparent 1px) -1px 0 / 50px 100%,
+    linear-gradient(color-mix(in oklab, var(--trama) 45%, transparent) 1px, transparent 1px) 0 -1px / 100% 10px, linear-gradient(90deg, color-mix(in oklab, var(--trama) 45%, transparent) 1px, transparent 1px) -1px 0 / 10px 100%;
+}
+[data-role='med'] .hero-bg {
+  background:
+    linear-gradient(90deg, transparent calc(100% - 72px), color-mix(in oklab, var(--crit) 35%, transparent) calc(100% - 72px) calc(100% - 71px), transparent calc(100% - 71px)),
+    linear-gradient(var(--trama) 1px, transparent 1px) 0 12px / 100% 24px;
+}
+
+.hero-t { display: flex; align-items: flex-start; gap: 14px; padding: 18px 20px; }
+.hero-t > div:nth-child(2) { flex: 1; min-width: 0; }
+.hero-t small { display: block; margin-bottom: 4px; font: var(--label); letter-spacing: var(--label-track); text-transform: uppercase; color: var(--role-strong); }
+.hero-t h1 { font: 500 clamp(1.45rem, 2.3vw, 1.9rem) / 1.12 var(--serif); letter-spacing: -0.01em; }
+.hero-t p { margin-top: 6px; font-size: var(--fs-sm); color: var(--ink-2); max-width: 70ch; }
+.hero-acts { position: relative; z-index: 1; display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+.hero-acts select { min-height: 32px; padding: 4px 10px; border-radius: var(--r-ctl); border: 1px solid var(--line-strong); background: var(--surface); color: var(--ink); font-size: var(--fs-sm); font-weight: 600; }
+
+/* Casillas con las cifras */
+.hero-kpis { display: grid; grid-template-columns: repeat(var(--n, 4), minmax(0, 1fr)); border-top: 1px solid var(--line); background: var(--surface); border-radius: 0 0 var(--r-panel) var(--r-panel); overflow: hidden; }
+.hero-kpi {
+  position: relative; display: flex; flex-direction: column; gap: 4px; padding: 11px 16px 12px; text-align: left;
+  border: 0; border-left: 1px solid var(--line); background: none; color: var(--ink);
+  transition: background-color var(--t-base);
+}
+.hero-kpi:first-child { border-left: 0; }
+.hero-kpi-l { display: flex; align-items: center; gap: 6px; font: var(--label); letter-spacing: var(--label-track); text-transform: uppercase; color: var(--ink-2); }
+.hero-kpi-l .ico { color: var(--role-strong); }
+.hero-kpi b { font: 500 1.7rem / 1 var(--mono); letter-spacing: -0.04em; color: var(--ink); font-variant-numeric: tabular-nums; }
+.hero-kpi::after { content: ''; position: absolute; left: 0; right: 0; bottom: 0; height: 3px; background: var(--role); transform: scaleY(0); transform-origin: bottom; transition: transform var(--t-base) var(--ease); }
+button.hero-kpi:hover { background: var(--surface-2); }
+.hero-kpi[aria-pressed='true'] { background: var(--role-soft); }
+.hero-kpi[aria-pressed='true']::after { transform: none; }
+.hero-kpi[aria-pressed='true'] b { color: var(--role-strong); }
+@media (max-width: 1280px) { .hero-kpis { grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); } }
+@media (max-width: 560px) {
+  .hero-t { flex-wrap: wrap; padding: 14px; }
+  .hero-t > .ico { display: none; }
+  .hero-t p { display: none; }
+  .hero-acts { width: 100%; }
+  .hero-kpis { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .hero-kpi { border-top: 1px solid var(--line); }
+}

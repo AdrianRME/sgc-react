@@ -103,7 +103,7 @@ export function ColumnChart({ data, series, height = 240, format = (v) => v, ari
           let base = b.y(0);
           const visible = series.filter((s) => d.values[s.k] > 0);
           return (
-            <g key={d.label} className={a != null && a !== i ? 'dim' : ''}>
+            <g key={d.label} className={`columna ${a != null && a !== i ? 'dim' : ''}`} style={{ '--i': i }}>
               {visible.map((s, j) => {
                 const top = b.y(0) - (b.y(0) - b.y(d.values[s.k])) - (b.y(0) - base);
                 const h = base - top - (j > 0 ? GAP : 0);
@@ -164,10 +164,10 @@ export function LineChart({ data, series, height = 240, format = (v) => v, ariaL
         <Axes b={b} data={data} format={format} />
         {a != null && <line className="crosshair" x1={b.cx(a)} x2={b.cx(a)} y1={M.top} y2={M.top + b.plotH} />}
         {series.map((s) => (
-          <path key={s.k} d={path(s.k)} fill="none" stroke={s.color} strokeWidth="2" strokeLinejoin="round" strokeLinecap="round" />
+          <path key={s.k} className="linea" pathLength="1" d={path(s.k)} fill="none" stroke={s.color} strokeWidth="2" strokeLinejoin="round" strokeLinecap="round" />
         ))}
         {series.map((s) => data.map((d, i) => d.values[s.k] != null && (i === a || ends.find((e) => e.s === s)?.i === i) && (
-          <circle key={`${s.k}-${i}`} cx={b.cx(i)} cy={b.y(d.values[s.k])} r="4.5" fill={s.color} stroke="var(--surface)" strokeWidth="2" />
+          <circle key={`${s.k}-${i}`} cx={b.cx(i)} cy={b.y(d.values[s.k])} r="4.5" className="punto" fill={s.color} stroke="var(--surface)" strokeWidth="2" />
         )))}
         {endLabels && ends.filter((e) => e.v != null).map((e) => (
           <g key={e.s.k} className="end-label">

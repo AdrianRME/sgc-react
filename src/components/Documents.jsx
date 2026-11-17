@@ -8,11 +8,11 @@ import { usePatientHistory } from '../hooks/usePatientHistory.js';
 import { useNow } from '../hooks/useNow.js';
 import { Modal } from './Modal.jsx';
 import { Msg, SisBadge } from './ui.jsx';
-import { Icon3D } from './Icon3D.jsx';
+import { Icono } from './Icono.jsx';
 import { BrandMark } from './BrandMark.jsx';
 import { PatientTimeline, VitalTrends } from './PatientTimeline.jsx';
 import { BoletaPrint, CitaPrint, HistoriaPrint, RecetaPrint, TicketPrint } from './PrintSheets.jsx';
-import './documents.css';
+import '../styles/componentes/documentos.css';
 
 const DocHead = ({ title, code, icon }) => (
   <header className="doc-h">
@@ -22,7 +22,7 @@ const DocHead = ({ title, code, icon }) => (
       <h3>{title}</h3>
     </div>
     {code && <b className="tcode doc-code">{code}</b>}
-    {icon && <Icon3D name={icon} size={44} />}
+    {icon && <Icono name={icon} size={44} />}
   </header>
 );
 
@@ -111,7 +111,7 @@ function TicketRuta({ turn: t }) {
     <ol className="tk-route" aria-label="Su recorrido">
       {TK_RUTA.map(([k, n, icon], i) => (
         <li key={k} data-role={k} className={i < paso ? 'done' : i === paso ? 'cur' : ''} aria-current={i === paso ? 'step' : undefined}>
-          <span className="tk-ic"><Icon3D name={icon} size={26} /></span>
+          <span className="tk-ic"><Icono name={icon} size={26} /></span>
           <b>{n}</b>
           {k === 'caj' && sis && <small>SIS</small>}
         </li>

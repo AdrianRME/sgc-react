@@ -16,7 +16,8 @@ import {
   assignCita, callNext, callTurn, cancelTurn, createTurn, currentThresholds, finishConsult, registerLatePayment, registerPayment,
   saveTriage, searchAudit, startConsult, startTriage,
 } from '../store/actions.js';
-import './simulador.css';
+import { nota as notaEntra } from '../lib/motion.js';
+import '../styles/componentes/simulador.css';
 
 /* Las mismas pantallas del personal; se descargan al empezar para que no haya esperas a mitad del caso. */
 const cargar = {
@@ -284,7 +285,7 @@ export default function SimEnVivo({ k }) {
         </div>
         <div className="simv-paso" data-role={f.error && f.paso.falla ? 'crit' : estRol}>
           <span className="sim-tag">{estNombre}</span>
-          <m.div key={`${nonce}-${i}`} initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.25 }}>
+          <m.div key={`${nonce}-${i}`} {...notaEntra}>
             <b>Paso {i + 1} de {fotos.length}: {f.paso.titulo}{f.quien ? <span className="simv-quien"> · {f.quien.n}</span> : null}</b>
             <p>{fin === 'inesperado' ? `La simulación se detuvo aquí: ${f.error}` : f.texto}</p>
           </m.div>

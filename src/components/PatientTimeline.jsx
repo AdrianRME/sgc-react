@@ -5,7 +5,7 @@ import { parsePA } from '../lib/clinical.js';
 import { listItem } from '../lib/motion.js';
 import { Sparkline } from './charts/Sparkline.jsx';
 import { Badge, Empty, PrioBadge } from './ui.jsx';
-import './documents.css';
+import '../styles/componentes/documentos.css';
 
 /** Tendencias de signos vitales entre visitas (de la más antigua a la más reciente). */
 const TRENDS = [

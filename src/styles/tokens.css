@@ -1,8 +1,14 @@
 /*
- * Tokens del sistema de diseño.
- * Idea central: la ruta del paciente como una línea de transporte. Cada estación (Admisión, Caja,
- * Triaje, Consulta, Alta) tiene su color, que es también el color del espacio de trabajo de ese rol.
- * Los colores de estado (crítico, alerta, normal) solo significan prioridad y siempre van con texto.
+ * Tokens del sistema de diseño · «Expediente clínico».
+ *
+ * Idea central: el sistema se lee como la historia clínica en papel de un centro de salud. Fondo blanco,
+ * filetes finos, títulos con serifa (como un informe médico), códigos y cifras en monoespaciada (como una
+ * hoja de laboratorio) y un color por estación, que funciona como el separador de color de un archivador.
+ * Cada espacio (Admisión, Caja, Triaje, Consulta, Jefatura) es una «hoja» distinta del mismo expediente:
+ * comparte la estructura y cambia el color y la trama de su encabezado (ver componentes/encabezado.css).
+ *
+ * Reglas: sin degradados, sin brillos y sin sombras, salvo en las capas flotantes. El color solo significa
+ * estación o prioridad, y la prioridad siempre va con ícono y texto.
  *
  * Tema: cada color se declara una vez con light-dark(). Sin elección, sigue al sistema operativo;
  * el botón de tema fija data-theme en <html>.
@@ -12,54 +18,52 @@
 :root[data-theme='dark'] { color-scheme: dark; }
 
 :root {
-  /* Superficies: gris azulado clínico, como el prototipo navegable del informe (Anexo A) */
-  --paper: light-dark(#eef3f8, #0a1220);
-  --surface: light-dark(#ffffff, #111b2d);
-  --surface-2: light-dark(#f4f7fb, #16223a);
-  --sunken: light-dark(#e3eaf2, #0d1626);
-  --line: light-dark(#d6dfea, #22314a);
-  --line-strong: light-dark(#b7c5d6, #33455f);
-  --ink: light-dark(#0f1d33, #e4ecf7);
-  --ink-2: light-dark(#44546b, #a9b8cc);
-  --muted: light-dark(#6b7a8f, #8090a6);
-  --overlay: light-dark(rgb(15 29 51 / 0.42), rgb(3 7 15 / 0.62));
+  /* Superficies: papel blanco sobre un gris verdoso muy claro (el de una sala clínica) */
+  --paper: light-dark(#f2f5f4, #0c1211);
+  --surface: light-dark(#ffffff, #131b1a);
+  --surface-2: light-dark(#f7f9f8, #18211f);
+  --sunken: light-dark(#e8edeb, #0f1615);
+  --line: light-dark(#dce3e1, #25312e);
+  --line-strong: light-dark(#b6c2be, #3a4a46);
+  --ink: light-dark(#13201d, #e5eeeb);
+  --ink-2: light-dark(#43524e, #a9b8b3);
+  --muted: light-dark(#687672, #7f8f8a);
+  --overlay: light-dark(rgb(19 32 29 / 0.4), rgb(2 6 5 / 0.64));
 
-  /* Marca clínica: azul médico y azul marino de la barra lateral (los del prototipo) */
-  --brand: light-dark(#1f6fb8, #4b9be3);
-  --brand-strong: light-dark(#18599a, #6aafea);
-  --navy: #0d1b36;
-  --navy-2: #142a52;
+  /* Marca: verde quirúrgico */
+  --brand: light-dark(#0c6b63, #4fc4b7);
+  --brand-strong: light-dark(#09544e, #7ad6cb);
 
   /* Estaciones de la ruta = espacios de cada rol (validados para daltonismo entre vecinas) */
   --st-adm: light-dark(#4a3aa7, #9085e9);
   --st-caj: light-dark(#b5560f, #e8853f);
-  --st-enf: light-dark(#1baf7a, #199e70);
-  --st-med: light-dark(#2a78d6, #3987e5);
-  --st-jef: var(--ink);
+  --st-enf: light-dark(#12825c, #2bbd88);
+  --st-med: light-dark(#2163b5, #5a9ce9);
+  --st-jef: light-dark(#2f5d73, #9fc2d6);
   /* Versiones para fondos de botón (contraste ≥ 4,5:1 con su texto) */
   --st-adm-strong: light-dark(#4a3aa7, #9085e9);
   --st-caj-strong: light-dark(#a24b0b, #f0a066);
   --st-enf-strong: light-dark(#0e7a54, #2bbd88);
   --st-med-strong: light-dark(#2163b5, #5a9ce9);
-  --st-jef-strong: var(--ink);
+  --st-jef-strong: light-dark(#2f5d73, #9fc2d6);
   --on-strong: light-dark(#ffffff, #071214);
 
   /* Estado (prioridad y alertas): fijos, siempre con ícono y etiqueta */
   --crit: #d03b3b;
-  --warn: #fab219;
-  --good: #0ca30c;
+  --warn: #e8a614;
+  --good: #1a9a4a;
   --crit-text: light-dark(#b3261e, #ff8f87);
-  --warn-text: light-dark(#845700, #f6c35a);
-  --good-text: light-dark(#00650a, #5fd35f);
+  --warn-text: light-dark(#7d5400, #f6c35a);
+  --good-text: light-dark(#0b6a2c, #5fd38a);
   --info-text: light-dark(#1d5aa6, #8ab8f2);
-  --crit-bg: light-dark(#fbe8e6, #3a1c1d);
-  --warn-bg: light-dark(#fff3d4, #36290c);
-  --good-bg: light-dark(#e3f4e1, #11301a);
-  --info-bg: light-dark(#e5eefa, #13283f);
+  --crit-bg: light-dark(#fbeceb, #3a1c1d);
+  --warn-bg: light-dark(#fdf4dc, #36290c);
+  --good-bg: light-dark(#e6f4ea, #11301a);
+  --info-bg: light-dark(#e8f0fa, #13283f);
 
   /* Datos: rejilla recesiva, gris de espera y rampa secuencial azul (claro→oscuro / oscuro→claro) */
-  --grid: light-dark(#e1e8e6, #1d3034);
-  --axis: light-dark(#c3cfcc, #2f4448);
+  --grid: light-dark(#e3e9e7, #1d2c2a);
+  --axis: light-dark(#c3cfcc, #2f4440);
   --wait: light-dark(#b8c4c3, #3a4b4f);
   --seq-1: light-dark(#cde2fb, #163454);
   --seq-2: light-dark(#9ec5f4, #1c4a7a);
@@ -73,9 +77,10 @@
   --cat-2: light-dark(#eb6834, #d95926);
   --cat-3: light-dark(#1baf7a, #199e70);
 
-  /* Tipografía: Onest para trabajar, Bricolage Grotesque para títulos y códigos de turno */
-  --font: 'Onest Variable', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
-  --display: 'Bricolage Grotesque Variable', 'Onest Variable', system-ui, sans-serif;
+  /* Tipografía: IBM Plex. Sans para trabajar, Serif para los títulos y Mono para códigos y cifras */
+  --font: 'IBM Plex Sans', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  --serif: 'IBM Plex Serif', Georgia, 'Times New Roman', serif;
+  --mono: 'IBM Plex Mono', ui-monospace, 'Cascadia Mono', Consolas, monospace;
   --fs-xs: 0.78rem;
   --fs-sm: 0.86rem;
   --fs-md: 0.94rem;
@@ -84,16 +89,25 @@
   --fs-2xl: 1.7rem;
   --fs-3xl: 2.15rem;
 
-  /* Radios por jerarquía: panel > control > etiqueta */
-  --r-panel: 14px;
-  --r-ctl: 10px;
-  --r-sm: 6px;
+  /* Radios cortos, como el canto de una ficha: panel > control > etiqueta */
+  --r-panel: 8px;
+  --r-ctl: 6px;
+  --r-sm: 4px;
   --r-pill: 999px;
 
-  /* Las sombras son solo para capas flotantes (menús, diálogos, avisos) */
-  --shadow-float: 0 18px 40px -12px light-dark(rgb(15 36 41 / 0.28), rgb(0 0 0 / 0.6)),
-    0 2px 8px light-dark(rgb(15 36 41 / 0.08), rgb(0 0 0 / 0.3));
+  /* Rótulo de sección: versalitas pequeñas, como el encabezado de un formulario */
+  --label: 600 0.7rem / 1.2 var(--font);
+  --label-track: 0.08em;
+
+  /* La sombra es solo para capas flotantes (menús, diálogos, avisos) */
+  --shadow-float: 0 16px 36px -14px light-dark(rgb(19 32 29 / 0.3), rgb(0 0 0 / 0.65)),
+    0 1px 4px light-dark(rgb(19 32 29 / 0.1), rgb(0 0 0 / 0.3));
+
+  /* Movimiento (los valores de Motion están en lib/motion.js y usan estos mismos tiempos) */
   --ease: cubic-bezier(0.2, 0.8, 0.2, 1);
+  --t-fast: 0.12s;
+  --t-base: 0.18s;
+  --t-slow: 0.3s;
 }
 
 /* Especialidades: color de la hora en las tarjetas de cita. Cada rama tiene su familia de tonos:
@@ -104,7 +118,7 @@
   --esp-MF: light-dark(#3b5bdb, #7b93f0);
   --esp-MI: light-dark(#1d4e89, #6ea2dc);
   --esp-CAR: light-dark(#c2366b, #e0588a);
-  --esp-PED: light-dark(#0f9d8f, #22b8a8);
+  --esp-PED: light-dark(#0f8d81, #22b8a8);
   --esp-CRED: light-dark(#2f8f46, #4cc068);
   --esp-GIN: light-dark(#b4530f, #e08a3c);
   --esp-OBS: light-dark(#a8326e, #e06aa6);
@@ -120,8 +134,8 @@
 [data-role='med'] { --role: var(--st-med); --role-strong: var(--st-med-strong); }
 [data-role='jef'] { --role: var(--st-jef); --role-strong: var(--st-jef-strong); }
 :root, [data-role] {
-  --role-soft: color-mix(in oklab, var(--role, var(--st-med)) 12%, var(--surface));
-  --role-line: color-mix(in oklab, var(--role, var(--st-med)) 45%, var(--line));
+  --role-soft: color-mix(in oklab, var(--role, var(--brand)) 9%, var(--surface));
+  --role-line: color-mix(in oklab, var(--role, var(--brand)) 40%, var(--line));
 }
 
 /* Colores de prioridad para tarjetas y filtros (no son roles) */
@@ -129,15 +143,5 @@
 [data-role='warn'] { --role: var(--warn); --role-strong: var(--warn-text); }
 [data-role='good'] { --role: var(--good); --role-strong: var(--good-text); }
 
-/* La página pública de citas usa el azul médico de la marca */
+/* La página pública de citas usa el verde de la marca */
 .cw-page { --role: var(--brand); --role-strong: var(--brand-strong); }
-
-/* Color brillante de cada rol para fondos oscuros (monitor de la barra lateral y encabezados).
-   Jefatura, que en claro es tinta, aquí es gris acero. */
-:root { --role-glow: #5aa9f0; }
-[data-role='adm'] { --role-glow: #9d92f0; }
-[data-role='caj'] { --role-glow: #f0954f; }
-[data-role='enf'] { --role-glow: #34d39a; }
-[data-role='med'] { --role-glow: #5aa9f0; }
-[data-role='jef'] { --role-glow: #9fc2d6; }
-[data-role='jef'] { --role: light-dark(#2f5d73, #9fc2d6); --role-strong: light-dark(#2f5d73, #9fc2d6); }

@@ -12,7 +12,7 @@ import { useQuery } from '../../hooks/useQuery.js';
 import { useNow } from '../../hooks/useNow.js';
 import { Help } from '../../components/WorkspaceHeader.jsx';
 import { SectionHero } from '../../components/SectionHero.jsx';
-import { Icon3D } from '../../components/Icon3D.jsx';
+import { Icono } from '../../components/Icono.jsx';
 import { AnimatedNumber, Msg, Panel, Segmented } from '../../components/ui.jsx';
 import { ColumnChart, LineChart } from '../../components/charts/BandChart.jsx';
 import { Heatmap } from '../../components/charts/Heatmap.jsx';
@@ -20,9 +20,9 @@ import { BarList } from '../../components/charts/BarList.jsx';
 import { StackBar } from '../../components/charts/StackBar.jsx';
 import { Meter } from '../../components/charts/Meter.jsx';
 import { Sparkline } from '../../components/charts/Sparkline.jsx';
-import '../../components/charts/charts.css';
+import '../../styles/componentes/graficos.css';
 import { PrediccionML } from './PrediccionML.jsx';
-import './jefatura.css';
+import '../../styles/vistas/jefatura.css';
 
 const PRIO_SERIES = [
   { k: 'NORMAL', label: 'Normal', color: 'var(--good)' },
@@ -151,7 +151,7 @@ export default function Tablero() {
       <div className="dash-tabs" role="tablist" aria-label="Temas del tablero">
         {TABS.map(([k, n, icon, sub]) => (
           <button key={k} type="button" role="tab" id={`tab-${k}`} aria-selected={tab === k} aria-controls="dash-panel" className="dash-tab" onClick={() => setTab(k)}>
-            <Icon3D name={icon} size={30} />
+            <Icono name={icon} size={30} />
             <span><b>{n}</b><small>{sub}</small></span>
           </button>
         ))}

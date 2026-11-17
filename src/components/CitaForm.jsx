@@ -13,6 +13,7 @@ import { age, fmtCitaDia, fmtHora, fullName, initials, tonoDia } from '../lib/fo
 import { listItem } from '../lib/motion.js';
 import { useNow } from '../hooks/useNow.js';
 import { Badge, Msg, PrioBadge, StateBadge, TurnCode } from './ui.jsx';
+import { Acordeon, Grupo } from './Acordeon.jsx';
 
 /** «hoy 10:40 con Dra. Elena Ríos (demo), Consultorio 1». */
 export function CitaLine({ c, now }) {
@@ -97,11 +98,16 @@ export function CitaForm({ turn, patient, onDone, preselect = false }) {
       </div>
       {turn.cita && <p className="note">Cita actual: <CitaLine c={turn.cita} now={now} /></p>}
 
-      <div className="esp-ramas" role="group" aria-label="Especialidad">
+      <Acordeon barra={false} className="esp-ramas">
         {ESP_POR_RAMA.map((r) => (
-          <div key={r.k} className="esp-rama">
-            <span className="esp-rama-h">{r.n}</span>
-            <div className="esp-pills">
+          <Grupo
+            key={r.k}
+            titulo={r.n}
+            sub={r.esps.some((x) => x.k === esp) ? `Elegida: ${especialidad(esp)?.n}` : r.esps.map((x) => x.n).join(' · ')}
+            cuenta={r.esps.length}
+            abierto={r.esps.some((x) => x.k === esp)}
+          >
+            <div className="esp-pills" role="group" aria-label={`Especialidades de ${r.n}`}>
               {r.esps.map((x) => (
                 <button key={x.k} type="button" className="esp-pill" style={{ '--e': `var(--esp-${x.k})` }} aria-pressed={esp === x.k} onClick={() => cambiarEsp(x.k)}>
                   <b>{x.n}</b>
@@ -109,9 +115,9 @@ export function CitaForm({ turn, patient, onDone, preselect = false }) {
                 </button>
               ))}
             </div>
-          </div>
+          </Grupo>
         ))}
-      </div>
+      </Acordeon>
 
       <AnimatePresence>
         {pick && (

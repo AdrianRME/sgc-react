@@ -1,5 +1,6 @@
 import { createClient } from '@supabase/supabase-js';
 import { AUTH_DOMAIN } from '../lib/constants.js';
+import { resumenPaciente } from '../lib/portal.js';
 
 /*
  * Repositorio sobre Supabase (supabase/schema.sql).
@@ -165,6 +166,17 @@ export function createSupabaseRepo(url, anonKey) {
       const r = await call('sgc_reservar_cita', { p_dni: dni, p_nac: nac, p_cita: cita });
       if (r?.error) throw new Error(r.error);
       return r;
+    },
+    /* Portal del paciente: la base verifica al paciente, envía el código y entrega solo sus datos, sin notas clínicas */
+    async portalCodigo(dni, nac) {
+      const r = await call('sgc_portal_codigo', { p_dni: dni, p_nac: nac });
+      if (r?.error) throw new Error(r.error);
+      return r;
+    },
+    async portalEntrar(dni, codigo) {
+      const r = await call('sgc_portal_entrar', { p_dni: dni, p_codigo: codigo });
+      if (r?.error) throw Object.assign(new Error(r.error), { agotado: !!r.agotado });
+      return resumenPaciente(r);
     },
     subscribe(onChange) {
       let timer;

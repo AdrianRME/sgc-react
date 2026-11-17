@@ -1,20 +1,28 @@
-import { useState } from 'react';
+import { Fragment, useState } from 'react';
 import { AnimatePresence, m } from 'motion/react';
 import { KeyRound, Power, UserPlus } from 'lucide-react';
 import { useStore } from '../../store/useStore.js';
 import { createUser, toggleUser, resetPassword } from '../../store/actions.js';
 import { normalize } from '../../lib/clinical.js';
-import { ROLES, roleFromUsername } from '../../lib/constants.js';
+import { ESPECIALIDADES, ROLES, roleFromUsername } from '../../lib/constants.js';
 import { especialidad } from '../../lib/agenda.js';
 import { listItem } from '../../lib/motion.js';
 import { WorkspaceHeader } from '../../components/WorkspaceHeader.jsx';
+import { Acordeon, Grupo, RotuloGrupo } from '../../components/Acordeon.jsx';
 import { Avatar, Badge, Empty, EspOptions, Field, Panel, Segmented } from '../../components/ui.jsx';
 import { Modal } from '../../components/Modal.jsx';
 import { useConfirm } from '../../hooks/useConfirm.jsx';
-import { Icon3D } from '../../components/Icon3D.jsx';
-import './jefatura.css';
+import { Icono } from '../../components/Icono.jsx';
+import '../../styles/vistas/jefatura.css';
 
 const EMPTY = { u: ROLES.adm.prefix, n: '', role: 'adm', col: '', esp: 'MG' };
+
+/** Resumen de un grupo cerrado: cuántos están activos y los primeros nombres, para ubicar a la persona sin abrirlo. */
+const resumen = (users) => {
+  const activos = users.filter((x) => x.on).length;
+  const nombres = users.slice(0, 3).map((x) => x.n).join(', ');
+  return `${activos} ${activos === 1 ? 'activo' : 'activos'}${activos < users.length ? ` · ${users.length - activos} sin acceso` : ''} · ${nombres}${users.length > 3 ? '…' : ''}`;
+};
 
 export default function Usuarios() {
   const { db, run, user } = useStore();
@@ -67,6 +75,13 @@ export default function Usuarios() {
   const nq = normalize(q.trim());
   const list = db.users.filter((x) => (!role || x.role === role) && (!nq || normalize(`${x.u} ${x.n} ${x.col}`).includes(nq)));
   const counts = Object.fromEntries(Object.keys(ROLES).map((k) => [k, db.users.filter((x) => x.role === k).length]));
+  // Un grupo por área; el personal de consulta, que es el que más crece, va además separado por especialidad
+  const grupos = Object.entries(ROLES).flatMap(([k, r]) => {
+    const users = list.filter((x) => x.role === k);
+    if (k !== 'med') return [{ k, n: r.n, role: k, users }];
+    return ESPECIALIDADES.map((e) => ({ k: `med-${e.k}`, n: e.n, role: k, color: `var(--esp-${e.k})`, rotulo: `${r.n} · por especialidad`, users: users.filter((x) => x.esp === e.k) }))
+      .concat({ k: 'med-otros', n: 'Sin especialidad', role: k, rotulo: `${r.n} · por especialidad`, users: users.filter((x) => !ESPECIALIDADES.some((e) => e.k === x.esp)) });
+  }).filter((g) => g.users.length);
 
   return (
     <>
@@ -83,38 +98,55 @@ export default function Usuarios() {
             </>
           }
         >
-          {list.length ? (
-            <div className="tblw">
-              <table className="tbl">
-                <thead><tr><th>Persona</th><th>Rol</th><th>Colegiatura y especialidad</th><th>Estado</th><th /></tr></thead>
-                <tbody>
-                  <AnimatePresence initial={false}>
-                    {list.map((x) => (
-                      <m.tr key={x.u} {...listItem} layout="position">
-                        <td>
-                          <div className="user-cell" data-role={x.role}>
-                            <Avatar name={x.n} />
-                            <div><b>{x.n}{x.u === user.u && ' (usted)'}</b><small className="code">{x.u}</small></div>
-                          </div>
-                        </td>
-                        <td><span data-role={x.role}><Badge tone="role">{ROLES[x.role]?.n}</Badge></span></td>
-                        <td className="nowrap">{x.col || '—'}{x.esp && <small className="block">{especialidad(x.esp)?.n}</small>}</td>
-                        <td><Badge tone={x.on ? 'ok' : 'mut'}>{x.on ? 'Activo' : 'Inactivo'}</Badge></td>
-                        <td>
-                          <div className="row-acts">
-                            <button className="btn sec sm" onClick={() => toggle(x)} disabled={x.u === user.u}><Power /> {x.on ? 'Desactivar' : 'Activar'}</button>
-                            <button className="icon-btn sm" onClick={() => reset(x)} aria-label={`Restablecer la contraseña de ${x.u}`} title="Restablecer contraseña"><KeyRound /></button>
-                          </div>
-                        </td>
-                      </m.tr>
-                    ))}
-                  </AnimatePresence>
-                </tbody>
-              </table>
-            </div>
+          {grupos.length ? (
+            <Acordeon rotulo={`${grupos.length} ${grupos.length === 1 ? 'grupo' : 'grupos'} · ${list.length} ${list.length === 1 ? 'persona' : 'personas'}`} barra={grupos.length > 1}>
+              {grupos.map((g, i) => (
+                <Fragment key={g.k}>
+                  {g.rotulo && (i === 0 || grupos[i - 1].rotulo !== g.rotulo) && <RotuloGrupo>{g.rotulo}</RotuloGrupo>}
+                  <Grupo
+                    // Al cambiar el filtro, el grupo vuelve a su estado inicial
+                    key={`${g.k}-${role}`}
+                    titulo={g.n}
+                    sub={resumen(g.users)}
+                    cuenta={g.users.length}
+                    color={g.color ?? `var(--st-${g.role})`}
+                    abierto={!!role && grupos.length <= 3}
+                    forzar={!!nq}
+                  >
+                    <div className="tblw">
+                      <table className="tbl">
+                        <thead><tr><th>Persona</th><th>Colegiatura</th><th>Estado</th><th /></tr></thead>
+                        <tbody>
+                          <AnimatePresence initial={false}>
+                            {g.users.map((x) => (
+                              <m.tr key={x.u} {...listItem} layout="position">
+                                <td>
+                                  <div className="user-cell" data-role={x.role}>
+                                    <Avatar name={x.n} />
+                                    <div><b>{x.n}{x.u === user.u && ' (usted)'}</b><small className="code">{x.u}</small></div>
+                                  </div>
+                                </td>
+                                <td className="nowrap code">{x.col || '—'}</td>
+                                <td><Badge tone={x.on ? 'ok' : 'mut'}>{x.on ? 'Activo' : 'Inactivo'}</Badge></td>
+                                <td>
+                                  <div className="row-acts">
+                                    <button className="btn sec sm" onClick={() => toggle(x)} disabled={x.u === user.u}><Power /> {x.on ? 'Desactivar' : 'Activar'}</button>
+                                    <button className="icon-btn sm" onClick={() => reset(x)} aria-label={`Restablecer la contraseña de ${x.u}`} title="Restablecer contraseña"><KeyRound /></button>
+                                  </div>
+                                </td>
+                              </m.tr>
+                            ))}
+                          </AnimatePresence>
+                        </tbody>
+                      </table>
+                    </div>
+                  </Grupo>
+                </Fragment>
+              ))}
+            </Acordeon>
           ) : <Empty icon="search" title="Nadie coincide con la búsqueda" />}
         </Panel>
-        <Panel title="Nuevo usuario" icon="sparkles">
+        <Panel title="Nuevo usuario" icon="sparkles" className="papel papel-ficha">
           <form onSubmit={submit} noValidate className="stack">
             <Field label="Nombre completo">{(a) => <input {...a} value={f.n} onChange={set('n')} />}</Field>
             <div className="row">
@@ -152,7 +184,7 @@ export default function Usuarios() {
       <AnimatePresence>
         {cred && (
           <Modal key="cred" label="Contraseña temporal" onClose={() => setCred(null)} size="sm">
-            <Icon3D name="locked" size={48} className="head-icon" />
+            <Icono name="locked" size={48} className="head-icon" />
             <h3>{cred.nuevo ? 'Usuario creado' : 'Contraseña restablecida'}</h3>
             <p>Entregue estos datos a la persona por un medio seguro. La contraseña se muestra <b>una sola vez</b> y deberá cambiarla en su primer ingreso.</p>
             <div className="cred">

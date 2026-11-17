@@ -7,9 +7,9 @@ import { ROUTE } from '../lib/constants.js';
 import { fmtHora, fmtLongDay, fmtSoles, fullName } from '../lib/format.js';
 import { listItem } from '../lib/motion.js';
 import { Modal } from './Modal.jsx';
-import { Icon3D } from './Icon3D.jsx';
+import { Icono } from './Icono.jsx';
 import { Msg, PrioBadge, SisBadge, StateBadge, TurnCode } from './ui.jsx';
-import './simulador.css';
+import '../styles/componentes/simulador.css';
 
 /** Estación de cada paso: nombre y color (el del rol que la atiende). */
 const ESTACION = {
@@ -32,7 +32,7 @@ function Ficha({ f }) {
   if (!t) {
     return (
       <div className="sim-ficha empty">
-        <Icon3D name="idcard" size={40} />
+        <Icono name="idcard" size={40} />
         <p>Todavía no hay turno: el paciente está en la ventanilla de Admisión.</p>
       </div>
     );
@@ -118,7 +118,7 @@ export default function Simulador({ onClose }) {
   return (
     <Modal label="Simulador del ciclo del paciente" onClose={onClose} className="sim">
       <header className="sim-h">
-        <Icon3D name="sparkles" size={44} />
+        <Icono name="sparkles" size={44} />
         <div>
           <h3>Simulador del ciclo del paciente</h3>
           <p>Elija un caso y pulse «Ver en vivo»: se reproduce en las pantallas reales de cada estación, con los datos escritos y los botones pulsados. Usa las mismas reglas del sistema sobre una copia de prueba: no cambia los datos reales.</p>
@@ -137,7 +137,7 @@ export default function Simulador({ onClose }) {
         <nav className="sim-esc" aria-label="Casos para simular">
           {ESCENARIOS.map((e) => (
             <button key={e.k} type="button" className="sim-esc-b" aria-pressed={e.k === k} onClick={() => elegir(e.k)}>
-              <Icon3D name={e.icon} size={30} />
+              <Icono name={e.icon} size={30} />
               <span><b>{e.titulo}</b><small>{e.resumen}</small></span>
             </button>
           ))}
